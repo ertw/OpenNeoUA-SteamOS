@@ -134,6 +134,27 @@ class SteamDeckPolicyTests(unittest.TestCase):
             with self.assertRaises(AssetBuildError):
                 verify_sha256_manifest(root, manifest)
 
+    def test_overlay_steam_input_directory_is_copied_into_asset_root(self) -> None:
+        # Private AppImage assembly copies every overlay top-level directory
+        # except bin/lib/launcher/manifest into usr/share/openneoua.  SteamInput
+        # must therefore remain a regular package top-level directory.
+        from pathlib import Path as _Path
+        try:
+            from package import PACKAGE_TOP_LEVEL, STEAM_INPUT_REQUIRED_FILES
+        except ImportError:  # pragma: no cover
+            from packaging.steamrt4.package import (
+                PACKAGE_TOP_LEVEL,
+                STEAM_INPUT_REQUIRED_FILES,
+            )
+        self.assertIn("SteamInput", PACKAGE_TOP_LEVEL)
+        for name in STEAM_INPUT_REQUIRED_FILES:
+            self.assertTrue(
+                (
+                    _Path(__file__).resolve().parent / "steam_input" / name
+                ).is_file(),
+                msg=name,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
