@@ -1,6 +1,10 @@
 #include <algorithm>
 #include <cctype>
 
+#ifndef _WIN32
+#include <strings.h>
+#endif
+
 #include "includes.h"
 #include "utils.h"
 #include "inttypes.h"
@@ -172,6 +176,26 @@ static bool uaStandaloneRootDir(const std::string &first, std::string *canonical
     return false;
 }
 
+static bool uaStandaloneReadRootDir(const std::string &first, std::string *canonical)
+{
+    static const char *dirs[] = {
+        "3DS", "Database", "Env", "Filters", "Fonts", "Interface", "Levels",
+        "Locale", "Music", "Res", "Save", "Scripts", "Sounds", "Wireless"
+    };
+
+    for (const char *dir : dirs)
+    {
+        if (!StriCmp(first, dir))
+        {
+            if (canonical)
+                *canonical = dir;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static bool uaSplitSetDirectoryPath(std::string path, std::string *setDir, std::string *rest)
 {
     std::replace(path.begin(), path.end(), '\\', '/');
@@ -240,21 +264,54 @@ static std::string uaResolveStandaloneDataFirst(std::string path, bool directory
     size_t slash = path.find('/');
     std::string first = slash == std::string::npos ? path : path.substr(0, slash);
     std::string rest = slash == std::string::npos ? std::string() : path.substr(slash + 1);
+    std::string inputRoot = first;
     std::string canonical;
 
-    if (!uaStandaloneRootDir(first, &canonical))
+    // Read-only callers can arrive here through either a direct root path
+    // (Scripts/foo) or an already expanded data: prefix (Data/Scripts/foo).
+    // Normalize both spellings to the same Data-first candidate pair.  The
+    // write path deliberately remains on the historical branch below.
+    if (!forWrite && !StriCmp(first, "Data"))
+    {
+        if (rest.empty())
+            return path;
+
+        const size_t nestedSlash = rest.find('/');
+        const std::string nestedRoot = nestedSlash == std::string::npos
+                                           ? rest
+                                           : rest.substr(0, nestedSlash);
+        if (!uaStandaloneReadRootDir(nestedRoot, &canonical))
+            return path;
+
+        rest = nestedSlash == std::string::npos ? std::string() : rest.substr(nestedSlash + 1);
+        inputRoot = nestedRoot;
+        first = canonical;
+    }
+
+    if (forWrite ? !uaStandaloneRootDir(first, &canonical)
+                 : !uaStandaloneReadRootDir(first, &canonical))
         return path;
 
     std::string dataDir = uaJoinPath("Data", canonical);
     std::string dataPath = uaJoinPath(dataDir, rest);
-    std::string rootPath = uaJoinPath(first, rest);
+    std::string dataAliasDir = uaJoinPath("Data", inputRoot);
+    std::string dataAliasPath = uaJoinPath(dataAliasDir, rest);
+    std::string rootPath = uaJoinPath(inputRoot, rest);
+    std::string canonicalRootPath = uaJoinPath(canonical, rest);
+    std::string legacy3DSPath = uaJoinPath("3ds", rest);
 
     if (directory)
     {
         if (uaDirExistsDirect(dataPath))
             return dataPath;
+        if (!forWrite && dataAliasDir != dataDir && uaDirExistsDirect(dataAliasPath))
+            return dataAliasPath;
         if (forWrite && uaDirExistsDirect(dataDir))
             return dataPath;
+        if (!forWrite && uaDirExistsDirect(canonicalRootPath))
+            return canonicalRootPath;
+        if (!forWrite && !StriCmp(canonical, "3DS") && uaDirExistsDirect(legacy3DSPath))
+            return legacy3DSPath;
         return rootPath;
     }
 
@@ -262,6 +319,12 @@ static std::string uaResolveStandaloneDataFirst(std::string path, bool directory
     {
         if (uaDirExistsDirect(dataDir))
             return dataPath;
+        if (!forWrite && dataAliasDir != dataDir && uaDirExistsDirect(dataAliasDir))
+            return dataAliasPath;
+        if (!forWrite && uaDirExistsDirect(canonicalRootPath))
+            return canonicalRootPath;
+        if (!forWrite && !StriCmp(canonical, "3DS") && uaDirExistsDirect(legacy3DSPath))
+            return legacy3DSPath;
         return rootPath;
     }
 
@@ -274,6 +337,12 @@ static std::string uaResolveStandaloneDataFirst(std::string path, bool directory
 
     if (uaFileExistsDirect(dataPath))
         return dataPath;
+    if (dataAliasPath != dataPath && uaFileExistsDirect(dataAliasPath))
+        return dataAliasPath;
+    if (uaFileExistsDirect(canonicalRootPath))
+        return canonicalRootPath;
+    if (!StriCmp(canonical, "3DS") && uaFileExistsDirect(legacy3DSPath))
+        return legacy3DSPath;
 
     return rootPath;
 }
@@ -332,7 +401,7 @@ std::vector<std::string> uaDataFirstRootDirCandidates(const std::string &dirname
     std::vector<std::string> result;
     std::string canonical;
 
-    if (!uaStandaloneRootDir(dirname, &canonical))
+    if (!uaStandaloneReadRootDir(dirname, &canonical))
     {
         if (uaDirExistsDirect(dirname))
             result.push_back(correctSeparatorAndExt(dirname));
@@ -372,7 +441,7 @@ bool uaFileExist(const std::string &src_path)
 
 FSMgr::FileHandle *uaOpenFileAlloc(const std::string &src_path, const std::string &mode)
 {
-    bool forWrite = mode.find('r') == std::string::npos;
+    bool forWrite = mode.find('r') == std::string::npos || mode.find('+') != std::string::npos || mode.find('a') != std::string::npos;
     std::string path = forWrite ? uaDataFirstResolvedWritePath(src_path) : uaDataFirstResolvedReadPath(src_path);
 
     FSMgr::FileHandle *v4 = FSMgr::iDir::openFileAlloc(path, mode);
@@ -385,7 +454,7 @@ FSMgr::FileHandle *uaOpenFileAlloc(const std::string &src_path, const std::strin
 
 FSMgr::FileHandle uaOpenFile(const std::string &src_path, const std::string &mode)
 {
-    bool forWrite = mode.find('r') == std::string::npos;
+    bool forWrite = mode.find('r') == std::string::npos || mode.find('+') != std::string::npos || mode.find('a') != std::string::npos;
     std::string path = forWrite ? uaDataFirstResolvedWritePath(src_path) : uaDataFirstResolvedReadPath(src_path);
 
     return FSMgr::iDir::openFile(path, mode);
