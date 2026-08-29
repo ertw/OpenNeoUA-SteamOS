@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 
+if(POLICY CMP0095)
+    cmake_policy(SET CMP0095 NEW)
+endif()
+
 project(OpenNeoUA)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -184,6 +188,17 @@ endif()
 
 install(TARGETS OpenNeoUA RUNTIME DESTINATION bin)
 
+# Steam can wrap bin/OpenNeoUA directly as a non-Steam ELF.  $ORIGIN/../lib
+# keeps the private overlay libraries resolvable without OpenNeoUA.sh.
+if(UNIX AND NOT APPLE)
+    set_target_properties(
+        OpenNeoUA
+        PROPERTIES
+        INSTALL_RPATH "$ORIGIN/../lib"
+        INSTALL_RPATH_USE_LINK_PATH FALSE
+    )
+endif()
+
 target_include_directories(
     OpenNeoUA
     PUBLIC
@@ -223,3 +238,27 @@ endif()
 
 # Non-Debug configurations deliberately keep CMake's native optimization
 # flags; RelWithDebInfo must retain -O2 instead of being overridden by -O0.
+
+enable_testing()
+
+add_executable(
+    test_sdl_virtual_controller
+    tests/test_sdl_virtual_controller.cpp
+)
+
+target_include_directories(
+    test_sdl_virtual_controller
+    PRIVATE
+    ${PROJECT_SOURCE_DIR}
+    ${SDL2_INCLUDE_DIRS}
+)
+
+target_link_libraries(
+    test_sdl_virtual_controller
+    ${SDL2_LIBRARIES}
+)
+
+add_test(
+    NAME sdl_virtual_controller
+    COMMAND test_sdl_virtual_controller
+)

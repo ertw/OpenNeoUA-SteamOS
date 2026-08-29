@@ -2,6 +2,7 @@
 #include <list>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <vector>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_net.h>
@@ -390,16 +391,14 @@ TTF_Font *LoadFont(const std::string &fontname, int height)
 }
 
 
-void Init(bool oldGL)
+static bool InitSdlSubsystems()
 {
-    EventHandlers.clear();
+    return SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_JOYSTICK |
+                    SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) == 0;
+}
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC) < 0)
-    {
-        printf("Couldn't initialize SDL: %s", SDL_GetError());
-        return;
-    }
-
+static void SetGlAttributes(bool oldGL)
+{
     if (oldGL)
     {
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
@@ -411,15 +410,67 @@ void Init(bool oldGL)
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     }
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+}
 
-    window = SDL_CreateWindow("OpenNeoUA (Urban Assault)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, winRes.W, winRes.H, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
+static SDL_Window *CreateGameWindow()
+{
+    return SDL_CreateWindow(
+        "OpenNeoUA (Urban Assault)",
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        winRes.W,
+        winRes.H,
+        SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
+}
 
+static bool ForcedVideoDriverIsWayland()
+{
+    const char *driver = SDL_getenv("SDL_VIDEODRIVER");
+    return driver && std::strcmp(driver, "wayland") == 0;
+}
+
+void Init(bool oldGL)
+{
+    EventHandlers.clear();
+
+    if (!InitSdlSubsystems())
+    {
+        if (!ForcedVideoDriverIsWayland())
+        {
+            printf("Couldn't initialize SDL: %s", SDL_GetError());
+            return;
+        }
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "x11", 1);
+        if (!InitSdlSubsystems())
+        {
+            printf("Couldn't initialize SDL: %s", SDL_GetError());
+            return;
+        }
+    }
+
+    SetGlAttributes(oldGL);
+
+    window = CreateGameWindow();
     if (!window)
     {
-        printf("Couldn't create window and renderer: %s", SDL_GetError());
-        return;
+        const char *video = SDL_GetCurrentVideoDriver();
+        if (video && std::strcmp(video, "wayland") == 0)
+        {
+            SDL_QuitSubSystem(SDL_INIT_VIDEO);
+            SDL_setenv("SDL_VIDEODRIVER", "x11", 1);
+            if (SDL_InitSubSystem(SDL_INIT_VIDEO) == 0)
+            {
+                SetGlAttributes(oldGL);
+                window = CreateGameWindow();
+            }
+        }
+        if (!window)
+        {
+            printf("Couldn't create window and renderer: %s", SDL_GetError());
+            return;
+        }
     }
 
     cont = SDL_GL_CreateContext(window);

@@ -248,6 +248,20 @@ int INPEngine::Init()
 
 void INPEngine::Deinit()
 {
+    FFstopAll();
+    _ffTankEngine.Unbind();
+    _ffJetEngine.Unbind();
+    _ffCopterEngine.Unbind();
+    _ffRotDamper.Unbind();
+    _ffMGun.Unbind();
+    _ffMissFire.Unbind();
+    _ffGrenadeFire.Unbind();
+    _ffBombFire.Unbind();
+    _ffCollide.Unbind();
+    _ffShake.Unbind();
+
+    NC_STACK_winp::ShutdownJoystick();
+
     if ( _timer )
         _timer->Delete();
 
@@ -256,6 +270,36 @@ void INPEngine::Deinit()
 
     for (InputNodeList &lst : _sliders)
         FreeKNodes(&lst);
+}
+
+void INPEngine::RebindForceFeedback()
+{
+    FFstopAll();
+    _ffTankEngine.Unbind();
+    _ffJetEngine.Unbind();
+    _ffCopterEngine.Unbind();
+    _ffRotDamper.Unbind();
+    _ffMGun.Unbind();
+    _ffMissFire.Unbind();
+    _ffGrenadeFire.Unbind();
+    _ffBombFire.Unbind();
+    _ffCollide.Unbind();
+    _ffShake.Unbind();
+
+    SDL_Haptic *joyHaptic = NC_STACK_winp::GetJoyHaptic();
+    if ( !joyHaptic )
+        return;
+
+    _ffTankEngine.Bind(joyHaptic);
+    _ffJetEngine.Bind(joyHaptic);
+    _ffCopterEngine.Bind(joyHaptic);
+    _ffRotDamper.Bind(joyHaptic);
+    _ffMGun.Bind(joyHaptic);
+    _ffMissFire.Bind(joyHaptic);
+    _ffGrenadeFire.Bind(joyHaptic);
+    _ffBombFire.Bind(joyHaptic);
+    _ffCollide.Bind(joyHaptic);
+    _ffShake.Bind(joyHaptic);
 }
 
 void INPEngine::QueryInput(TInputState *state)
