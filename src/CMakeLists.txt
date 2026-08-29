@@ -272,6 +272,8 @@ if(WIN32)
     target_link_libraries(OpenNeoUA dbghelp psapi)
 endif()
 
+install(TARGETS OpenNeoUA RUNTIME DESTINATION bin)
+
 target_include_directories(
     OpenNeoUA
     PUBLIC

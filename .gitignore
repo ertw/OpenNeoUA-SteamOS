@@ -20,11 +20,6 @@
 /Sounds/*
 !/Sounds/New/
 !/Sounds/Ambient/
-!/Sounds/Speech/
-/Sounds/Speech/*
-!/Sounds/Speech/Voicepacks/
-/Sounds/Speech/Voicepacks/*
-!/Sounds/Speech/Voicepacks/UserCreated/
 
 # ============================================================
 # SCRIPTS
@@ -32,21 +27,9 @@
 
 !/Scripts/
 /Scripts/*
-!/Scripts/Startup.cfg
-!/Scripts/spectator_vehicle.cfg
-!/Scripts/Buffs.cfg
-!/Scripts/Debuffs.cfg
-!/Scripts/Ground_Decals.cfg
-!/Scripts/Clouds.cfg
-!/Scripts/SuperItems.cfg
-!/Scripts/Graphic_Profiles/
-/Scripts/Graphic_Profiles/*
-!/Scripts/Graphic_Profiles/Super Classic 1995.cfg
-!/Scripts/Graphic_Profiles/OpenNeoUA.cfg
-!/Scripts/Graphic_Profiles/Classic 1998.cfg
-!/Scripts/FX_Profiles/
-/Scripts/FX_Profiles/*
-!/Scripts/FX_Profiles/*.cfg
+!/Scripts/Atmospheric_FX_Profiles/
+!/Scripts/Spectator_vehicle.txt
+!/Scripts/Super_Item_Profiles.txt
 
 # ============================================================
 # LOCALE
@@ -54,7 +37,7 @@
 
 !/Locale/
 /Locale/*
-!/Locale/OpenNeoUA.lng
+!/Locale/New_Language.lng
 
 # ============================================================
 # ENV
@@ -63,7 +46,6 @@
 !/Env/
 /Env/*
 !/Env/Diagnostics/
-/Env/Diagnostics/*
 !/Env/menu_font.txt
 !/Env/visual_filter.txt
 !/Env/visual_filter_strength.txt
@@ -75,7 +57,6 @@
 !/src/
 !/svg/
 !/Res/
-/Res/Cursors/Classic/
 !/Interface/
 !/Collision/
 !/Filters/
@@ -86,36 +67,33 @@
 !/Models/Base/
 /Models/Base/*
 !/Models/Base/new/
+!/3ds/
 
 # ============================================================
 # FILE ROOT
 # ============================================================
 
+!/.gitignore
 !/README.md
 !/License.txt
 !/OpenNeoUA_Parameter_Guide_EN.md
 !/OpenNeoUA.ini
 
 # ============================================================
-# FONTS
-# Solo font redistribuibili usati da OpenNeoUA.
-# Tutti gli altri file della cartella restano ignorati.
+# LINUX STEAMRT4 BUILD AND PACKAGING
 # ============================================================
 
+!/OpenNeoUA.sh
 !/Fonts/
-/Fonts/*
-
-!/Fonts/LiberationMono-Regular.ttf
-!/Fonts/LiberationSans-Regular.ttf
-!/Fonts/LiberationSerif-Regular.ttf
-!/Fonts/PressStart2P.ttf
-!/Fonts/textar.ttf
-!/Fonts/Xolonium-Bold.otf
-!/Fonts/Xolonium-Regular.otf
-
-# Generated Workshop background (the original game assets remain ignored).
-!/Levels/
-/Levels/*
-!/Levels/Bg/
-/Levels/Bg/*
-!/Levels/Bg/Workshop.png
+!/Fonts/**
+!/packaging/
+!/packaging/steamrt4/
+!/packaging/steamrt4/**
+/packaging/**/__pycache__/
+/packaging/**/*.pyc
+build/steamdeck-private/
+!/.github/
+!/.github/workflows/
+!/.github/workflows/linux-steamrt4.yml
+!/Progressi OpenNeoUA/
+!/Progressi OpenNeoUA/Linux SteamOS Steam Deck e Bazzite.md
