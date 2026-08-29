@@ -235,8 +235,93 @@ def ensure_runtime_manifests(
     return runtime_dir / RUNTIME_MANIFEST, runtime_dir / RUNTIME_MTREE, checksums
 
 
+# Library prefixes that are safe to assume present on stock SteamOS (Arch-based).
+# Everything else from the SteamRT4 mtree must be bundled because SteamOS may
+# lack it entirely or ship an incompatible SONAME version (e.g. Debian's
+# libjpeg.so.62 vs Arch's libjpeg.so.8).  The ``forbidden_soname`` function
+# already blocks outright system libraries (glibc, libstdc++, graphics stack);
+# this allowlist covers the Arch base packages that are reliably present on a
+# stock Steam Deck, even when the AppImage runs outside Steam Linux Runtime.
+_HOST_GUARANTEED_PREFIXES = (
+    # glibc / base toolchain — also in forbidden_soname, listed here for
+    # completeness so the mtree filter doesn't accidentally drop them.
+    "ld-linux",
+    "libc.so",
+    "libm.so",
+    "libdl.so",
+    "libpthread.so",
+    "librt.so",
+    "libresolv.so",
+    "libnsl.so",
+    "libutil.so",
+    "libstdc++.so",
+    "libgcc_s.so",
+    # X11 / Wayland / input core — part of the SteamOS desktop session.
+    "libx11.so",
+    "libx11-xcb.so",
+    "libxext.so",
+    "libxcb.so",
+    "libxcb-",            # libxcb-shm, libxcb-render, libxcb-xfixes, etc.
+    "libxau.so",
+    "libxdmcp.so",
+    "libxrender.so",
+    "libxfixes.so",
+    "libxcursor.so",
+    "libxrandr.so",
+    "libxi.so",
+    "libxinerama.so",
+    "libxss.so",
+    "libxtst.so",
+    "libxxf86vm.so",
+    "libxkbcommon.so",
+    "libwayland-client.so",
+    "libwayland-cursor.so",
+    "libwayland-server.so",
+    "libwayland-egl.so",
+    # Graphics stack — driver-coupled, must always come from the host.
+    "libgl.so",
+    "libglx.so",
+    "libgldispatch.so",
+    "libopengl.so",
+    "libegl.so",
+    "libgles",
+    "libvulkan.so",
+    "libdrm.so",
+    "libgbm.so",
+    "libmesa",
+    # Misc Arch base packages that are practically always present.
+    "libz.so",
+    "libffi.so",
+    "libpcre2-",          # libpcre2-8, libpcre2-posix, etc.
+    "libsystemd.so",
+    "libudev.so",
+    "libdbus-1.so",
+    "libxcb.so",
+    # Core gaming libraries — present on SteamOS and also in forbidden_soname.
+    "libsdl2-2.0.so",
+    "libopenal.so",
+    "libvorbis.so",
+    "libvorbisenc.so",
+    "libvorbisfile.so",
+    "libogg.so",
+    # Audio backend — SteamOS ships PulseAudio/PipeWire and ALSA.
+    "libasound.so",
+    "libpulse",           # libpulse.so, libpulse-simple.so
+    "libpipewire",
+    "libsndfile.so",
+)
+
+
 def runtime_sonames(mtree_path: Path) -> Set[str]:
-    """Return amd64 library filenames from the runtime's file-level mtree."""
+    """Return amd64 library filenames from the runtime's file-level mtree.
+
+    Only libraries whose basenames start with a known host-guaranteed prefix
+    are kept in the runtime set.  Everything else is excluded so that the ELF
+    closure walker bundles it into the overlay / AppImage.  This is safer than
+    the previous approach of listing individual libraries to force-bundle,
+    because it automatically catches new transitive dependencies instead of
+    failing at launch on the Steam Deck.
+    """
     require_regular_file(mtree_path, "SteamRT4 runtime mtree")
     names: Set[str] = set()
     with gzip.open(mtree_path, "rt", encoding="utf-8", errors="replace") as stream:
@@ -257,7 +342,10 @@ def runtime_sonames(mtree_path: Path) -> Set[str]:
                 continue
             name = Path(relative).name
             if name.startswith("lib") or name.startswith("ld-"):
-                names.add(name)
+                if name.lower().startswith(_HOST_GUARANTEED_PREFIXES):
+                    names.add(name)
+                # Everything else is intentionally omitted so the closure
+                # walker treats it as a private dependency to bundle.
     if not names:
         fail("SteamRT4 runtime mtree contains no amd64 library entries")
     return names
