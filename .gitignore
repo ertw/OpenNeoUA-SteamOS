@@ -69,3 +69,22 @@
 !/.gitignore
 !/README.md
 !/License.txt
+
+# ============================================================
+# LINUX STEAMRT4 BUILD AND PACKAGING
+# ============================================================
+
+!/OpenNeoUA.sh
+!/Fonts/
+!/Fonts/**
+!/packaging/
+!/packaging/steamrt4/
+!/packaging/steamrt4/**
+/packaging/**/__pycache__/
+/packaging/**/*.pyc
+build/steamdeck-private/
+!/.github/
+!/.github/workflows/
+!/.github/workflows/linux-steamrt4.yml
+!/Progressi OpenNeoUA/
+!/Progressi OpenNeoUA/Linux SteamOS Steam Deck e Bazzite.md

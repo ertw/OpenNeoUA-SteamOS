@@ -2377,6 +2377,10 @@ public:
     virtual size_t LoadSettings(const std::string &fileName, const std::string &userName, uint32_t sdfMask, bool updateGameShell, bool playIntro = false);
     virtual bool ReloadInput(size_t id);
     virtual size_t SetGameShellVideoMode(bool windowed);
+    // Internal deterministic controller used by packaging/steamrt4's
+    // rendered menu smoke test.  It affects only the current process and is
+    // never persisted to the user's settings.
+    virtual void PrepareMenuSmokeResolution();
     virtual size_t ReloadLanguage();
     virtual void ypaworld_func176(yw_arg176 *arg);
     virtual void ypaworld_func177(yw_arg177 *arg);

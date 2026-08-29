@@ -1,0 +1,37 @@
+# Private Steam Deck/AppImage assembly image.  The source context is always a
+# sanitized local_ci snapshot; the owned ISO is supplied as a read-only mount
+# at run time and is never part of this image or its build context.
+FROM registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:4.0.20260805.254769
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+       7zip ca-certificates curl file python3 \
+       xvfb libgl1 libgl1-mesa-dri libglu1-mesa mesa-utils \
+       libasound2 libopenal1 squashfs-tools desktop-file-utils \
+       imagemagick \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG APPIMAGETOOL_URL=https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+ARG APPIMAGETOOL_SHA256=ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+ARG APPIMAGE_RUNTIME_URL=https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+ARG APPIMAGE_RUNTIME_SHA256=2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
+RUN mkdir -p /opt/openneoua /opt/appimage-cache \
+    && curl --fail --location --retry 3 "$APPIMAGETOOL_URL" -o /opt/appimage-cache/appimagetool-x86_64.AppImage \
+    && echo "$APPIMAGETOOL_SHA256  /opt/appimage-cache/appimagetool-x86_64.AppImage" | sha256sum -c - \
+    && chmod 0755 /opt/appimage-cache/appimagetool-x86_64.AppImage \
+    && curl --fail --location --retry 3 "$APPIMAGE_RUNTIME_URL" -o /opt/appimage-cache/runtime-x86_64 \
+    && echo "$APPIMAGE_RUNTIME_SHA256  /opt/appimage-cache/runtime-x86_64" | sha256sum -c - \
+    && chmod 0755 /opt/appimage-cache/runtime-x86_64 \
+    # Docker Desktop's ARM64 Rosetta path cannot execute the custom ELF header
+    # used by an AppImage itself.  Extract the verified tool payload directly;
+    # the downloaded AppImage and its SHA-256 remain the immutable source.
+    && appimage_offset="$(LC_ALL=C grep -abo 'hsqs' /opt/appimage-cache/appimagetool-x86_64.AppImage | tail -n 1 | cut -d: -f1)" \
+    && test -n "$appimage_offset" \
+    && unsquashfs -quiet -offset "$appimage_offset" -d /opt/appimage-cache/appimagetool-root /opt/appimage-cache/appimagetool-x86_64.AppImage \
+    && install -m 0755 /opt/appimage-cache/appimagetool-root/usr/bin/appimagetool /opt/appimage-cache/appimagetool
+
+COPY packaging/steamrt4 /opt/openneoua/packaging/steamrt4
+COPY svg/icon /opt/openneoua/svg/icon
+WORKDIR /opt/openneoua
+ENV APPIMAGE_EXTRACT_AND_RUN=1

@@ -3419,11 +3419,12 @@ void GFXEngine::Init()
         Glext::GLBindBufferBase(GL_UNIFORM_BUFFER, _vboParamsBlockBinding, _vboParams);
     }
 
-    std::array<Common::Point, 17> checkModes
+    std::array<Common::Point, 18> checkModes
     {{
         {640, 480},     {800, 600},     {1024, 768},    {1280, 1024},
         {1440, 1050},   {1600, 1200},   {720, 480},     {852, 480},
-        {1280, 720},    {1366, 768},    {1600, 900},    {1920, 1080},
+        {1280, 720},    {1280, 800},    {1366, 768},    {1600, 900},
+        {1920, 1080},
         {1920, 1200},   {2560, 1080},   {2560, 1440},   {3440, 1440},
         {3840, 2160}
      }};
@@ -3860,7 +3861,9 @@ void GFXEngine::SetResolution(const Common::Point &res, bool windowed)
 
     GfxSelectedMode = picked;
 
-    FSMgr::FileHandle *fil = uaOpenFileAlloc("env/vid.def", "w");
+    FSMgr::FileHandle *fil = NULL;
+    if (System::FindCmdLineArg("--menu-smoke-dir") < 0)
+        fil = uaOpenFileAlloc("env/vid.def", "w");
     if ( fil )
     {
         if (picked.windowed)
@@ -4892,370 +4895,94 @@ void GFXEngine::BlitScaleMasked(SDL_Surface *src, Common::Rect sRect, SDL_Surfac
     }
 }
 
-void GFXEngine::DrawFillIntCpy(SDL_Surface *src, const Common::Rect &sRect, SDL_Surface *dst, const Common::Rect &dRect)
+/*
+ * Tile a source rectangle through SDL's clipping and blit implementation.
+ *
+ * The former raw fill routines wrote directly through surface pitches.
+ * They assumed that both rectangles were wholly inside their surfaces and
+ * could therefore walk outside the allocation when a UI window was clipped
+ * or a tile ended at a partial edge. Keeping the operation in SDL also
+ * preserves color-key and surface-alpha handling in one shared path.
+ */
+static void DrawFillSurfaceTiled(SDL_Surface *src, const Common::Rect &sRect,
+                                 SDL_Surface *dst, const Common::Rect &dRect)
 {
-    const int32_t sh = sRect.Height();
-    const int32_t sw = sRect.Width();
-    const int32_t dh = dRect.Height();
-    const int32_t dw = dRect.Width();
+    if (!src || !dst || sRect.IsEmpty() || dRect.IsEmpty())
+        return;
 
-    SDL_LockSurface(src);
-    SDL_LockSurface(dst);
+    SDL_Rect source = sRect;
+    SDL_Rect sourceBounds = {0, 0, src->w, src->h};
+    SDL_Rect clippedSource;
+    if (!SDL_IntersectRect(&source, &sourceBounds, &clippedSource))
+        return;
+    source = clippedSource;
 
-    if (dw > sw)
+    SDL_Rect target = dRect;
+    SDL_Rect destinationBounds = {0, 0, dst->w, dst->h};
+    SDL_Rect clippedTarget;
+    if (!SDL_IntersectRect(&target, &destinationBounds, &clippedTarget))
+        return;
+    target = clippedTarget;
+
+    SDL_Rect destinationClip;
+    SDL_GetClipRect(dst, &destinationClip);
+    if (!SDL_IntersectRect(&target, &destinationClip, &clippedTarget))
+        return;
+    target = clippedTarget;
+
+    const int tileWidth = source.w;
+    const int tileHeight = source.h;
+    // target is an intersection with dRect, so these differences are
+    // non-negative. Starting at the containing tile keeps the pattern phase
+    // correct even when dRect begins outside the destination surface.
+    const int firstX = dRect.left + ((target.x - dRect.left) / tileWidth) * tileWidth;
+    const int firstY = dRect.top + ((target.y - dRect.top) / tileHeight) * tileHeight;
+    const int targetRight = target.x + target.w;
+    const int targetBottom = target.y + target.h;
+
+    for (int tileY = firstY; tileY < targetBottom; tileY += tileHeight)
     {
-        uint8_t *psrc = (uint8_t *)src->pixels + sRect.top * src->pitch + sRect.left * src->format->BytesPerPixel;
-        uint8_t *pdst = (uint8_t *)dst->pixels + dRect.top * dst->pitch + dRect.left * dst->format->BytesPerPixel;
+        SDL_Rect tileSource = source;
+        tileSource.h = std::min(tileHeight, dRect.bottom - tileY);
+        if (tileSource.h <= 0)
+            continue;
 
-        const int32_t nit = dw / sw;
-        const int32_t nit2 = (dw % sw) * dst->format->BytesPerPixel;
-        const int32_t cpsz = sw * dst->format->BytesPerPixel;
-        const int32_t skipdst = dst->pitch - dw * dst->format->BytesPerPixel + nit2;
-
-        int sptch = src->pitch;
-
-        int ln = 0;
-        uint8_t *psrcl = psrc;
-        for(int ih = dh; ih > 0; --ih)
+        for (int tileX = firstX; tileX < targetRight; tileX += tileWidth)
         {
-            for(int n = nit; n > 0; --n)
-            {
-                memcpy(pdst, psrcl, cpsz);
-                pdst += cpsz;
-            }
-
-            memcpy(pdst, psrcl, nit2);
-            pdst += skipdst;
-
-            ++ln;
-            if (ln >= sh)
-            {
-                ln = 0;
-                psrcl = psrc;
-            }
-            else
-                psrcl += sptch;
+            SDL_Rect tileDestination = {tileX, tileY, 0, 0};
+            tileSource.w = std::min(tileWidth, dRect.right - tileX);
+            if (tileSource.w <= 0)
+                continue;
+            SDL_BlitSurface(src, &tileSource, dst, &tileDestination);
         }
     }
-    else
-    {
-        uint8_t *psrc = (uint8_t *)src->pixels + sRect.top * src->pitch + sRect.left * src->format->BytesPerPixel;
-        uint8_t *pdst = (uint8_t *)dst->pixels + dRect.top * dst->pitch + dRect.left * dst->format->BytesPerPixel;
-
-        const int32_t cpsz = dw * dst->format->BytesPerPixel;
-        const int32_t skipdst = dst->pitch;
-
-        int sptch = src->pitch;
-
-        int ln = 0;
-        uint8_t *psrcl = psrc;
-        for(int ih = dh; ih > 0; --ih)
-        {
-            memcpy(pdst, psrcl, cpsz);
-            pdst += skipdst;
-
-            ++ln;
-            if (ln >= sh)
-            {
-                ln = 0;
-                psrcl = psrc;
-            }
-            else
-                psrcl += sptch;
-        }
-    }
-
-    SDL_UnlockSurface(dst);
-    SDL_UnlockSurface(src);
 }
 
-template <typename T>
-void GFXEngine::DrawFillIntCKey(SDL_Surface *src, const Common::Rect &sRect, SDL_Surface *dst, const Common::Rect &dRect)
+static void DrawFillSurface(SDL_Surface *src, const Common::Rect &sRect,
+                            SDL_Surface *dst, const Common::Rect &dRect)
 {
-    const int32_t sh = sRect.Height();
-    const int32_t sw = sRect.Width();
-    const int32_t dh = dRect.Height();
-    const int32_t dw = dRect.Width();
+    if (!src || !dst || sRect.IsEmpty() || dRect.IsEmpty())
+        return;
 
-    SDL_LockSurface(src);
-    SDL_LockSurface(dst);
-
-    uint32_t clrKey = 0;
-    SDL_GetColorKey(src, &clrKey);
-
-    if (dw > sw)
+    // SDL's normal blend mode skips transparent texels and preserves the
+    // alpha semantics of the source surface for every tile.
+    SDL_BlendMode oldBlendMode = SDL_BLENDMODE_NONE;
+    const bool alphaSource = src->format && src->format->Amask;
+    if (alphaSource)
     {
-        const int32_t skipdst = dst->pitch - dw * dst->format->BytesPerPixel;
-        uint8_t *psrc = (uint8_t *)src->pixels + sRect.top * src->pitch + sRect.left * src->format->BytesPerPixel;
-        uint8_t *pdst = (uint8_t *)dst->pixels + dRect.top * dst->pitch + dRect.left * dst->format->BytesPerPixel;
-
-        const int32_t nit = dw / sw;
-        const int32_t nit2 = dw % sw;
-
-        const int sz = dst->format->BytesPerPixel;
-
-        int sptch = src->pitch;
-
-        int ln = 0;
-        uint8_t *psrcl = psrc;
-        for(int ih = dh; ih > 0; --ih)
-        {
-
-            for(int n = nit; n > 0; --n)
-            {
-                const uint8_t *lsrc = psrcl;
-                for (int iw = sw; iw > 0; --iw)
-                {
-                    if (*(T *)lsrc != clrKey)
-                        *(T *)pdst = *(T *)lsrc;
-
-                    lsrc += sz;
-                    pdst += sz;
-                }
-            }
-
-            uint8_t *rsrc = psrcl;
-            for(int iw = nit2; iw > 0; --iw)
-            {
-                if (*(T *)rsrc != clrKey)
-                    *(T *)pdst = *(T *)rsrc;
-
-                rsrc += sz;
-                pdst += sz;
-            }
-
-            ++ln;
-            if (ln >= sh)
-            {
-                ln = 0;
-                psrcl = psrc;
-            }
-            else
-                psrcl += sptch;
-
-            pdst += skipdst;
-        }
-    }
-    else
-    {
-        const int32_t skipdst = dst->pitch - dw * dst->format->BytesPerPixel;
-        uint8_t *psrc = (uint8_t *)src->pixels + sRect.top * src->pitch + sRect.left * src->format->BytesPerPixel;
-        uint8_t *pdst = (uint8_t *)dst->pixels + dRect.top * dst->pitch + dRect.left * dst->format->BytesPerPixel;
-
-        const int sz = dst->format->BytesPerPixel;
-
-        int sptch = src->pitch;
-
-        int ln = 0;
-        uint8_t *psrcl = psrc;
-        for(int ih = dh; ih > 0; --ih)
-        {
-            uint8_t *rsrc = psrcl;
-            for(int iw = dw; iw > 0; --iw)
-            {
-                if (*(T *)rsrc != clrKey)
-                    *(T *)pdst = *(T *)rsrc;
-
-                rsrc += sz;
-                pdst += sz;
-            }
-
-            ++ln;
-            if (ln >= sh)
-            {
-                ln = 0;
-                psrcl = psrc;
-            }
-            else
-                psrcl += sptch;
-
-            pdst += skipdst;
-        }
+        SDL_GetSurfaceBlendMode(src, &oldBlendMode);
+        SDL_SetSurfaceBlendMode(src, SDL_BLENDMODE_BLEND);
     }
 
-    SDL_UnlockSurface(dst);
-    SDL_UnlockSurface(src);
-}
+    DrawFillSurfaceTiled(src, sRect, dst, dRect);
 
-template <typename T>
-void GFXEngine::DrawFillIntACpy(SDL_Surface* src, const Common::Rect& sRect, SDL_Surface* dst, const Common::Rect& dRect)
-{
-    const int32_t sh = sRect.Height();
-    const int32_t sw = sRect.Width();
-    const int32_t dh = dRect.Height();
-    const int32_t dw = dRect.Width();
-
-    SDL_LockSurface(src);
-    SDL_LockSurface(dst);
-
-    if (dw > sw)
-    {
-        const int32_t skipdst = dst->pitch - dw * dst->format->BytesPerPixel;
-        uint8_t *psrc = (uint8_t *)src->pixels + sRect.top * src->pitch + sRect.left * src->format->BytesPerPixel;
-        uint8_t *pdst = (uint8_t *)dst->pixels + dRect.top * dst->pitch + dRect.left * dst->format->BytesPerPixel;
-
-        const int32_t nit = dw / sw;
-        const int32_t nit2 = dw % sw;
-        uint32_t amask = src->format->Amask;
-
-        const int sz = dst->format->BytesPerPixel;
-
-        int sptch = src->pitch;
-
-        int ln = 0;
-        uint8_t *psrcl = psrc;
-        for(int ih = dh; ih > 0; --ih)
-        {
-
-            for(int n = nit; n > 0; --n)
-            {
-                const uint8_t *lsrc = psrcl;
-                for (int iw = sw; iw > 0; --iw)
-                {
-                    if (*(T *)lsrc & amask)
-                        *(T *)pdst = *(T *)lsrc;
-
-                    lsrc += sz;
-                    pdst += sz;
-                }
-            }
-
-            uint8_t *rsrc = psrcl;
-            for(int iw = nit2; iw > 0; --iw)
-            {
-                if (*(T *)rsrc & amask)
-                    *(T *)pdst = *(T *)rsrc;
-
-                rsrc += sz;
-                pdst += sz;
-            }
-
-            ++ln;
-            if (ln >= sh)
-            {
-                ln = 0;
-                psrcl = psrc;
-            }
-            else
-                psrcl += sptch;
-
-            pdst += skipdst;
-        }
-    }
-    else
-    {
-        const int32_t skipdst = dst->pitch - dw * dst->format->BytesPerPixel;
-        uint8_t *psrc = (uint8_t *)src->pixels + sRect.top * src->pitch + sRect.left * src->format->BytesPerPixel;
-        uint8_t *pdst = (uint8_t *)dst->pixels + dRect.top * dst->pitch + dRect.left * dst->format->BytesPerPixel;
-
-        const int sz = dst->format->BytesPerPixel;
-
-        int sptch = src->pitch;
-        uint32_t amask = src->format->Amask;
-
-        int ln = 0;
-        uint8_t *psrcl = psrc;
-        for(int ih = dh; ih > 0; --ih)
-        {
-            uint8_t *rsrc = psrcl;
-            for(int iw = dw; iw > 0; --iw)
-            {
-                if (*(T *)rsrc & amask)
-                    *(T *)pdst = *(T *)rsrc;
-
-                rsrc += sz;
-                pdst += sz;
-            }
-
-            ++ln;
-            if (ln >= sh)
-            {
-                ln = 0;
-                psrcl = psrc;
-            }
-            else
-                psrcl += sptch;
-
-            pdst += skipdst;
-        }
-    }
-
-    SDL_UnlockSurface(dst);
-    SDL_UnlockSurface(src);
+    if (alphaSource)
+        SDL_SetSurfaceBlendMode(src, oldBlendMode);
 }
 
 void GFXEngine::DrawFill(SDL_Surface *src, const Common::Rect &sRect, SDL_Surface *dst, const Common::Rect &dRect)
 {
-    if (sRect.IsEmpty() || dRect.IsEmpty())
-        return;
-
-    if (src->format->format == dst->format->format)
-    {
-#if SDL_VERSION_ATLEAST(2, 0, 9)
-        if (SDL_HasColorKey(src))
-#else
-        uint32_t tmp;
-        if (SDL_GetColorKey(src, &tmp) == 0)
-#endif
-        {
-            switch(src->format->BytesPerPixel)
-            {
-
-                case 2:
-                    DrawFillIntCKey<uint16_t>(src, sRect, dst, dRect);
-                    break;
-
-                case 4:
-                    DrawFillIntCKey<uint32_t>(src, sRect, dst, dRect);
-                    break;
-
-                default:
-                break;
-            }
-        }
-        else
-        {
-            if (src->format->Amask)
-            {
-                switch(src->format->BytesPerPixel)
-                {
-
-                    case 2:
-                        DrawFillIntACpy<uint16_t>(src, sRect, dst, dRect);
-                        break;
-
-                    case 4:
-                        DrawFillIntACpy<uint32_t>(src, sRect, dst, dRect);
-                        break;
-
-                    default:
-                    break;
-                }
-            }
-            else
-                DrawFillIntCpy(src, sRect, dst, dRect);
-        }
-    }
-    else
-    {
-        SDL_Rect lsrc = sRect;
-        SDL_Rect ldst;
-        for(ldst.y = dRect.top; ldst.y < dRect.bottom; ldst.y += lsrc.h)
-        {
-            if (dRect.bottom - ldst.y < lsrc.h)
-                lsrc.h = dRect.bottom - ldst.y;
-
-            lsrc.w = sRect.Width();
-
-            for(ldst.x = dRect.left; ldst.x < dRect.right; ldst.x += lsrc.w)
-            {
-                if (dRect.right - ldst.x < lsrc.w)
-                    lsrc.w = dRect.right - ldst.x;
-
-                SDL_BlitSurface(src, &lsrc, dst, &ldst);
-            }
-        }
-    }
+    DrawFillSurface(src, sRect, dst, dRect);
 }
 
 void GFXEngine::DrawFillAlpha(SDL_Surface *src, const Common::Rect &sRect,
@@ -5277,18 +5004,7 @@ void GFXEngine::DrawFillAlpha(SDL_Surface *src, const Common::Rect &sRect,
     SDL_SetSurfaceAlphaMod(src, opacity);
     SDL_SetSurfaceBlendMode(src, SDL_BLENDMODE_BLEND);
 
-    SDL_Rect source = sRect;
-    SDL_Rect target;
-    for (target.y = dRect.top; target.y < dRect.bottom; target.y += sRect.Height())
-    {
-        source.h = std::min(sRect.Height(), dRect.bottom - target.y);
-        source.w = sRect.Width();
-        for (target.x = dRect.left; target.x < dRect.right; target.x += sRect.Width())
-        {
-            source.w = std::min(sRect.Width(), dRect.right - target.x);
-            SDL_BlitSurface(src, &source, dst, &target);
-        }
-    }
+    DrawFillSurfaceTiled(src, sRect, dst, dRect);
 
     SDL_SetSurfaceAlphaMod(src, oldOpacity);
     SDL_SetSurfaceBlendMode(src, oldBlendMode);

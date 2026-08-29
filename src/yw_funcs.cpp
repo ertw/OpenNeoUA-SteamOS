@@ -631,6 +631,15 @@ bool NC_STACK_ypaworld::ParseColorString(int color_id, const std::string &color_
 
 int get_level_numb(const std::string &filename)
 {
+    // Directory views can contain user-created metadata or an incomplete
+    // entry while a profile is being migrated.  Level discovery is a
+    // best-effort scan, so malformed names must be ignored instead of
+    // allowing std::string/stoi to terminate the menu process.
+    if (filename.size() < 2 || filename[0] != 'L')
+    {
+        ypa_log_out("Ignoring malformed level entry [%s].\n", filename.c_str());
+        return -1;
+    }
     std::string buf = filename.substr(1);
 
     size_t pos = buf.find('.');
@@ -642,7 +651,22 @@ int get_level_numb(const std::string &filename)
     else if ( buf.size() == 6 )
         buf.resize(3);
 
-    int v10 = std::stoi(buf);
+    if (buf.empty() || buf.find_first_not_of("0123456789") != std::string::npos)
+    {
+        ypa_log_out("Ignoring malformed level entry [%s].\n", filename.c_str());
+        return -1;
+    }
+
+    int v10 = -1;
+    try
+    {
+        v10 = std::stoi(buf);
+    }
+    catch (const std::exception &)
+    {
+        ypa_log_out("Ignoring malformed level entry [%s].\n", filename.c_str());
+        return -1;
+    }
     if ( v10 < 1 || v10 >= 256 )
     {
         v10 = -1;
