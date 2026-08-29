@@ -629,7 +629,10 @@ void Init(bool enabled, const std::string &buildTag)
         return;
     }
 
-    g_sessionDirPhysical = uaDataFirstResolvedWritePath(g_sessionDirLogical);
+    // Crash reports use stdio directly rather than FSMgr::FileHandle, so in
+    // AppImage overlay mode resolve the logical directory to the writable
+    // user root explicitly.  The packaged asset tree must remain untouched.
+    g_sessionDirPhysical = FSMgr::iDir::resolveUserPath(g_sessionDirLogical);
     g_startMs = NowMs();
     g_lastHeartbeatMs.store(g_startMs);
     g_phase.store("Startup");

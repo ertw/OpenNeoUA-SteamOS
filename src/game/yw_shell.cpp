@@ -6149,6 +6149,17 @@ size_t NC_STACK_ypaworld::SetGameShellVideoMode(bool windowed)
     return 1;
 }
 
+void NC_STACK_ypaworld::PrepareMenuSmokeResolution()
+{
+    // Keep the smoke controller deterministic even when a saved profile asks
+    // for a different mode.  SetGameShellVideoMode() will create the normal
+    // SDL window and update the logical pointer resolution.
+    _shellGfxMode = Common::Point(1280, 800);
+    _gfxMode = Common::Point(1280, 800);
+    System::IniConf::MenuWindowed.Value = true;
+}
+
+
 size_t NC_STACK_ypaworld::ReloadLanguage()
 {
     if ( !_GameShell->default_lang_dll )
