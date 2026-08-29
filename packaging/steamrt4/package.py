@@ -73,6 +73,7 @@ PACKAGE_TOP_LEVEL = (
     "Scripts",
     "Sounds",
     "Wireless",
+    "SteamInput",
     "licenses",
     "BUILD-INFO.txt",
     "MANIFEST.sha256",
@@ -108,6 +109,11 @@ REQUIRED_ELF_FAMILIES = (
     ("FFmpeg libswscale", ("libswscale",)),
     ("FFmpeg libswresample", ("libswresample",)),
     ("Lua 5.4", ("liblua5.4", "liblua-5.4")),
+)
+STEAM_INPUT_SOURCE_DIR = Path("packaging") / "steamrt4" / "steam_input"
+STEAM_INPUT_REQUIRED_FILES = (
+    "REVISION.txt",
+    "openneoua_deck_default.vdf",
 )
 
 
@@ -386,6 +392,17 @@ def readelf_dynamic(path: Path) -> Tuple[List[str], Optional[str]]:
         if match:
             soname = match.group(1)
     return needed, soname
+
+
+def readelf_runpath(path: Path) -> List[str]:
+    output = run_command(["readelf", "-d", str(path)], check=False)
+    if not output:
+        fail("readelf could not inspect ELF file {}".format(path))
+    for line in output.splitlines():
+        match = re.search(r"\((?:RPATH|RUNPATH)\).*?: \[([^\]]+)\]", line)
+        if match:
+            return [entry for entry in match.group(1).split(":") if entry]
+    return []
 
 
 def is_x86_64_elf(path: Path) -> bool:
@@ -865,6 +882,43 @@ def copy_tracked_assets(source_root: Path, staging_root: Path) -> None:
         os.chmod(destination, stat.S_IMODE(mode))
 
 
+def read_steam_input_revision(source_root: Path) -> str:
+    revision_path = source_root / STEAM_INPUT_SOURCE_DIR / "REVISION.txt"
+    require_regular_file(revision_path, "Steam Input revision metadata")
+    for raw in revision_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line.lower().startswith("openneoua steam deck layout revision:"):
+            value = line.split(":", 1)[1].strip()
+            if value:
+                return value
+    fail("Steam Input REVISION.txt is missing a layout revision line")
+
+
+def copy_steam_input_assets(source_root: Path, staging_root: Path) -> str:
+    source_dir = source_root / STEAM_INPUT_SOURCE_DIR
+    if source_dir.is_symlink() or not source_dir.is_dir():
+        fail("Steam Input source directory is missing: {}".format(STEAM_INPUT_SOURCE_DIR))
+    revision = read_steam_input_revision(source_root)
+    destination = staging_root / "SteamInput"
+    destination.mkdir(parents=True, exist_ok=True)
+    for name in STEAM_INPUT_REQUIRED_FILES:
+        source = source_dir / name
+        require_regular_file(source, "Steam Input asset {}".format(name))
+        if source.is_symlink():
+            fail("Steam Input asset must not be a symlink: {}".format(name))
+        target = destination / name
+        shutil.copyfile(source, target)
+        os.chmod(target, 0o644)
+    unexpected = sorted(
+        path.name
+        for path in destination.iterdir()
+        if path.name not in STEAM_INPUT_REQUIRED_FILES
+    )
+    if unexpected:
+        fail("SteamInput/ contains unexpected entries: {}".format(", ".join(unexpected)))
+    return revision
+
+
 def source_provenance_lines(
     commit: str,
     dirty_base_commit: Optional[str],
@@ -1008,6 +1062,11 @@ def write_build_info(
         lines.append("  {} {}".format(package.package, package.version))
     lines.extend(
         [
+            "Steam Input layout: OpenNeoUA Deck Default",
+            "Steam Input layout revision: {}".format(
+                read_steam_input_revision(source_root)
+            ),
+            "Steam Input package path: SteamInput/",
             "Steam Deck tests: manual, not run in this CI job",
             "Bazzite tests: manual, not run in this CI job",
             "Deck Verified: not claimed",
@@ -1097,10 +1156,18 @@ def verify_package_layout(staging_root: Path) -> None:
         "Scripts",
         "Sounds",
         "Wireless",
+        "SteamInput",
         "licenses",
     ):
         if not (staging_root / directory).is_dir():
             fail("package entry is not a directory: {}".format(directory))
+    steam_input = staging_root / "SteamInput"
+    expected_steam_input = sorted(STEAM_INPUT_REQUIRED_FILES)
+    actual_steam_input = sorted(path.name for path in steam_input.iterdir())
+    if actual_steam_input != expected_steam_input:
+        fail(
+            "SteamInput/ layout mismatch: {}".format(", ".join(actual_steam_input))
+        )
     if sorted(path.name for path in (staging_root / "bin").iterdir()) != ["OpenNeoUA"]:
         fail("package bin/ contains entries other than OpenNeoUA")
     executable = staging_root / "bin" / "OpenNeoUA"
@@ -1109,6 +1176,13 @@ def verify_package_layout(staging_root: Path) -> None:
         fail("installed OpenNeoUA is not x86-64 ELF")
     if not os.access(executable, os.X_OK):
         fail("installed OpenNeoUA is not executable")
+    runpath = readelf_runpath(executable)
+    if "$ORIGIN/../lib" not in runpath:
+        fail(
+            "installed OpenNeoUA is missing $ORIGIN/../lib RUNPATH (got {})".format(
+                runpath
+            )
+        )
     launcher = staging_root / "OpenNeoUA.sh"
     require_regular_file(launcher, "OpenNeoUA launcher")
     if not os.access(launcher, os.X_OK):
@@ -1258,6 +1332,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         closure.materialize_licenses(staging_root)
         verify_elf_license_records(staging_root, closure)
         copy_tracked_assets(source_root, staging_root)
+        copy_steam_input_assets(source_root, staging_root)
         write_package_licenses(
             source_root,
             staging_root,

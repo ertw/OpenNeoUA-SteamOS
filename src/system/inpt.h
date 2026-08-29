@@ -333,6 +333,9 @@ public:
     int Init();
     void Deinit();
 
+    // Close / reopen SDL haptic effects when the joystick device changes.
+    void RebindForceFeedback();
+
     void QueryInput(TInputState *state);
     void SetPointerResolution(const Common::Point &physicalSize,
                               const Common::Point &logicalSize);

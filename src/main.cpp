@@ -52,6 +52,11 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <cerrno>
+#include <cstring>
+#ifndef _WIN32
+#include <limits.h>
+#include <unistd.h>
+#endif
 
 int ProcessNextFrame();
 extern UserData userdata;
@@ -1150,25 +1155,57 @@ int WinMain__sub0()
 
 uint32_t maxTicks = 1000/60; // init on 60FPS
 
+#ifndef _WIN32
+static std::string ResolveNativeGameRoot()
+{
+    char exe[PATH_MAX];
+    ssize_t n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+    if (n <= 0)
+        return std::string();
+    exe[n] = '\0';
+    std::string path(exe);
+    std::string::size_type slash = path.find_last_of('/');
+    if (slash == std::string::npos || slash == 0)
+        return std::string();
+    std::string dir = path.substr(0, slash);
+    std::string::size_type slash2 = dir.find_last_of('/');
+    std::string leaf = (slash2 == std::string::npos) ? dir : dir.substr(slash2 + 1);
+    // Overlay install layout is <game-root>/bin/OpenNeoUA.
+    if (leaf == "bin" && slash2 != std::string::npos)
+        return dir.substr(0, slash2);
+    return dir;
+}
+#endif
+
+static bool IsSteamCompatVerb(const char *arg)
+{
+    return arg && (std::strcmp(arg, "waitforexitandrun") == 0 || std::strcmp(arg, "run") == 0);
+}
+
 int main(int argc, char *argv[])
 {
-    for(int i = 0; i < argc; ++i)
-        System::AddCmdLine( std::string(argv[i]) );
+    System::AddCmdLine(argv[0] ? argv[0] : "");
+    int argi = 1;
+    while (argi < argc && IsSteamCompatVerb(argv[argi]))
+        argi++;
+    for (int i = argi; i < argc; ++i)
+        System::AddCmdLine(argv[i] ? argv[i] : "");
 
     System::IniConf::Init();
     std::string assetRoot;
     std::string userRoot;
+    const std::vector<std::string> &cmdl = System::GetCmdLineArray();
     int32_t assetArg = System::FindCmdLineArg("--asset-root");
     int32_t userArg = System::FindCmdLineArg("--user-dir");
-    if (assetArg >= 0 && assetArg + 1 < argc)
-        assetRoot = argv[assetArg + 1];
+    if (assetArg >= 0 && assetArg + 1 < (int32_t)cmdl.size())
+        assetRoot = cmdl[assetArg + 1];
     else if (assetArg >= 0)
     {
         ypa_log_out("--asset-root requires a path\n");
         return 2;
     }
-    if (userArg >= 0 && userArg + 1 < argc)
-        userRoot = argv[userArg + 1];
+    if (userArg >= 0 && userArg + 1 < (int32_t)cmdl.size())
+        userRoot = cmdl[userArg + 1];
     else if (userArg >= 0)
     {
         ypa_log_out("--user-dir requires a path\n");
@@ -1204,7 +1241,21 @@ int main(int argc, char *argv[])
         FSMgr::iDir::setRoots(".", userRoot);
     }
     else
+    {
+#ifndef _WIN32
+        std::string gameRoot = ResolveNativeGameRoot();
+        if (!gameRoot.empty())
+        {
+            if (chdir(gameRoot.c_str()) != 0)
+                ypa_log_out("unable to chdir to game root %s\n", gameRoot.c_str());
+            FSMgr::iDir::setBaseDir(gameRoot);
+        }
+        else
+            FSMgr::iDir::setBaseDir("");
+#else
         FSMgr::iDir::setBaseDir("");
+#endif
+    }
 
     System::IniConf::ReadFromNucleusIni();
     bool gfxVbo = System::IniConf::GfxVBO.Get<bool>();
