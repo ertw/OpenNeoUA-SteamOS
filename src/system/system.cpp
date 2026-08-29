@@ -439,11 +439,17 @@ void Deinit()
 
     FontsList.clear();
 
-    if (!cont)
+    if (cont)
+    {
         SDL_GL_DeleteContext(cont);
+        cont = NULL;
+    }
 
-    if (!window)
+    if (window)
+    {
         SDL_DestroyWindow(window);
+        window = NULL;
+    }
 
     SDL_Quit();
 }

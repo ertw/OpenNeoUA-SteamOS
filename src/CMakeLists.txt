@@ -183,6 +183,8 @@ if(WIN32)
     target_link_libraries(OpenNeoUA dbghelp)
 endif()
 
+install(TARGETS OpenNeoUA RUNTIME DESTINATION bin)
+
 target_include_directories(
     OpenNeoUA
     PUBLIC

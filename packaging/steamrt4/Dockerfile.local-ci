@@ -1,0 +1,4 @@
+FROM registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:4.0.20260805.254769
+
+COPY packaging/steamrt4/install-dependencies.sh /usr/local/lib/openneoua/install-dependencies.sh
+RUN bash /usr/local/lib/openneoua/install-dependencies.sh

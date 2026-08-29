@@ -1,0 +1,57 @@
+name: Linux SteamRT4
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  STEAMRT4_VERSION: 4.0.20260805.254769
+  STEAMRT4_IMAGE: registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:4.0.20260805.254769
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container:
+      image: registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:4.0.20260805.254769
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install SteamRT4 build dependencies
+        run: bash packaging/steamrt4/install-dependencies.sh
+
+      - name: Run shared SteamRT4 CI pipeline
+        env:
+          CI_SOURCE_ROOT: ${{ github.workspace }}
+          CI_WORK_ROOT: ${{ runner.temp }}/steamrt4-ci
+          CI_OUTPUT_DIR: ${{ runner.temp }}/artifacts
+          CI_RUNTIME_DIR: ${{ runner.temp }}/steamrt4-runtime
+          HOME: ${{ runner.temp }}/home
+          PYTHONPYCACHEPREFIX: ${{ runner.temp }}/pycache
+        run: bash packaging/steamrt4/run-ci.sh
+
+      - name: Upload SteamRT4 artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: OpenNeoUA-steamrt4-x86_64-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/artifacts/OpenNeoUA-steamrt4-x86_64-*.tar.xz
+            ${{ runner.temp }}/artifacts/OpenNeoUA-steamrt4-x86_64-*.tar.xz.sha256

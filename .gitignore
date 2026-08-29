@@ -1,0 +1,90 @@
+# ============================================================
+# IGNORA TUTTO DI DEFAULT
+# ============================================================
+
+/*
+
+# ============================================================
+# WIRELESS
+# ============================================================
+
+!/Wireless/
+/Wireless/*
+!/Wireless/New/
+
+# ============================================================
+# SOUNDS
+# ============================================================
+
+!/Sounds/
+/Sounds/*
+!/Sounds/New/
+!/Sounds/Ambient/
+
+# ============================================================
+# SCRIPTS
+# ============================================================
+
+!/Scripts/
+/Scripts/*
+!/Scripts/Atmospheric_FX_Profiles/
+!/Scripts/Spectator_vehicle.txt
+!/Scripts/Super_Item_Profiles.txt
+
+# ============================================================
+# LOCALE
+# ============================================================
+
+!/Locale/
+/Locale/*
+!/Locale/New_Language.lng
+
+# ============================================================
+# ENV
+# ============================================================
+
+!/Env/
+/Env/*
+!/Env/Diagnostics/
+!/Env/menu_font.txt
+!/Env/visual_filter.txt
+!/Env/visual_filter_strength.txt
+
+# ============================================================
+# CARTELLE INTERAMENTE VERSIONATE
+# ============================================================
+
+!/src/
+!/svg/
+!/Res/
+!/Interface/
+!/Filters/
+!/Database/
+!/3ds/
+
+# ============================================================
+# FILE ROOT
+# ============================================================
+
+!/.gitignore
+!/README.md
+!/License.txt
+
+# ============================================================
+# LINUX STEAMRT4 BUILD AND PACKAGING
+# ============================================================
+
+!/OpenNeoUA.sh
+!/Fonts/
+!/Fonts/**
+!/packaging/
+!/packaging/steamrt4/
+!/packaging/steamrt4/**
+/packaging/**/__pycache__/
+/packaging/**/*.pyc
+build/steamdeck-private/
+!/.github/
+!/.github/workflows/
+!/.github/workflows/linux-steamrt4.yml
+!/Progressi OpenNeoUA/
+!/Progressi OpenNeoUA/Linux SteamOS Steam Deck e Bazzite.md

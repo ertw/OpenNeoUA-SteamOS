@@ -9,6 +9,7 @@
 #include <string>
 #include <list>
 #include <memory>
+#include <vector>
 #include <inttypes.h>
 #include <stdio.h>
 
@@ -86,6 +87,16 @@ public:
     static bool fileExist(const std::string &path);
 
     static void setBaseDir(const std::string &path);
+    // AppImage/Steam Deck mode: package assets are read-only and userDir is
+    // the only tree permitted to receive writes.  The merged directory view
+    // keeps legacy callers unaware of the two physical roots.
+    static void setRoots(const std::string &assetRoot, const std::string &userDir);
+    static void setAssetRoot(const std::string &assetRoot);
+    static void setUserDir(const std::string &userDir);
+    static std::string getAssetRoot();
+    static std::string getUserDir();
+    static std::string resolveUserPath(const std::string &path);
+    static bool overlayActive();
     static bool replacePath(const std::string &path, const std::string &diskPath);
 
     static bool createDir(const std::string &path);
@@ -108,6 +119,29 @@ protected:
     static iDir *_scanDir(iDir *_node, const std::string &_name, const std::string &_path, iDir *_parent);
     static iNode *_createNodeFromPath(const std::string &diskPath);
 
+    static bool _overlayEnabled;
+    static std::string _assetRoot;
+    static std::string _userRoot;
+    static iDir _assetDirectories;
+    static std::string _normalizeVirtualPath(const std::string &path);
+    static std::string _userPath(const std::string &path);
+    static std::string _assetPath(const std::string &path);
+    static bool _ensureDirectory(const std::string &path);
+    static bool _copyAssetToUser(const std::string &path);
+    static bool _isTombstoned(const std::string &path);
+    static bool _writeTombstone(const std::string &path);
+    static bool _removeTombstone(const std::string &path);
+    static bool _isUpdateMode(const std::string &mode);
+    static bool _removeOverlayNode(iNode *node);
+    static std::string _nodeVPath(iNode *node);
+    static std::string _writeLogicalPath(const std::string &path);
+    static std::string _readPhysicalPath(iNode *node);
+    static void _syncOverlayFile(const std::string &path, const std::string &diskPath);
+    static void _syncOverlayDirectory(const std::string &path, const std::string &diskPath);
+    static iNode *_cloneNode(const iNode *node);
+    static void _mergeAssetTree(iDir *dst, const iDir *src, const std::string &prefix);
+    static void _rebuildOverlay();
+
     iNode *_parseNodePath(const std::string &path, std::string *out);
 };
 
@@ -125,7 +159,8 @@ public:
 
 private:
     iDir *_d;
-    std::list<iNode *>::iterator _cur;
+    std::vector<std::string> _names;
+    size_t _index;
 };
 
 
@@ -223,9 +258,14 @@ public:
     }
 
 protected:
-    typedef std::unique_ptr<FILE, decltype(&fclose)> __FPtr;
+    struct FileDeleter {
+        void operator()(FILE* p) const {
+            if (p) fclose(p);
+        }
+    };
+    typedef std::unique_ptr<FILE, FileDeleter> __FPtr;
 
-    __FPtr hndl = {nullptr, nullptr};
+    __FPtr hndl = nullptr;
     bool _writeMode = false;
 
 };

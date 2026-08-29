@@ -1,0 +1,18 @@
+Font attributions for the unmodified binaries in ../
+
+Liberation Mono, Liberation Sans, and Liberation Serif 2.00.1
+Copyright (c) 2012 Red Hat, Inc. Digitized data copyright (c) 2010 Google
+Corporation. Liberation is a trademark of Red Hat, Inc. These fonts are
+licensed under the SIL Open Font License, Version 1.1.
+
+Press Start 2P 2.14
+Copyright (c) 2011 Cody "CodeMan38" Boisclair. Released under the SIL Open
+Font License, Version 1.1.
+
+Xolonium 4.1
+Copyright 2011-2016 Severin Meyer. Licensed under the SIL Open Font License,
+Version 1.1.
+
+Textar 003.02
+Derived from IPAPGothic 003.02. Licensed under the IPA Font License Agreement
+Version 1.0. The complete agreement is included alongside this notice.
