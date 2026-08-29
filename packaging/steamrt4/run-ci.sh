@@ -85,8 +85,10 @@ python3 -m py_compile \
     "${source_root}/packaging/steamrt4/test_overlay_mutation.py" \
     "${source_root}/packaging/steamrt4/test_game_menu.py" \
     "${source_root}/packaging/steamrt4/test_game_menu_policy.py" \
-    "${source_root}/packaging/steamrt4/test_steamdeck.py"
+    "${source_root}/packaging/steamrt4/test_steamdeck.py" \
+    "${source_root}/packaging/steamrt4/test_steam_input.py"
 python3 "${source_root}/packaging/steamrt4/test_launcher.py"
+python3 "${source_root}/packaging/steamrt4/test_steam_input.py"
 
 phase="configure Release build"
 cmake \
@@ -103,6 +105,9 @@ if [[ "${CI_CLEAR_CACHE:-0}" == "1" ]]; then
 fi
 cmake --build "${build_dir}"
 ccache --show-stats
+
+phase="run CTest for SDL virtual controller"
+ctest --test-dir "${build_dir}" --output-on-failure
 
 phase="verify resolver write destinations"
 python3 "${source_root}/packaging/steamrt4/test_resolver_write_paths.py"

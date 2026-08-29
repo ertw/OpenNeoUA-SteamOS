@@ -7,8 +7,8 @@ import json
 import os
 from pathlib import Path
 import signal
-import stat
 import subprocess
+import sys
 import tempfile
 import textwrap
 import time
@@ -97,6 +97,47 @@ def main() -> int:
             fail("symlink invocation did not resolve physical launcher root")
         if observed["argv"] != arguments:
             fail("symlink invocation changed arguments")
+
+        observed = run_and_read(
+            launcher,
+            other_cwd,
+            state,
+            environment,
+            ["waitforexitandrun", "plain", "keep"],
+        )
+        if observed["argv"] != ["plain", "keep"]:
+            fail("launcher did not strip Steam waitforexitandrun verb: {!r}".format(observed["argv"]))
+
+        observed = run_and_read(
+            launcher,
+            other_cwd,
+            state,
+            environment,
+            ["waitforexitandrun", str(launcher), "keep"],
+        )
+        if observed["argv"] != ["keep"]:
+            fail("launcher did not drop duplicate script path after Steam verb: {!r}".format(observed["argv"]))
+
+        rogue = parent / "wrong argv0"
+        rogue.mkdir()
+        compat_env = environment.copy()
+        compat_env["STEAM_COMPAT_INSTALL_PATH"] = str(fixture.resolve())
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import os, sys; os.chdir(sys.argv[1]); os.execv(sys.argv[2], ['not-the-launcher'])",
+                str(rogue),
+                str(launcher),
+            ],
+            env=compat_env,
+            check=False,
+        )
+        if result.returncode != 37:
+            fail("STEAM_COMPAT_INSTALL_PATH fallback did not launch: {}".format(result.returncode))
+        observed = json.loads(state.read_text(encoding="utf-8"))
+        if observed["cwd"] != str(fixture.resolve()):
+            fail("STEAM_COMPAT_INSTALL_PATH fallback used the wrong game root")
 
         environment["OPENNEOUA_SIGNAL_TEST"] = "1"
         process = subprocess.Popen([str(launcher), "signal"], cwd=str(other_cwd), env=environment)
