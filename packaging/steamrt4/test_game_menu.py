@@ -440,20 +440,24 @@ def _docker_run_smoke(root: Path, smoke_dir: Path, log: Path, timeout: int) -> N
     # The payload is a separate read-only bind mount and the engine runs as an
     # unprivileged numeric user.  Even if an extracted asset is owner-writable
     # on the host, it cannot be changed during this execution.
+    # Use an Arch Linux image to closely resemble the SteamOS host, rather than
+    # the SteamRT4 build container, to catch missing library dependencies.
     command = [
         "docker", "run", "--rm", "--platform", "linux/amd64",
-        "--user", "65532:65532",
         "--mount", "type=bind,src={},dst=/payload,readonly".format(root.resolve()),
         "--mount", "type=bind,src={},dst=/state".format(state.resolve()),
-        IMAGE,
+        "archlinux:latest",
         "bash", "-lc",
-        "set -eu; mkdir -p /state; "
+        "set -eu; pacman -Sy --noconfirm xorg-server-xvfb >/dev/null 2>&1; "
+        "useradd -m -u 65532 smokeuser; "
+        "chown -R smokeuser:smokeuser /state; "
+        "su smokeuser -c 'set -eu; mkdir -p /state; "
         "HOME=/state XDG_DATA_HOME=/state/xdg-data "
         "XDG_CONFIG_HOME=/state/xdg-config XDG_CACHE_HOME=/state/xdg-cache "
         "SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy LIBGL_ALWAYS_SOFTWARE=1 "
         "MESA_LOADER_DRIVER_OVERRIDE=softpipe GALLIUM_DRIVER=softpipe ALSOFT_DRIVERS=null "
-        "xvfb-run -a --server-args='-screen 0 1280x800x24' "
-        "/payload/AppRun --menu-smoke-dir /state/xdg-data/OpenNeoUA > /state/menu.log 2>&1",
+        "xvfb-run -a --server-args=\"-screen 0 1280x800x24\" "
+        "/payload/AppRun --menu-smoke-dir /state/xdg-data/OpenNeoUA > /state/menu.log 2>&1'",
     ]
     try:
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=timeout + 120, check=False)
