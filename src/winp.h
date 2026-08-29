@@ -39,12 +39,16 @@ public:
 
 public:
     static void InitFirst();
+    static void ShutdownJoystick();
 
     static void OnMouseDown(Common::Point pos, int btn, int clkNum);
     static void OnMouseUp(Common::Point pos, int btn, int clkNum);
     static void OnMouseMove(Common::Point pos, Common::Point rel);
 
     static SDL_Haptic * GetJoyHaptic() { return _joyHaptic; };
+    static bool HasJoystick() { return _joyHandle != NULL; };
+    static bool UsingGameController() { return _gameController != NULL; };
+    static SDL_JoystickID GetJoystickInstanceId() { return _joyInstanceId; };
 
     static void QueryKeyboard(TInputState *arg);
     static void QueryPointer(TClickBoxInf *arg);
@@ -61,9 +65,22 @@ protected:
 
     static SDL_JoystickGUID sdlReadJoyGuid();
     static bool sdlGUIDcmp(SDL_JoystickGUID &gd1, SDL_JoystickGUID &gd2);
+    static bool sdlGuidIsZero(const SDL_JoystickGUID &guid);
+    static int sdlScaleAxis(int raw);
     static int sdlJoyAxis(SDL_Joystick* joystick, int axis);
     static void sdlJoyReadMapping(SDL_Joystick* joystick);
 
+    static void ReleaseJoystickButtons();
+    static void ZeroJoystickAxes();
+    static void CloseJoystickDevice();
+    static bool OpenJoystickIndex(int deviceIndex);
+    static void OpenBestJoystick();
+    static void OnJoystickAdded(int deviceIndex);
+    static void OnJoystickRemoved(SDL_JoystickID instanceId);
+    static void RefreshForceFeedbackDevice();
+
+    static int CheckJoyGameController();
+    static int CheckJoyRaw();
 
 public:
     int16_t _bindedKey = -1;
@@ -103,8 +120,10 @@ protected:
     static bool                 _joyEnable;
     static SDL_JoystickGUID     _joyWantGuid;
 
+    static SDL_GameController  *_gameController;
     static SDL_Joystick        *_joyHandle;
     static SDL_Haptic          *_joyHaptic;
+    static SDL_JoystickID       _joyInstanceId;
 
     static std::array<int, MAXJOYMAP>  _joyAxisMap;
     static std::array<bool, MAXJOYMAP> _joyAxisMapInv;

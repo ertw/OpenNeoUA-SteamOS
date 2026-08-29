@@ -1,0 +1,193 @@
+"controller_mappings"
+{
+	"version"		"3"
+	"title"		"OpenNeoUA Deck Default"
+	"description"		"OpenNeoUA revision 1 Legacy layout for Steam Deck. Left stick = virtual gamepad. Right stick/trackpad/gyro = mouse. Gyro on right-stick or right-trackpad touch. Enable Joystick in Input Settings."
+	"creator"		"0"
+	"controller_type"		"controller_neptune"
+	"controller_capacitor"		"1"
+	"revision"		"1"
+	"group"
+	{
+		"id"		"0"
+		"mode"		"four_buttons"
+		"bindings"
+		{
+			"button_a"		"key_press SPACE, Brake"
+			"button_b"		"key_press ESCAPE, Back Quit"
+			"button_x"		"key_press LCONTROL, Switch Weapon"
+			"button_y"		"key_press F, Alternative View"
+		}
+		"settings"
+		{
+			"requires_click"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"1"
+		"mode"		"dpad"
+		"bindings"
+		{
+			"dpad_north"		"mouse_wheel SCROLL_UP, Zoom In"
+			"dpad_south"		"mouse_wheel SCROLL_DOWN, Zoom Out"
+			"dpad_west"		"key_press 2, Squad Manager"
+			"dpad_east"		"key_press O, Order"
+		}
+		"settings"
+		{
+			"requires_click"		"0"
+			"layout"		"radial_top_down"
+		}
+	}
+	"group"
+	{
+		"id"		"2"
+		"mode"		"absolute_mouse"
+		"bindings"
+		{
+			"click"		"mouse_button RIGHT, Mouse Grab"
+		}
+		"settings"
+		{
+			"sensitivity"		"100"
+			"trackball"		"0"
+			"rotation_offset"		"0"
+			"doubetap_max_duration"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"3"
+		"mode"		"absolute_mouse"
+		"bindings"
+		{
+			"click"		"mouse_button RIGHT, Mouse Grab"
+		}
+		"settings"
+		{
+			"sensitivity"		"120"
+			"trackball"		"0"
+			"rotation_offset"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"4"
+		"mode"		"trigger"
+		"bindings"
+		{
+			"click"		"mouse_button LEFT, Fire Confirm"
+		}
+		"settings"
+		{
+			"output_trigger"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"5"
+		"mode"		"trigger"
+		"bindings"
+		{
+			"click"		"key_press X, Gun"
+		}
+		"settings"
+		{
+			"output_trigger"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"6"
+		"mode"		"joystick_move"
+		"bindings"
+		{
+			"click"		"key_press LSHIFT, Sprint"
+		}
+		"settings"
+		{
+			"output_joystick"		"1"
+			"deadzone_inner_radius"		"0.100000"
+			"deadzone_outer_radius"		"0.990000"
+			"deadzone_shape"		"1"
+			"anti_deadzone"		"0"
+			"anti_deadzone_buffer"		"0"
+			"edge_binding_radius"		"0.970000"
+			"haptic_intensity"		"2"
+		}
+	}
+	"group"
+	{
+		"id"		"7"
+		"mode"		"switches"
+		"bindings"
+		{
+			"button_escape"		"key_press 1, Map"
+			"button_menu"		"key_press P, Pause"
+			"left_bumper"		"key_press BACKQUOTE, Cam Fire"
+			"right_bumper"		"key_press TAB, Cycle Target"
+			"button_back_left"		"key_press Z, Flight Speed Down"
+			"button_back_right"		"key_press Q, Flight Speed Up"
+			"button_back_left_upper"		"key_press LSHIFT, Sprint"
+			"button_back_right_upper"		"key_press J, Control Unit"
+		}
+	}
+	"group"
+	{
+		"id"		"8"
+		"mode"		"absolute_mouse"
+		"bindings"
+		{
+		}
+		"settings"
+		{
+			"sensitivity"		"60"
+			"gyro_button"		"2"
+			"gyro_button"		"9"
+			"gyro_enable_mode"		"1"
+			"acceleration"		"1"
+			"natural_sensitivity"		"1"
+		}
+	}
+	"group"
+	{
+		"id"		"9"
+		"mode"		"radial_menu"
+		"bindings"
+		{
+			"Touch_Menu_Button_0"		"key_press J, Control"
+			"Touch_Menu_Button_1"		"key_press B, Autopilot"
+			"Touch_Menu_Button_2"		"key_press H, HUD"
+			"Touch_Menu_Button_3"		"key_press I, Log"
+			"Touch_Menu_Button_4"		"key_press 3, New"
+			"Touch_Menu_Button_5"		"key_press Q, Add"
+			"Touch_Menu_Button_6"		"key_press F1, Help"
+			"Touch_Menu_Button_7"		"key_press F2, Analyzer"
+		}
+		"settings"
+		{
+			"touch_menu_button_count"		"8"
+			"touch_menu_opacity"		"100"
+			"touch_menu_inner_radius"		"0.300000"
+		}
+	}
+	"group_source_bindings"
+	{
+		"0"		"button_diamond active"
+		"1"		"left_trackpad inactive"
+		"9"		"left_trackpad active"
+		"2"		"right_trackpad active"
+		"6"		"joystick active"
+		"3"		"right_joystick active"
+		"4"		"right_trigger active"
+		"5"		"left_trigger active"
+		"7"		"switch active"
+		"8"		"gyro active"
+	}
+	"settings"
+	{
+		"left_trackpad_mode"		"0"
+		"right_trackpad_mode"		"0"
+	}
+}
