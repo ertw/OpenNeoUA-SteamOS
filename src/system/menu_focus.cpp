@@ -246,6 +246,9 @@ void MenuFocusController::Apply(TInputState *state)
         ReleaseFocused(state);
     _confirmHeld = confirmHeld;
 
+    if ( SteamBackend().SmokeModeActive() && SteamBackend().ConsumeMenuConfirmRelease() )
+        ReleaseFocused(state);
+
     if ( MenuNavPressed(MENU_NAV_CANCEL) )
         state->ClickInf.flag |= TClickBoxInf::FLAG_RM_DOWN;
 

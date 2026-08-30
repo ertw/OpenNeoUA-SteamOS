@@ -136,6 +136,18 @@ void SteamInputBackend::PulseMenuNav(MENU_NAV_ACTION action)
         _smokeMenuNavPulse[index] = true;
 }
 
+void SteamInputBackend::PulseMenuConfirmRelease()
+{
+    _smokeMenuConfirmRelease = true;
+}
+
+bool SteamInputBackend::ConsumeMenuConfirmRelease()
+{
+    const bool release = _smokeMenuConfirmRelease;
+    _smokeMenuConfirmRelease = false;
+    return release;
+}
+
 void SteamInputBackend::ContributeSmoke(ActionFrame *frame)
 {
     if ( !frame )

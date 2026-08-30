@@ -318,6 +318,12 @@ static bool MenuSmokePushSteamMenuNav(Input::MENU_NAV_ACTION action)
     return true;
 }
 
+static bool MenuSmokePushSteamMenuConfirmRelease()
+{
+    Input::SteamBackend().PulseMenuConfirmRelease();
+    return true;
+}
+
 static bool RunMenuSmoke()
 {
     g_menuSmokeReport.clear();
@@ -358,6 +364,8 @@ static bool RunMenuSmoke()
     if (!MenuSmokePushSteamMenuNav(Input::MENU_NAV_CONFIRM))
         return false;
     if (!MenuSmokeRenderFrames(1, &frameCount) || System::ProcessEvents())
+        return false;
+    if (!MenuSmokePushSteamMenuConfirmRelease())
         return false;
     if (!MenuSmokeRenderFrames(2, &frameCount) || userdata.EnvMode != ENVMODE_SINGLEPLAY)
     {

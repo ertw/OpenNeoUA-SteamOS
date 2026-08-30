@@ -170,6 +170,8 @@ public:
     void EnableSmokeMode();
     bool SmokeModeActive() const { return _smokeMode; }
     void PulseMenuNav(MENU_NAV_ACTION action);
+    void PulseMenuConfirmRelease();
+    bool ConsumeMenuConfirmRelease();
 
 private:
     void EnsureHandles();
@@ -187,6 +189,7 @@ private:
     bool _handlesReady = false;
     bool _smokeMode = false;
     std::array<bool, MENU_NAV_COUNT> _smokeMenuNavPulse = {{false}};
+    bool _smokeMenuConfirmRelease = false;
 };
 
 SteamInputBackend &SteamBackend();
