@@ -91,8 +91,11 @@ ALLOWED_ASSET_ROOTS = (
     "Sounds",
     "Wireless",
 )
+SPACEWAR_INSTALLER_NAME = "install_steamdeck_spacewar.py"
+SPACEWAR_INSTALLER_SOURCE = Path("packaging") / "steamrt4" / SPACEWAR_INSTALLER_NAME
 PACKAGE_TOP_LEVEL = (
     "OpenNeoUA.sh",
+    SPACEWAR_INSTALLER_NAME,
     "bin",
     "lib",
     "Fonts",
@@ -1132,6 +1135,16 @@ def copy_steam_input_assets(source_root: Path, staging_root: Path) -> str:
     return revision
 
 
+def copy_spacewar_installer(source_root: Path, staging_root: Path) -> None:
+    source = source_root / SPACEWAR_INSTALLER_SOURCE
+    require_regular_file(source, "Spacewar Steam Deck installer")
+    if source.is_symlink():
+        fail("Spacewar installer must not be a symlink")
+    destination = staging_root / SPACEWAR_INSTALLER_NAME
+    shutil.copyfile(source, destination)
+    os.chmod(destination, 0o755)
+
+
 def write_steam_appid(staging_root: Path) -> None:
     destination = staging_root / "bin" / "steam_appid.txt"
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -1432,6 +1445,10 @@ def verify_package_layout(staging_root: Path) -> None:
     require_regular_file(launcher, "OpenNeoUA launcher")
     if not os.access(launcher, os.X_OK):
         fail("OpenNeoUA.sh is not executable")
+    installer = staging_root / SPACEWAR_INSTALLER_NAME
+    require_regular_file(installer, "Spacewar Steam Deck installer")
+    if not os.access(installer, os.X_OK):
+        fail("{} is not executable".format(SPACEWAR_INSTALLER_NAME))
     for path in (staging_root / "lib").iterdir():
         if path.is_symlink():
             continue
@@ -1611,6 +1628,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         verify_elf_license_records(staging_root, closure, redistributed)
         copy_tracked_assets(source_root, staging_root)
         copy_steam_input_assets(source_root, staging_root)
+        copy_spacewar_installer(source_root, staging_root)
         write_steam_appid(staging_root)
         write_package_licenses(
             source_root,

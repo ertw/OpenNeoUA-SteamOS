@@ -75,6 +75,50 @@ class AppRunTests(unittest.TestCase):
             )
             self.assertEqual((owd / "steam_appid.txt").read_text(encoding="utf-8"), "480\n")
 
+    def test_install_steam_spacewar_does_not_exec_game(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="OpenNeoUA AppRun ") as directory:
+            root = Path(directory)
+            (root / "usr" / "bin").mkdir(parents=True)
+            binary = root / "usr" / "bin" / "OpenNeoUA"
+            binary.write_text(
+                "#!/bin/sh\necho GAME_RAN > \"$TEST_CAPTURE\"\nexit 0\n",
+                encoding="utf-8",
+            )
+            binary.chmod(0o755)
+            installer = root / "usr" / "bin" / "install_steamdeck_spacewar.py"
+            installer.write_text(
+                "#!/usr/bin/env python3\n"
+                "import pathlib, sys\n"
+                "path = pathlib.Path(__import__('os').environ['TEST_CAPTURE'])\n"
+                "path.write_text('INSTALLER:' + sys.argv[1] + '\\n', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            installer.chmod(0o755)
+            apprun = root / "AppRun"
+            create_apprun(apprun)
+
+            capture = root / "capture.txt"
+            appimage = root / "OpenNeoUA.AppImage"
+            appimage.write_bytes(b"placeholder")
+            env = os.environ.copy()
+            env.update(
+                {
+                    "APPDIR": str(root),
+                    "APPIMAGE": str(appimage),
+                    "HOME": str(root / "home"),
+                    "XDG_DATA_HOME": str(root / "xdg"),
+                    "TEST_CAPTURE": str(capture),
+                }
+            )
+            result = subprocess.run(
+                [str(apprun), "--install-steam-spacewar"],
+                env=env,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(capture.read_text(encoding="utf-8"), "INSTALLER:" + str(appimage) + "\n")
+            self.assertNotIn("GAME_RAN", capture.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()
