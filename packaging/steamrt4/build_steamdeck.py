@@ -789,6 +789,21 @@ APPDIR=${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}
 ASSET_ROOT="$APPDIR/usr/share/openneoua"
 USER_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/OpenNeoUA"
 mkdir -p "$USER_DIR"
+APPID_FILE="$APPDIR/usr/bin/steam_appid.txt"
+# SteamAPI looks for steam_appid.txt in cwd and next to the launched file.
+# For an AppImage that is the .AppImage path / original cwd, not usr/bin
+# inside the squashfs mount.
+if [ -f "$APPID_FILE" ]; then
+    if [ -n "${APPIMAGE:-}" ]; then
+        appimage_dir=$(CDPATH= cd -- "$(dirname -- "$APPIMAGE")" && pwd) || true
+        if [ -n "${appimage_dir:-}" ] && [ -d "$appimage_dir" ]; then
+            cp -f "$APPID_FILE" "$appimage_dir/steam_appid.txt" || true
+        fi
+    fi
+    if [ -n "${OWD:-}" ] && [ -d "$OWD" ]; then
+        cp -f "$APPID_FILE" "$OWD/steam_appid.txt" || true
+    fi
+fi
 if [ -n "${LD_LIBRARY_PATH:-}" ]; then
     LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 else
