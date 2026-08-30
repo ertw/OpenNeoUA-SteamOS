@@ -809,6 +809,9 @@ def _copy_overlay_payload(overlay: Path, appdir: Path, asset_root: Path) -> None
     target_binary.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(binary, target_binary)
     target_binary.chmod(0o755)
+    appid = overlay / "bin" / "steam_appid.txt"
+    if appid.is_file() and not appid.is_symlink():
+        shutil.copyfile(appid, target_binary.parent / "steam_appid.txt")
     (appdir / "usr" / "lib").mkdir(parents=True, exist_ok=True)
     library_source = overlay / "lib"
     if library_source.is_dir():

@@ -3,9 +3,11 @@
 #include <cstring>
 #include <fstream>
 #include <string>
+#include <vector>
 #include <unistd.h>
 
 #include "steam_api_loader.h"
+#include "fsmgr.h"
 #include "../log.h"
 
 #if defined(OPENNEOUA_ENABLE_STEAMWORKS) && !defined(_WIN32)
@@ -85,22 +87,52 @@ std::string DirectoryForExecutable()
     return path.substr(0, slash);
 }
 
-std::string ResolveManifestSourceDir()
+std::string JoinDir(const std::string &dir, const std::string &leaf)
 {
-    const std::string binDir = DirectoryForExecutable();
-    if ( binDir.empty() )
+    if ( dir.empty() )
         return std::string();
-
-    return binDir + "/../" + MANIFEST_SUBDIR;
+    if ( dir.back() == '/' )
+        return dir + leaf;
+    return dir + "/" + leaf;
 }
 
-std::string ResolveManifestSourcePath()
+bool ManifestExistsIn(const std::string &dir)
 {
-    const std::string sourceDir = ResolveManifestSourceDir();
-    if ( sourceDir.empty() )
-        return std::string();
+    if ( dir.empty() )
+        return false;
 
-    return sourceDir + "/" + MANIFEST_NAME;
+    std::ifstream probe(JoinDir(dir, MANIFEST_NAME));
+    return static_cast<bool>(probe);
+}
+
+std::string ResolveManifestSourceDir()
+{
+    // Overlay: <game-root>/bin/OpenNeoUA → <game-root>/SteamInput/
+    // AppImage: usr/bin/OpenNeoUA, with SteamInput under --asset-root
+    // (usr/share/openneoua/SteamInput), not next to usr/bin.
+    std::vector<std::string> candidates;
+
+    const std::string binDir = DirectoryForExecutable();
+    if ( !binDir.empty() )
+    {
+        candidates.push_back(JoinDir(binDir, std::string("../") + MANIFEST_SUBDIR));
+        candidates.push_back(JoinDir(binDir, MANIFEST_SUBDIR));
+    }
+
+    const std::string assetRoot = FSMgr::iDir::getAssetRoot();
+    if ( !assetRoot.empty() )
+        candidates.push_back(JoinDir(assetRoot, MANIFEST_SUBDIR));
+
+    for ( const std::string &dir : candidates )
+    {
+        if ( ManifestExistsIn(dir) )
+            return dir;
+    }
+
+    if ( !candidates.empty() )
+        return candidates.front();
+
+    return std::string();
 }
 
 bool CopyRegularFile(const std::string &source, const std::string &destination)
