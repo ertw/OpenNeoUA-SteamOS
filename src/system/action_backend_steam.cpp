@@ -115,14 +115,59 @@ void SteamInputBackend::EnsureHandles()
 
 bool SteamInputBackend::Available() const
 {
+    if ( _smokeMode )
+        return true;
+
     return Steam::ApiLoader::Instance.Ready() &&
            Steam::ApiLoader::Instance.ControllerCount() > 0;
+}
+
+void SteamInputBackend::EnableSmokeMode()
+{
+    _smokeMode = true;
+    _handlesReady = true;
+    ResetHandles();
+}
+
+void SteamInputBackend::PulseMenuNav(MENU_NAV_ACTION action)
+{
+    const std::size_t index = (std::size_t)action;
+    if ( index < _smokeMenuNavPulse.size() )
+        _smokeMenuNavPulse[index] = true;
+}
+
+void SteamInputBackend::ContributeSmoke(ActionFrame *frame)
+{
+    if ( !frame )
+        return;
+
+    _menuCursorDelX = 0.0f;
+    _menuCursorDelY = 0.0f;
+    _aimDelX = 0.0f;
+    _aimDelY = 0.0f;
+
+    for ( std::size_t i = 0; i < _menuNavActive.size(); i++ )
+    {
+        _menuNavActive[i] = _smokeMenuNavPulse[i];
+        _smokeMenuNavPulse[i] = false;
+    }
+
+    if ( _menuNavActive[(std::size_t)MENU_NAV_CONFIRM] )
+        frame->Samples[World::INPUT_BIND_FIRE].active = true;
+    if ( _menuNavActive[(std::size_t)MENU_NAV_CANCEL] )
+        frame->Samples[World::INPUT_BIND_BRAKE].active = true;
 }
 
 void SteamInputBackend::Contribute(ActionFrame *frame)
 {
     if ( !frame || !Available() )
         return;
+
+    if ( _smokeMode )
+    {
+        ContributeSmoke(frame);
+        return;
+    }
 
     EnsureHandles();
 

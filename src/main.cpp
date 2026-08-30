@@ -268,6 +268,56 @@ static bool MenuSmokeWriteReportAfterShutdown()
     return true;
 }
 
+static bool MenuSmokeFindEnabledRegionPoint(int *outX, int *outY)
+{
+    if ( !ypaworld || !outX || !outY )
+        return false;
+
+    TMapRegionsNet &regions = ypaworld->_globalMapRegions;
+    if ( !regions.MaskImage )
+        return false;
+
+    ResBitmap *bitmap = regions.MaskImage->GetBitmap();
+    if ( !bitmap || !bitmap->swTex )
+        return false;
+
+    SDL_LockSurface(bitmap->swTex);
+    const int width = bitmap->swTex->w;
+    const int height = bitmap->swTex->h;
+    const int pitch = bitmap->swTex->pitch;
+    const uint8_t *pixels = (const uint8_t *)bitmap->swTex->pixels;
+
+    bool found = false;
+    for ( int y = 0; y < height && !found; ++y )
+    {
+        for ( int x = 0; x < width; ++x )
+        {
+            const uint8_t regionIndex = pixels[y * pitch + x];
+            if ( regionIndex == 0 || regionIndex >= 256 )
+                continue;
+
+            const int status = regions.MapRegions[regionIndex].Status;
+            if ( status != TMapRegionInfo::STATUS_ENABLED &&
+                 status != TMapRegionInfo::STATUS_COMPLETED )
+                continue;
+
+            *outX = x * ypaworld->_screenSize.x / width;
+            *outY = y * ypaworld->_screenSize.y / height;
+            found = true;
+            break;
+        }
+    }
+
+    SDL_UnlockSurface(bitmap->swTex);
+    return found;
+}
+
+static bool MenuSmokePushSteamMenuNav(Input::MENU_NAV_ACTION action)
+{
+    Input::SteamBackend().PulseMenuNav(action);
+    return true;
+}
+
 static bool RunMenuSmoke()
 {
     g_menuSmokeReport.clear();
@@ -289,20 +339,7 @@ static bool RunMenuSmoke()
         return false;
     }
 
-    const int optionsIndex = userdata.titel_button->GetIndexByID(UIWidgets::MAIN_MENU_WIDGET_IDS::BTN_OPTIONS);
-    if (optionsIndex < 0 || optionsIndex >= (int)userdata.titel_button->field_d8.size() ||
-        optionsIndex >= (int)userdata.titel_button->buttons.size())
-    {
-        ypa_log_out("menu smoke: Options widget was not created\n");
-        return false;
-    }
-    const NC_STACK_button::button_str2 &options = userdata.titel_button->field_d8[optionsIndex];
-    const ButtonBox &bounds = userdata.titel_button->buttons[optionsIndex];
-    if (bounds.w <= 0 || bounds.h <= 0 || options.width <= 0)
-    {
-        ypa_log_out("menu smoke: Options widget has empty bounds\n");
-        return false;
-    }
+    Input::SteamBackend().EnableSmokeMode();
 
     int frameCount = 0;
     if (!MenuSmokeRenderFrames(3, &frameCount))
@@ -316,35 +353,57 @@ static bool RunMenuSmoke()
         ypa_log_out("menu smoke: renderer did not select 1280x800\n");
         return false;
     }
-    const int clickX = (bounds.x + bounds.w / 2) * physical.x / logical.x;
-    const int clickY = (bounds.y + bounds.h / 2) * physical.y / logical.y;
-    if (!MenuSmokePushMouse(SDL_MOUSEMOTION, clickX, clickY) || System::ProcessEvents())
+
+    // Single Player is the first focusable title widget; confirm via Steam Input.
+    if (!MenuSmokePushSteamMenuNav(Input::MENU_NAV_CONFIRM))
         return false;
-    if (!MenuSmokePushMouse(SDL_MOUSEBUTTONDOWN, clickX, clickY, SDL_BUTTON_LEFT) || System::ProcessEvents())
+    if (!MenuSmokeRenderFrames(1, &frameCount) || System::ProcessEvents())
+        return false;
+    if (!MenuSmokePushSteamMenuNav(Input::MENU_NAV_CONFIRM))
+        return false;
+    if (!MenuSmokeRenderFrames(2, &frameCount) || userdata.EnvMode != ENVMODE_SINGLEPLAY)
+    {
+        ypa_log_out("menu smoke: Steam MenuConfirm did not enter campaign map select\n");
+        return false;
+    }
+
+    if (!MenuSmokeRenderFrames(8, &frameCount))
+        return false;
+
+    int mapClickX = 0;
+    int mapClickY = 0;
+    if (!MenuSmokeFindEnabledRegionPoint(&mapClickX, &mapClickY))
+    {
+        ypa_log_out("menu smoke: no enabled campaign map region found on mask bitmap\n");
+        return false;
+    }
+
+    const int physicalClickX = mapClickX * physical.x / logical.x;
+    const int physicalClickY = mapClickY * physical.y / logical.y;
+    int selectedRegion = 0;
+
+    if (!MenuSmokePushMouse(SDL_MOUSEMOTION, physicalClickX, physicalClickY) || System::ProcessEvents())
         return false;
     if (!MenuSmokeRenderFrames(1, &frameCount))
         return false;
-    if (!MenuSmokePushMouse(SDL_MOUSEBUTTONUP, clickX, clickY, SDL_BUTTON_LEFT) || System::ProcessEvents())
-        return false;
-    if (!MenuSmokeRenderFrames(1, &frameCount) || userdata.EnvMode != ENVMODE_SETTINGS)
-    {
-        ypa_log_out("menu smoke: normal Options click did not enter settings\n");
-        return false;
-    }
-    if (!MenuSmokeRenderFrames(2, &frameCount))
-        return false;
-    GFX::Engine.SaveScreenshot("env:snaps/menu-options");
 
-    if (!MenuSmokePushEscape() || System::ProcessEvents())
-        return false;
-    if (!MenuSmokeRenderFrames(1, &frameCount) || userdata.EnvMode != ENVMODE_TITLE)
+    selectedRegion = ypaworld->_globalMapRegions.SelectedRegion;
+    if (selectedRegion <= 0)
     {
-        ypa_log_out("menu smoke: normal Escape did not return to title\n");
+        ypa_log_out("menu smoke: campaign map hover did not select a region\n");
         return false;
     }
-    if (!MenuSmokeRenderFrames(2, &frameCount))
+
+    GFX::Engine.SaveScreenshot("env:snaps/menu-campaign-map");
+
+    if (!MenuSmokePushMouse(SDL_MOUSEBUTTONDOWN, physicalClickX, physicalClickY, SDL_BUTTON_LEFT) || System::ProcessEvents())
         return false;
-    GFX::Engine.SaveScreenshot("env:snaps/menu-title-after");
+    if (!MenuSmokeRenderFrames(1, &frameCount))
+        return false;
+    if (!MenuSmokePushMouse(SDL_MOUSEBUTTONUP, physicalClickX, physicalClickY, SDL_BUTTON_LEFT) || System::ProcessEvents())
+        return false;
+    if (!MenuSmokeRenderFrames(1, &frameCount))
+        return false;
 
     const char *renderer = (const char *)glGetString(GL_RENDERER);
     const char *version = (const char *)glGetString(GL_VERSION);
@@ -354,17 +413,19 @@ static bool RunMenuSmoke()
     const std::string sourceId = MenuSmokeProvenanceValue(provenance, "source_id");
 
     std::string report;
-    report += "{\n  \"version\": 1,\n";
+    report += "{\n  \"version\": 2,\n";
+    report += "  \"steam_input\": true,\n";
     report += "  \"milestones\": [\n";
     report += "    {\"event\": \"title-before\", \"mode\": \"ENVMODE_TITLE\", \"frames\": 3},\n";
-    report += "    {\"event\": \"options\", \"mode\": \"ENVMODE_SETTINGS\", \"frames\": 2},\n";
-    report += "    {\"event\": \"title-after\", \"mode\": \"ENVMODE_TITLE\", \"frames\": 2}\n  ],\n";
-    report += fmt::sprintf("  \"frame_count\": %d,\n  \"title_frames\": 5,\n  \"options_frames\": 2,\n", frameCount);
+    report += "    {\"event\": \"campaign-map\", \"mode\": \"ENVMODE_SINGLEPLAY\", \"frames\": 10}\n  ],\n";
+    report += fmt::sprintf("  \"frame_count\": %d,\n", frameCount);
+    report += fmt::sprintf("  \"selected_region\": %d,\n", selectedRegion);
+    report += fmt::sprintf("  \"map_probe\": [%d, %d],\n", mapClickX, mapClickY);
     report += fmt::sprintf("  \"resolution\": [%d, %d],\n", physical.x, physical.y);
     report += "  \"renderer\": {\"gl_renderer\": \"" + MenuSmokeJsonEscape(renderer ? renderer : "") +
              "\", \"gl_version\": \"" + MenuSmokeJsonEscape(version ? version : "") +
              "\", \"gl_vendor\": \"" + MenuSmokeJsonEscape(vendor ? vendor : "") + "\"},\n";
-    report += "  \"final_mode\": \"ENVMODE_TITLE\",\n";
+    report += "  \"final_mode\": \"ENVMODE_SINGLEPLAY\",\n";
     report += "  \"asset_provenance\": {\"asset_root\": \"" + MenuSmokeJsonEscape(FSMgr::iDir::getAssetRoot()) +
              "\", \"source_id\": \"" + MenuSmokeJsonEscape(sourceId) +
              "\", \"iso_sha256\": \"" + MenuSmokeJsonEscape(isoSha) + "\"}\n}\n";
