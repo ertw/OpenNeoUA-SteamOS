@@ -87,3 +87,10 @@ build/steamdeck-private/
 !/.github/workflows/linux-steamrt4.yml
 !/Progressi OpenNeoUA/
 !/Progressi OpenNeoUA/Linux SteamOS Steam Deck e Bazzite.md
+
+# ============================================================
+# CLOUD AGENT ENVIRONMENT
+# ============================================================
+
+!/.cursor/
+!/.cursor/**
