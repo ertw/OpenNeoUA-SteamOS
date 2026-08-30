@@ -1468,7 +1468,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--refresh-image", action="store_true")
     parser.add_argument("--keep-work", action="store_true")
     parser.add_argument("--assemble-only", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--iso", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--overlay-dir", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--base-output", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--appdir", type=Path, help=argparse.SUPPRESS)
