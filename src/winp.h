@@ -46,6 +46,9 @@ public:
     static void OnMouseMove(Common::Point pos, Common::Point rel);
 
     static SDL_Haptic * GetJoyHaptic() { return _joyHaptic; };
+    static bool JoyRumbleReady() { return _joyRumbleReady; };
+    static void PlayJoyRumble(Uint16 low, Uint16 high, Uint32 durationMs);
+    static void StopJoyRumble();
     static bool HasJoystick() { return _joyHandle != NULL; };
     static bool UsingGameController() { return _gameController != NULL; };
     static SDL_JoystickID GetJoystickInstanceId() { return _joyInstanceId; };
@@ -80,6 +83,7 @@ protected:
     static void OnJoystickAdded(int deviceIndex);
     static void OnJoystickRemoved(SDL_JoystickID instanceId);
     static void RefreshForceFeedbackDevice();
+    static void InitJoyRumble();
 
     static int CheckJoyGameController();
     static int CheckJoyRaw();
@@ -125,6 +129,7 @@ protected:
     static SDL_GameController  *_gameController;
     static SDL_Joystick        *_joyHandle;
     static SDL_Haptic          *_joyHaptic;
+    static bool                 _joyRumbleReady;
     static SDL_JoystickID       _joyInstanceId;
 
     static std::array<int, MAXJOYMAP>  _joyAxisMap;
