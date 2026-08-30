@@ -142,6 +142,7 @@ public:
     struct ResolvedAction
     {
         int Binding = -1;
+        const char *IgaName = nullptr;
         Steam::InputDigitalActionHandle Digital = 0;
         Steam::InputAnalogActionHandle Analog = 0;
         int HotKeySlot = -1;
@@ -160,6 +161,9 @@ public:
     float MenuCursorDeltaX() const { return _menuCursorDelX; }
     float MenuCursorDeltaY() const { return _menuCursorDelY; }
 
+    float AimDeltaX() const { return _aimDelX; }
+    float AimDeltaY() const { return _aimDelY; }
+
     static float CombineTrigger(float current, float incoming);
 
 private:
@@ -171,6 +175,9 @@ private:
     std::array<bool, MENU_NAV_COUNT> _menuNavActive = {{false}};
     float _menuCursorDelX = 0.0f;
     float _menuCursorDelY = 0.0f;
+    float _aimDelX = 0.0f;
+    float _aimDelY = 0.0f;
+    Steam::InputAnalogActionHandle _aimHandle = 0;
     bool _handlesReady = false;
 };
 

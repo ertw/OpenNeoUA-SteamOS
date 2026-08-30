@@ -117,6 +117,14 @@ class SteamInputAssetTests(unittest.TestCase):
         for pattern in FORBIDDEN_METADATA_PATTERNS:
             self.assertIsNone(pattern.search(text), msg=pattern.pattern)
 
+    def test_deck_iga_config_has_native_bindings(self) -> None:
+        text = (SOURCE_DIR / "openneoua_deck_iga.vdf").read_text(encoding="utf-8")
+        self.assertIn('"controller_mappings"', text)
+        self.assertIn('"controller_type"\t\t"controller_neptune"', text)
+        self.assertIn("game_action Ground Fire", text)
+        self.assertIn("game_action Menu MenuConfirm", text)
+        self.assertIn('"name"\t\t"Ground"', text)
+
     def test_no_input_is_bound_to_two_different_actions(self) -> None:
         text = (SOURCE_DIR / "openneoua_deck_default.vdf").read_text(encoding="utf-8")
         labels_by_input: dict[tuple[str, str], set[str]] = {}

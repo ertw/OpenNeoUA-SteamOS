@@ -11,6 +11,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ACTION_TABLE = REPO_ROOT / "src" / "system" / "action_table.h"
 DEFAULT_OUTPUT = REPO_ROOT / "packaging" / "steamrt4" / "steam_input" / "game_actions_480.vdf"
+DECK_IGA_CONFIG = "openneoua_deck_iga.vdf"
 
 ENTRY_PATTERN = re.compile(
     r"\{\s*INPUT_BIND_\w+,\s*ACTION_KIND_(DIGITAL|ANALOG),\s*"
@@ -167,6 +168,16 @@ def build_vdf(entries: list[dict[str, object]]) -> str:
 
         lines.append("\t\t}")
 
+    lines.append("\t}")
+    lines.append("\t\"configurations\"")
+    lines.append("\t{")
+    lines.append('\t\t"controller_neptune"')
+    lines.append("\t\t{")
+    lines.append('\t\t\t"0"')
+    lines.append("\t\t\t{")
+    lines.append('\t\t\t\t"path"\t\t"{}"'.format(DECK_IGA_CONFIG))
+    lines.append("\t\t\t}")
+    lines.append("\t\t}")
     lines.append("\t}")
     lines.append("\t\"localization\"")
     lines.append("\t{")

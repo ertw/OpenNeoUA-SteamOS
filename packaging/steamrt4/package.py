@@ -147,8 +147,11 @@ STEAM_INPUT_SOURCE_DIR = Path("packaging") / "steamrt4" / "steam_input"
 STEAM_INPUT_REQUIRED_FILES = (
     "REVISION.txt",
     "openneoua_deck_default.vdf",
+    "openneoua_deck_iga.vdf",
     "game_actions_480.vdf",
 )
+STEAM_APPID = "480"
+BIN_PACKAGE_FILES = ("OpenNeoUA", "steam_appid.txt")
 
 
 class PackagingError(RuntimeError):
@@ -1129,6 +1132,13 @@ def copy_steam_input_assets(source_root: Path, staging_root: Path) -> str:
     return revision
 
 
+def write_steam_appid(staging_root: Path) -> None:
+    destination = staging_root / "bin" / "steam_appid.txt"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(STEAM_APPID + "\n", encoding="utf-8")
+    os.chmod(destination, 0o644)
+
+
 def source_provenance_lines(
     commit: str,
     dirty_base_commit: Optional[str],
@@ -1398,8 +1408,10 @@ def verify_package_layout(staging_root: Path) -> None:
         fail(
             "SteamInput/ layout mismatch: {}".format(", ".join(actual_steam_input))
         )
-    if sorted(path.name for path in (staging_root / "bin").iterdir()) != ["OpenNeoUA"]:
-        fail("package bin/ contains entries other than OpenNeoUA")
+    if sorted(path.name for path in (staging_root / "bin").iterdir()) != sorted(BIN_PACKAGE_FILES):
+        fail("package bin/ layout mismatch: {}".format(
+            ", ".join(sorted(path.name for path in (staging_root / "bin").iterdir()))
+        ))
     executable = staging_root / "bin" / "OpenNeoUA"
     require_regular_file(executable, "installed OpenNeoUA executable")
     if not is_x86_64_elf(executable):
@@ -1599,6 +1611,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         verify_elf_license_records(staging_root, closure, redistributed)
         copy_tracked_assets(source_root, staging_root)
         copy_steam_input_assets(source_root, staging_root)
+        write_steam_appid(staging_root)
         write_package_licenses(
             source_root,
             staging_root,

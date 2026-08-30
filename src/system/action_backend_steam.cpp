@@ -34,6 +34,11 @@ ANALOG_KIND AnalogKindForName(const char *name)
     return ANALOG_KIND_NONE;
 }
 
+bool UsesVerticalAxisAsPrimary(const char *name)
+{
+    return name && (std::strcmp(name, "FlyHeight") == 0 || std::strcmp(name, "GunHeight") == 0);
+}
+
 SteamInputBackend &BackendInstance()
 {
     static SteamInputBackend backend;
@@ -54,6 +59,9 @@ void SteamInputBackend::ResetHandles()
     _menuNavActive.fill(false);
     _menuCursorDelX = 0.0f;
     _menuCursorDelY = 0.0f;
+    _aimDelX = 0.0f;
+    _aimDelY = 0.0f;
+    _aimHandle = 0;
     _handlesReady = false;
 }
 
@@ -79,6 +87,7 @@ void SteamInputBackend::EnsureHandles()
 
         SteamInputBackend::ResolvedAction &resolved = _resolved[entry.Binding];
         resolved.Binding = entry.Binding;
+        resolved.IgaName = entry.IgaName;
         resolved.HotKeySlot = entry.Channel == World::INPUT_BIND_TYPE_HOTKEY ? entry.Slot : -1;
 
         if ( entry.Kind == World::ActionTable::ACTION_KIND_DIGITAL )
@@ -99,6 +108,8 @@ void SteamInputBackend::EnsureHandles()
     for ( std::size_t i = 0; i < _menuNavResolved.size(); i++ )
         _menuNavResolved[i] = api.GetDigitalActionHandle(iface, kMenuNavNames[i]);
 
+    _aimHandle = api.GetAnalogActionHandle(iface, "Aim");
+
     _handlesReady = true;
 }
 
@@ -117,6 +128,8 @@ void SteamInputBackend::Contribute(ActionFrame *frame)
 
     _menuCursorDelX = 0.0f;
     _menuCursorDelY = 0.0f;
+    _aimDelX = 0.0f;
+    _aimDelY = 0.0f;
 
     Steam::ApiLoader &steam = Steam::ApiLoader::Instance;
     const Steam::ApiTable &api = steam.Api();
@@ -162,7 +175,10 @@ void SteamInputBackend::Contribute(ActionFrame *frame)
 
             case ANALOG_KIND_JOYSTICK:
             default:
-                sample.posX = data.X;
+                if ( UsesVerticalAxisAsPrimary(resolved.IgaName) )
+                    sample.posX = data.Y;
+                else
+                    sample.posX = data.X;
                 sample.posY = data.Y;
                 sample.active = sample.active || (data.X != 0.0f || data.Y != 0.0f);
                 break;
@@ -194,6 +210,17 @@ void SteamInputBackend::Contribute(ActionFrame *frame)
                 _menuCursorDelX = cursor.X;
                 _menuCursorDelY = cursor.Y;
             }
+        }
+    }
+
+    if ( _aimHandle )
+    {
+        const Steam::AnalogActionData aim =
+            api.GetAnalogActionData(iface, controller, _aimHandle);
+        if ( aim.Active )
+        {
+            _aimDelX = aim.X;
+            _aimDelY = aim.Y;
         }
     }
 

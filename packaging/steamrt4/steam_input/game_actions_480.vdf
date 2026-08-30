@@ -439,6 +439,16 @@
 			}
 		}
 	}
+	"configurations"
+	{
+		"controller_neptune"
+		{
+			"0"
+			{
+				"path"		"openneoua_deck_iga.vdf"
+			}
+		}
+	}
 	"localization"
 	{
 		"english"

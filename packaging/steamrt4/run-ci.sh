@@ -88,6 +88,8 @@ python3 -m py_compile \
     "${source_root}/packaging/steamrt4/test_steamdeck.py" \
     "${source_root}/packaging/steamrt4/test_steam_input.py" \
     "${source_root}/packaging/steamrt4/test_steam_input_iga.py" \
+    "${source_root}/packaging/steamrt4/generate_iga_vdf.py" \
+    "${source_root}/packaging/steamrt4/generate_deck_iga_config.py" \
     "${source_root}/packaging/steamrt4/test_redistribution_exemption.py" \
     "${source_root}/packaging/steamrt4/verify_steam_api_symbols.py"
 python3 "${source_root}/packaging/steamrt4/test_launcher.py"

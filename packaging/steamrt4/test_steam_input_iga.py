@@ -121,6 +121,11 @@ class SteamInputIgaTests(unittest.TestCase):
         for name in sorted(self.table_names):
             self.assertIn('"Action_{}"'.format(name), self.iga_text, msg=name)
 
+    def test_configurations_reference_deck_iga(self) -> None:
+        self.assertIn('"configurations"', self.iga_text)
+        self.assertIn('"controller_neptune"', self.iga_text)
+        self.assertIn('"openneoua_deck_iga.vdf"', self.iga_text)
+
 
 if __name__ == "__main__":
     unittest.main()

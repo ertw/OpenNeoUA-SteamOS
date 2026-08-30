@@ -1,3 +1,4 @@
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -8,7 +9,9 @@
 #include "../log.h"
 
 #if defined(OPENNEOUA_ENABLE_STEAMWORKS) && !defined(_WIN32)
+#include <dirent.h>
 #include <dlfcn.h>
+#include <sys/stat.h>
 #define OPENNEOUA_STEAM_DLOPEN 1
 #endif
 
@@ -82,33 +85,91 @@ std::string DirectoryForExecutable()
     return path.substr(0, slash);
 }
 
-std::string ResolveManifestSourcePath()
+std::string ResolveManifestSourceDir()
 {
     const std::string binDir = DirectoryForExecutable();
     if ( binDir.empty() )
         return std::string();
 
-    return binDir + "/../" + MANIFEST_SUBDIR + "/" + MANIFEST_NAME;
+    return binDir + "/../" + MANIFEST_SUBDIR;
 }
 
-bool CopyManifestToRuntimePath(const std::string &source, std::string *destination)
+std::string ResolveManifestSourcePath()
+{
+    const std::string sourceDir = ResolveManifestSourceDir();
+    if ( sourceDir.empty() )
+        return std::string();
+
+    return sourceDir + "/" + MANIFEST_NAME;
+}
+
+bool CopyRegularFile(const std::string &source, const std::string &destination)
 {
     std::ifstream input(source, std::ios::binary);
     if ( !input )
         return false;
 
-    const char *tempRoot = std::getenv("TMPDIR");
-    if ( !tempRoot || !tempRoot[0] )
-        tempRoot = "/tmp";
-
-    *destination = std::string(tempRoot) + "/openneoua_steam_input_" + MANIFEST_NAME;
-
-    std::ofstream output(*destination, std::ios::binary | std::ios::trunc);
+    std::ofstream output(destination, std::ios::binary | std::ios::trunc);
     if ( !output )
         return false;
 
     output << input.rdbuf();
     return output.good();
+}
+
+bool CopySteamInputAssets(const std::string &sourceDir, const std::string &destDir)
+{
+#ifdef OPENNEOUA_STEAM_DLOPEN
+    DIR *dir = opendir(sourceDir.c_str());
+    if ( !dir )
+        return false;
+
+    if ( mkdir(destDir.c_str(), 0755) != 0 && errno != EEXIST )
+    {
+        closedir(dir);
+        return false;
+    }
+
+    bool copiedManifest = false;
+
+    for ( dirent *entry = readdir(dir); entry; entry = readdir(dir) )
+    {
+        if ( !entry->d_name[0] || entry->d_name[0] == '.' )
+            continue;
+
+        const std::string sourcePath = sourceDir + "/" + entry->d_name;
+        struct stat info = {};
+        if ( stat(sourcePath.c_str(), &info) != 0 || !S_ISREG(info.st_mode) )
+            continue;
+
+        const std::string destPath = destDir + "/" + entry->d_name;
+        if ( !CopyRegularFile(sourcePath, destPath) )
+        {
+            closedir(dir);
+            return false;
+        }
+
+        if ( std::strcmp(entry->d_name, MANIFEST_NAME) == 0 )
+            copiedManifest = true;
+    }
+
+    closedir(dir);
+    return copiedManifest;
+#else
+    (void)sourceDir;
+    (void)destDir;
+    return false;
+#endif
+}
+
+bool CopyManifestToRuntimeDir(const std::string &sourceDir, std::string *destinationDir)
+{
+    const char *tempRoot = std::getenv("TMPDIR");
+    if ( !tempRoot || !tempRoot[0] )
+        tempRoot = "/tmp";
+
+    *destinationDir = std::string(tempRoot) + "/openneoua_steam_input";
+    return CopySteamInputAssets(sourceDir, *destinationDir);
 }
 
 }
@@ -248,13 +309,14 @@ bool ApiLoader::InstallActionManifest()
     if ( !_api.SetActionManifestPath || !_inputInterface )
         return true;
 
-    const std::string sourcePath = ResolveManifestSourcePath();
-    if ( sourcePath.empty() )
+    const std::string sourceDir = ResolveManifestSourceDir();
+    if ( sourceDir.empty() )
     {
         ypa_log_out("steam.input: manifest source path could not be resolved\n");
         return false;
     }
 
+    const std::string sourcePath = sourceDir + "/" + MANIFEST_NAME;
     std::ifstream probe(sourcePath);
     if ( !probe )
     {
@@ -263,9 +325,9 @@ bool ApiLoader::InstallActionManifest()
     }
 
     std::string manifestPath = sourcePath;
-    std::string copiedPath;
-    if ( CopyManifestToRuntimePath(sourcePath, &copiedPath) )
-        manifestPath = copiedPath;
+    std::string copiedDir;
+    if ( CopyManifestToRuntimeDir(sourceDir, &copiedDir) )
+        manifestPath = copiedDir + "/" + MANIFEST_NAME;
 
     if ( !_api.SetActionManifestPath(_inputInterface, manifestPath.c_str()) )
     {

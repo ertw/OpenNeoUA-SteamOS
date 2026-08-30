@@ -215,6 +215,19 @@ void ActionInput::PopulateLegacyState(TInputState *state) const
             state->Sliders[slot] = _passthrough.SliderPos[slot];
         }
     }
+
+#ifdef OPENNEOUA_ENABLE_STEAMWORKS
+    if ( SteamInputControlsJoystick() )
+    {
+        const float aimX = SteamBackend().AimDeltaX();
+        const float aimY = SteamBackend().AimDeltaY();
+        if ( aimX != 0.0f || aimY != 0.0f )
+        {
+            state->Sliders[10] = aimX;
+            state->Sliders[11] = aimY;
+        }
+    }
+#endif
 }
 
 const ActionSample &ActionInput::Sample(int binding) const
@@ -350,6 +363,11 @@ void SetEnabled(bool enabled)
 
 void Check(const LegacyInputPrimitives &primitives, const TInputState &candidate)
 {
+#ifdef OPENNEOUA_ENABLE_STEAMWORKS
+    if ( SteamInputControlsJoystick() )
+        return;
+#endif
+
     TInputState reference;
     BuildLegacyInputState(primitives, &reference);
 
