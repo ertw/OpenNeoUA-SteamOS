@@ -2,11 +2,11 @@
 {
 	"version"		"3"
 	"title"		"OpenNeoUA Deck Default"
-	"description"		"OpenNeoUA revision 1 Legacy layout for Steam Deck. Left stick = virtual gamepad. Right stick/trackpad/gyro = mouse. Gyro on right-stick or right-trackpad touch. Enable Joystick in Input Settings."
+	"description"		"OpenNeoUA revision 2 Legacy layout for Steam Deck. Left stick = virtual gamepad. Right stick/trackpad/gyro = mouse. Gyro on right-stick or right-trackpad touch. Enable Joystick in Input Settings."
 	"creator"		"0"
 	"controller_type"		"controller_neptune"
 	"controller_capacitor"		"1"
-	"revision"		"1"
+	"revision"		"2"
 	"group"
 	{
 		"id"		"0"
@@ -129,7 +129,7 @@
 			"right_bumper"		"key_press TAB, Cycle Target"
 			"button_back_left"		"key_press Z, Flight Speed Down"
 			"button_back_right"		"key_press Q, Flight Speed Up"
-			"button_back_left_upper"		"key_press LSHIFT, Sprint"
+			"button_back_left_upper"		"key_press F6, Next Unit"
 			"button_back_right_upper"		"key_press J, Control Unit"
 		}
 	}
@@ -156,12 +156,12 @@
 		"mode"		"radial_menu"
 		"bindings"
 		{
-			"Touch_Menu_Button_0"		"key_press J, Control"
+			"Touch_Menu_Button_0"		"key_press J, Control Unit"
 			"Touch_Menu_Button_1"		"key_press B, Autopilot"
 			"Touch_Menu_Button_2"		"key_press H, HUD"
 			"Touch_Menu_Button_3"		"key_press I, Log"
 			"Touch_Menu_Button_4"		"key_press 3, New"
-			"Touch_Menu_Button_5"		"key_press Q, Add"
+			"Touch_Menu_Button_5"		"key_press L, Set Commander"
 			"Touch_Menu_Button_6"		"key_press F1, Help"
 			"Touch_Menu_Button_7"		"key_press F2, Analyzer"
 		}

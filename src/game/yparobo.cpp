@@ -1,3 +1,4 @@
+#include "system/action_query.h"
 // NC_STACK_yparobo core: host station construction, parameters, beam updates, collisions, death, energy and the property
 // getters/setters. The AI and the player-specific behaviour live in yparobo_ai.cpp and yparobo_player.cpp
 // (shared helpers: yparobo_internal.h).
@@ -1241,9 +1242,9 @@ void NC_STACK_yparobo::yparobo_func71__sub0(update_msg *arg)
     float v18 = arg->frameTime / 1000.0;
 
 
-    if ( inpt->Sliders[1] < -0.001 )
+    if ( Input::ActionAxisX(World::INPUT_BIND_FLY_HEIGHT) < -0.001 )
     {
-        _viewer_vert_angle += inpt->Sliders[1] * _maxrot * v18 * 2.0;
+        _viewer_vert_angle += Input::ActionAxisX(World::INPUT_BIND_FLY_HEIGHT) * _maxrot * v18 * 2.0;
 
         if ( _viewer_vert_angle > _viewer_max_up )
             _viewer_vert_angle = _viewer_max_up;
@@ -1251,9 +1252,9 @@ void NC_STACK_yparobo::yparobo_func71__sub0(update_msg *arg)
         if ( _viewer_vert_angle < -_viewer_max_down )
             _viewer_vert_angle = -_viewer_max_down;
     }
-    else if (inpt->Sliders[1] > 0.001)
+    else if (Input::ActionAxisX(World::INPUT_BIND_FLY_HEIGHT) > 0.001)
     {
-        _viewer_vert_angle += inpt->Sliders[1] * _maxrot * v18 * 2.0;
+        _viewer_vert_angle += Input::ActionAxisX(World::INPUT_BIND_FLY_HEIGHT) * _maxrot * v18 * 2.0;
 
         if ( _viewer_vert_angle > _viewer_max_up )
             _viewer_vert_angle = _viewer_max_up;
@@ -1262,9 +1263,9 @@ void NC_STACK_yparobo::yparobo_func71__sub0(update_msg *arg)
             _viewer_vert_angle = -_viewer_max_down;
     }
 
-    if ( inpt->Sliders[0] < -0.001 )
+    if ( Input::ActionAxisX(World::INPUT_BIND_FLY_DIR) < -0.001 )
     {
-        _viewer_horiz_angle -= inpt->Sliders[0] * _maxrot * v18 * 2.0;
+        _viewer_horiz_angle -= Input::ActionAxisX(World::INPUT_BIND_FLY_DIR) * _maxrot * v18 * 2.0;
 
         if ( _viewer_max_side < 3.15 )
         {
@@ -1275,9 +1276,9 @@ void NC_STACK_yparobo::yparobo_func71__sub0(update_msg *arg)
                 _viewer_horiz_angle = -_viewer_max_side;
         }
     }
-    else if (inpt->Sliders[0] > 0.001)
+    else if (Input::ActionAxisX(World::INPUT_BIND_FLY_DIR) > 0.001)
     {
-        _viewer_horiz_angle -= inpt->Sliders[0] * _maxrot * v18 * 2.0;
+        _viewer_horiz_angle -= Input::ActionAxisX(World::INPUT_BIND_FLY_DIR) * _maxrot * v18 * 2.0;
 
         if ( _viewer_max_side < 3.15 )
         {
@@ -1317,7 +1318,7 @@ void NC_STACK_yparobo::User_layer(update_msg *arg)
             searchEnemyRobo();
             usersRoboEnergyCheck();
 
-            if ( arg->inpt->Buttons.Is(3) )
+            if ( Input::ActionHeld(World::INPUT_BIND_BRAKE) )
                 HandBrake(arg);
 
             yparobo_func71__sub0(arg);

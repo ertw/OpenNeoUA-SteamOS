@@ -18,7 +18,8 @@ import shutil
 import stat
 import subprocess
 import sys
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from types import MappingProxyType
+from typing import Dict, Iterable, List, Mapping, NamedTuple, Optional, Sequence, Set, Tuple
 from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
 
@@ -44,6 +45,38 @@ FONT_CHECKSUMS = {
     "Xolonium-Regular.otf": "302078ebb5211a158758f15ab6f8f6f355a0a6af345786f6b2354fec745d88f3",
     "textar.ttf": "23a45bd8acec486e94add0cfd9e4ccef99a9502e11e8af8467d651e2e01c4105",
 }
+
+REDISTRIBUTABLE_SOURCE_DIR = Path("packaging") / "steamrt4" / "redistributable"
+STEAM_API_LIBRARY_NAME = "libsteam_api.so"
+VENDOR_STEAMWORKS_SDK = Path("vendor") / "steamworks-sdk"
+VENDOR_STEAM_API_LIBRARY = (
+    VENDOR_STEAMWORKS_SDK / "redistributable_bin" / "linux64" / STEAM_API_LIBRARY_NAME
+)
+# Sentinel for an exemption whose real digest is not known yet.  Staging refuses
+# to ship a library while its pin still carries this value.
+REDISTRIBUTION_PLACEHOLDER_SHA256 = "placeholder-pin-the-real-sha256"
+
+
+class RedistributionExemption(NamedTuple):
+    """A non-Debian shared object cleared for redistribution by pinned digest."""
+
+    name: str
+    sha256: str
+    license_path: str
+    origin: str
+
+
+# Pinned digest of vendor/steamworks-sdk/redistributable_bin/linux64/libsteam_api.so
+# (Steamworks SDK v1.65).  Regenerate after upgrading the vendored SDK:
+#     sha256sum vendor/steamworks-sdk/redistributable_bin/linux64/libsteam_api.so
+REDISTRIBUTION_EXEMPTION_RECORDS = (
+    RedistributionExemption(
+        name=STEAM_API_LIBRARY_NAME,
+        sha256="eb2dd015b84177cf4f4326fe578aab375fd8931bbbd719c7492420d9777007fe",
+        license_path=str(VENDOR_STEAMWORKS_SDK / "Readme.txt"),
+        origin="Steamworks SDK redistributable (Valve Corporation), dlopen()ed for Steam Input",
+    ),
+)
 
 ALLOWED_ASSET_ROOTS = (
     "3ds",
@@ -114,7 +147,11 @@ STEAM_INPUT_SOURCE_DIR = Path("packaging") / "steamrt4" / "steam_input"
 STEAM_INPUT_REQUIRED_FILES = (
     "REVISION.txt",
     "openneoua_deck_default.vdf",
+    "openneoua_deck_iga.vdf",
+    "game_actions_480.vdf",
 )
+STEAM_APPID = "480"
+BIN_PACKAGE_FILES = ("OpenNeoUA", "steam_appid.txt")
 
 
 class PackagingError(RuntimeError):
@@ -123,6 +160,33 @@ class PackagingError(RuntimeError):
 
 def fail(message: str) -> None:
     raise PackagingError(message)
+
+
+def index_redistribution_exemptions(
+    records: Sequence[RedistributionExemption],
+) -> Mapping[str, RedistributionExemption]:
+    table: Dict[str, RedistributionExemption] = {}
+    for record in records:
+        if not record.name or "/" in record.name:
+            fail("invalid redistribution exemption name: {}".format(record.name))
+        if record.name in table:
+            fail("duplicate redistribution exemption: {}".format(record.name))
+        if record.sha256 != REDISTRIBUTION_PLACEHOLDER_SHA256 and not re.fullmatch(
+            r"[0-9a-f]{64}", record.sha256
+        ):
+            fail("redistribution exemption pin is not a lowercase SHA-256: {}".format(record.name))
+        if not record.license_path or not record.origin:
+            fail("redistribution exemption lacks a license path or origin: {}".format(record.name))
+        relative = PurePosixPath(record.license_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            fail("unsafe redistribution license path: {}".format(record.license_path))
+        table[record.name] = record
+    return MappingProxyType(table)
+
+
+REDISTRIBUTION_EXEMPTIONS: Mapping[str, RedistributionExemption] = (
+    index_redistribution_exemptions(REDISTRIBUTION_EXEMPTION_RECORDS)
+)
 
 
 def run_command(
@@ -749,7 +813,150 @@ class ElfClosure:
             metadata.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def verify_elf_license_records(staging_root: Path, closure: ElfClosure) -> None:
+def safe_redistribution_name(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._+-]", "_", name)
+
+
+def redistribution_exemption(
+    name: str,
+    table: Mapping[str, RedistributionExemption] = REDISTRIBUTION_EXEMPTIONS,
+) -> RedistributionExemption:
+    """Return the declared exemption for a staged basename.
+
+    The exemption waives Debian provenance only; the SONAME policy that keeps
+    host-owned system libraries out of the package still applies.
+    """
+    exemption = table.get(name)
+    if exemption is None:
+        fail("no redistribution exemption is declared for {}".format(name))
+    if forbidden_soname(name):
+        fail("forbidden system library cannot be redistribution-exempt: {}".format(name))
+    return exemption
+
+
+def materialize_redistribution_license(
+    source_root: Path,
+    staging_root: Path,
+    exemption: RedistributionExemption,
+    digest: str,
+    source: Path,
+) -> None:
+    license_source = source_root / PurePosixPath(exemption.license_path)
+    require_regular_file(license_source, "redistributable license")
+    destination_dir = (
+        staging_root / "licenses" / "redistributable" / safe_redistribution_name(exemption.name)
+    )
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(license_source, destination_dir / "LICENSE.txt")
+    lines = [
+        "Name: {}".format(exemption.name),
+        "Pinned SHA256: {}".format(digest),
+        "Origin: {}".format(exemption.origin),
+        "License source: {}".format(exemption.license_path),
+        "Source file: {}".format(source),
+        "Staged libraries:",
+        "  {}".format(exemption.name),
+    ]
+    (destination_dir / "metadata.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def verify_redistribution_exemption(
+    source_root: Path,
+    staging_root: Path,
+    name: str,
+    source: Path,
+    table: Mapping[str, RedistributionExemption] = REDISTRIBUTION_EXEMPTIONS,
+) -> Optional[str]:
+    """Check the pinned digest and stage the license for one exempt library.
+
+    Returns the verified digest, or ``None`` when the library is absent, which
+    is a supported configuration because the game ``dlopen``s it at runtime.
+    """
+    exemption = redistribution_exemption(name, table)
+    if not source.exists() and not source.is_symlink():
+        return None
+    require_regular_file(source, "redistributable library")
+    if exemption.sha256 == REDISTRIBUTION_PLACEHOLDER_SHA256:
+        fail(
+            "redistribution exemption for {} still carries the placeholder pin; record the "
+            "lowercase SHA-256 of {} in REDISTRIBUTION_EXEMPTION_RECORDS before staging it".format(
+                name, source
+            )
+        )
+    actual = sha256_file(source)
+    if actual != exemption.sha256:
+        fail(
+            "redistributable checksum mismatch for {}: expected {}, got {}".format(
+                name, exemption.sha256, actual
+            )
+        )
+    materialize_redistribution_license(source_root, staging_root, exemption, actual, source)
+    return actual
+
+
+def stage_redistributable_library(
+    source_root: Path,
+    staging_root: Path,
+    name: str,
+    source: Path,
+    table: Mapping[str, RedistributionExemption] = REDISTRIBUTION_EXEMPTIONS,
+) -> Optional[str]:
+    digest = verify_redistribution_exemption(source_root, staging_root, name, source, table)
+    if digest is None:
+        return None
+    real_source = source.resolve()
+    if not is_x86_64_elf(real_source):
+        fail("redistributable library is not x86-64 ELF: {}".format(source))
+    library_dir = staging_root / "lib"
+    library_dir.mkdir(parents=True, exist_ok=True)
+    destination = library_dir / name
+    if destination.exists() or destination.is_symlink():
+        fail("conflicting staged library basename: {}".format(name))
+    shutil.copyfile(source, destination)
+    os.chmod(destination, 0o644)
+    return digest
+
+
+def verify_redistribution_records(
+    staging_root: Path,
+    redistributed: Mapping[str, str],
+    table: Mapping[str, RedistributionExemption] = REDISTRIBUTION_EXEMPTIONS,
+) -> None:
+    """Require every exempt library in lib/ to carry a verified pin and license."""
+    library_dir = staging_root / "lib"
+    for name, digest in sorted(redistributed.items()):
+        exemption = redistribution_exemption(name, table)
+        if digest != exemption.sha256 or exemption.sha256 == REDISTRIBUTION_PLACEHOLDER_SHA256:
+            fail("redistributable {} was staged without a verified pin".format(name))
+        staged = library_dir / name
+        require_regular_file(staged, "staged redistributable library")
+        actual = sha256_file(staged)
+        if actual != exemption.sha256:
+            fail(
+                "staged redistributable checksum mismatch for {}: expected {}, got {}".format(
+                    name, exemption.sha256, actual
+                )
+            )
+        license_dir = (
+            staging_root / "licenses" / "redistributable" / safe_redistribution_name(name)
+        )
+        require_regular_file(license_dir / "LICENSE.txt", "staged redistributable license")
+        metadata_path = license_dir / "metadata.txt"
+        require_regular_file(metadata_path, "staged redistributable metadata")
+        metadata_lines = metadata_path.read_text(encoding="utf-8").splitlines()
+        if "Name: {}".format(name) not in metadata_lines:
+            fail("staged redistributable metadata has no name record: {}".format(name))
+        if "Pinned SHA256: {}".format(exemption.sha256) not in metadata_lines:
+            fail("staged redistributable metadata has no checksum record: {}".format(name))
+        if "Origin: {}".format(exemption.origin) not in metadata_lines:
+            fail("staged redistributable metadata has no origin record: {}".format(name))
+
+
+def verify_elf_license_records(
+    staging_root: Path,
+    closure: ElfClosure,
+    redistributed: Mapping[str, str],
+) -> None:
     """Require every staged real ELF to have complete Debian provenance."""
     records = tuple(closure.packages.values())
     if not records:
@@ -801,6 +1008,10 @@ def verify_elf_license_records(staging_root: Path, closure: ElfClosure) -> None:
             fail("non-file entry in ELF library directory: {}".format(path.name))
         if not is_x86_64_elf(path):
             fail("real ELF library is not x86-64: {}".format(path.name))
+        if forbidden_soname(path.name):
+            fail("forbidden system library bundled: {}".format(path.name))
+        if path.name in redistributed:
+            continue
         key = (path.name, sha256_file(path))
         if key not in source_map:
             fail(
@@ -814,6 +1025,8 @@ def verify_elf_license_records(staging_root: Path, closure: ElfClosure) -> None:
         if key not in staged_keys:
             packages = ", ".join(sorted(record.package for record in records_for_source))
             fail("ELF source file is not staged for package(s) {}: {}".format(packages, key[0]))
+
+    verify_redistribution_records(staging_root, redistributed)
 
 
 def verify_font_checksums(source_root: Path) -> None:
@@ -919,6 +1132,13 @@ def copy_steam_input_assets(source_root: Path, staging_root: Path) -> str:
     return revision
 
 
+def write_steam_appid(staging_root: Path) -> None:
+    destination = staging_root / "bin" / "steam_appid.txt"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(STEAM_APPID + "\n", encoding="utf-8")
+    os.chmod(destination, 0o644)
+
+
 def source_provenance_lines(
     commit: str,
     dirty_base_commit: Optional[str],
@@ -1012,6 +1232,7 @@ def write_build_info(
     dependency_report: Optional[Path],
     dirty_base_commit: Optional[str],
     artifact_identifier: str,
+    redistributed: Mapping[str, str],
 ) -> None:
     build_time = run_command(
         ["git", "-C", str(source_root), "show", "-s", "--format=%ct", commit], check=False
@@ -1060,6 +1281,25 @@ def write_build_info(
     )
     for package in sorted(closure.packages.values(), key=lambda item: item.package):
         lines.append("  {} {}".format(package.package, package.version))
+    lines.append("Redistributed non-Debian libraries:")
+    if redistributed:
+        for name in sorted(redistributed):
+            lines.append(
+                "  {} {} ({})".format(
+                    name, redistributed[name], REDISTRIBUTION_EXEMPTIONS[name].origin
+                )
+            )
+    else:
+        lines.append("  none")
+    lines.append(
+        "Steam Input runtime library: {}".format(
+            "{} staged in lib/".format(STEAM_API_LIBRARY_NAME)
+            if STEAM_API_LIBRARY_NAME in redistributed
+            else "{} absent; Steam Input support unavailable at runtime".format(
+                STEAM_API_LIBRARY_NAME
+            )
+        )
+    )
     lines.extend(
         [
             "Steam Input layout: OpenNeoUA Deck Default",
@@ -1168,14 +1408,19 @@ def verify_package_layout(staging_root: Path) -> None:
         fail(
             "SteamInput/ layout mismatch: {}".format(", ".join(actual_steam_input))
         )
-    if sorted(path.name for path in (staging_root / "bin").iterdir()) != ["OpenNeoUA"]:
-        fail("package bin/ contains entries other than OpenNeoUA")
+    if sorted(path.name for path in (staging_root / "bin").iterdir()) != sorted(BIN_PACKAGE_FILES):
+        fail("package bin/ layout mismatch: {}".format(
+            ", ".join(sorted(path.name for path in (staging_root / "bin").iterdir()))
+        ))
     executable = staging_root / "bin" / "OpenNeoUA"
     require_regular_file(executable, "installed OpenNeoUA executable")
     if not is_x86_64_elf(executable):
         fail("installed OpenNeoUA is not x86-64 ELF")
     if not os.access(executable, os.X_OK):
         fail("installed OpenNeoUA is not executable")
+    for path in staging_root.rglob("*"):
+        if path.is_file() and path.suffix.lower() == ".iso":
+            fail("game ISO must not be packaged: {}".format(path.relative_to(staging_root)))
     runpath = readelf_runpath(executable)
     if "$ORIGIN/../lib" not in runpath:
         fail(
@@ -1270,6 +1515,19 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--runtime-version", default=RUNTIME_VERSION)
     parser.add_argument("--dependency-report", type=Path)
     parser.add_argument(
+        "--steam-api-library",
+        type=Path,
+        help=(
+            "optional {} to stage under the Steamworks redistribution exemption "
+            "(default: <source-root>/{} when present, else <source-root>/{}); "
+            "packaging succeeds without it and Steam Input support is unavailable at runtime".format(
+                STEAM_API_LIBRARY_NAME,
+                VENDOR_STEAM_API_LIBRARY.as_posix(),
+                (REDISTRIBUTABLE_SOURCE_DIR / STEAM_API_LIBRARY_NAME).as_posix(),
+            )
+        ),
+    )
+    parser.add_argument(
         "--dirty-base-commit",
         help="full base commit for a deterministic dirty synthetic snapshot",
     )
@@ -1330,9 +1588,30 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         closure.collect(executable)
         verify_required_elf_families(closure)
         closure.materialize_licenses(staging_root)
-        verify_elf_license_records(staging_root, closure)
+
+        steam_api_source = (
+            args.steam_api_library.resolve()
+            if args.steam_api_library is not None
+            else (source_root / VENDOR_STEAM_API_LIBRARY)
+            if (source_root / VENDOR_STEAM_API_LIBRARY).is_file()
+            else source_root / REDISTRIBUTABLE_SOURCE_DIR / STEAM_API_LIBRARY_NAME
+        )
+        redistributed: Dict[str, str] = {}
+        steam_api_digest = stage_redistributable_library(
+            source_root, staging_root, STEAM_API_LIBRARY_NAME, steam_api_source
+        )
+        if steam_api_digest is None:
+            print(
+                "package.py: {} not found at {}; Steam Input support will be "
+                "unavailable at runtime".format(STEAM_API_LIBRARY_NAME, steam_api_source)
+            )
+        else:
+            redistributed[STEAM_API_LIBRARY_NAME] = steam_api_digest
+
+        verify_elf_license_records(staging_root, closure, redistributed)
         copy_tracked_assets(source_root, staging_root)
         copy_steam_input_assets(source_root, staging_root)
+        write_steam_appid(staging_root)
         write_package_licenses(
             source_root,
             staging_root,
@@ -1353,6 +1632,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             args.dependency_report,
             dirty_base_commit,
             artifact_identifier,
+            redistributed,
         )
         write_payload_manifest(staging_root)
         verify_package_layout(staging_root)

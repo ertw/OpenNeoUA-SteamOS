@@ -1,0 +1,630 @@
+"controller_mappings"
+{
+	"version"		"3"
+	"title"		"OpenNeoUA Deck IGA"
+	"description"		"OpenNeoUA native Steam Input layout for Steam Deck (Spacewar 480 POC)."
+	"controller_type"		"controller_neptune"
+	"controller_capacitor"		"1"
+	"preset"
+	{
+		"id"		"0"
+		"name"		"Menu"
+		group
+		{
+			"id"		"0"
+			"mode"		"four_buttons"
+			"bindings"
+			{
+				"button_a"		"game_action Menu MenuConfirm, Confirm"
+				"button_b"		"game_action Menu MenuCancel, Cancel"
+				"button_x"		"game_action Menu SwitchWeapon, Switch Weapon"
+				"button_y"		"game_action Menu AlternativeView, Alt View"
+			}
+			"settings"
+			{
+				"requires_click"		"0"
+			}
+		}
+		group
+		{
+			"id"		"1"
+			"mode"		"dpad"
+			"bindings"
+			{
+				"dpad_north"		"game_action Menu MenuUp, Menu Up"
+				"dpad_south"		"game_action Menu MenuDown, Menu Down"
+				"dpad_west"		"game_action Menu MenuLeft, Menu Left"
+				"dpad_east"		"game_action Menu MenuRight, Menu Right"
+			}
+			"settings"
+			{
+				"requires_click"		"0"
+				"layout"		"radial_top_down"
+			}
+		}
+		group
+		{
+			"id"		"2"
+			"mode"		"absolute_mouse"
+			"bindings"
+			{
+				"output"		"game_action Menu MenuCursor, Menu Cursor"
+			}
+			"settings"
+			{
+				"sensitivity"		"100"
+				"trackball"		"0"
+				"rotation_offset"		"0"
+			}
+		}
+		group
+		{
+			"id"		"7"
+			"mode"		"switches"
+			"bindings"
+			{
+				"button_escape"		"game_action Menu Map, Map"
+				"button_menu"		"game_action Menu Pause, Pause"
+				"left_bumper"		"game_action Menu CamFire, Cam Fire"
+				"right_bumper"		"game_action Menu CycleTarget, Cycle Target"
+				"button_back_left_upper"		"game_action Menu NextUnit, Next Unit"
+				"button_back_right_upper"		"game_action Menu ControlUnit, Control Unit"
+			}
+		}
+		"group_source_bindings"
+		{
+			"0"		"button_diamond active"
+			"1"		"left_trackpad inactive"
+			"2"		"right_trackpad active"
+			"7"		"switch active"
+		}
+	}
+	"preset"
+	{
+		"id"		"1"
+		"name"		"Ground"
+		group
+		{
+			"id"		"0"
+			"mode"		"four_buttons"
+			"bindings"
+			{
+				"button_a"		"game_action Ground Brake, Brake"
+				"button_b"		"game_action Ground Quit, Quit"
+				"button_x"		"game_action Ground SwitchWeapon, Switch Weapon"
+				"button_y"		"game_action Ground AlternativeView, Alternative View"
+			}
+			"settings"
+			{
+				"requires_click"		"0"
+			}
+		}
+		group
+		{
+			"id"		"1"
+			"mode"		"dpad"
+			"bindings"
+			{
+				"dpad_north"		"game_action Ground ZoomIn, Zoom In"
+				"dpad_south"		"game_action Ground ZoomOut, Zoom Out"
+				"dpad_west"		"game_action Ground SquadManager, Squad Manager"
+				"dpad_east"		"game_action Ground Order, Order"
+			}
+			"settings"
+			{
+				"requires_click"		"0"
+				"layout"		"radial_top_down"
+			}
+		}
+		group
+		{
+			"id"		"2"
+			"mode"		"absolute_mouse"
+			"bindings"
+			{
+				"output"		"game_action Ground Aim, Aim"
+				"click"		"game_action Ground CamFire, Mouse Grab"
+			}
+			"settings"
+			{
+				"sensitivity"		"100"
+				"trackball"		"0"
+				"rotation_offset"		"0"
+			}
+		}
+		group
+		{
+			"id"		"3"
+			"mode"		"absolute_mouse"
+			"bindings"
+			{
+				"output"		"game_action Ground Aim, Aim"
+			}
+			"settings"
+			{
+				"sensitivity"		"120"
+				"trackball"		"0"
+				"rotation_offset"		"0"
+			}
+		}
+		group
+		{
+			"id"		"4"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"click"		"game_action Ground Fire, Fire"
+			}
+		}
+		group
+		{
+			"id"		"5"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"click"		"game_action Ground Gun, Gun"
+			}
+		}
+		group
+		{
+			"id"		"6"
+			"mode"		"joystick_move"
+			"bindings"
+			{
+				"click"		"game_action Ground Sprint, Sprint"
+				"output"		"game_action Ground DriveDir, Drive"
+			}
+			"settings"
+			{
+				"deadzone_inner_radius"		"0.100000"
+				"deadzone_outer_radius"		"0.990000"
+				"deadzone_shape"		"1"
+				"edge_binding_radius"		"0.970000"
+			}
+		}
+		group
+		{
+			"id"		"7"
+			"mode"		"switches"
+			"bindings"
+			{
+				"button_escape"		"game_action Ground Map, Map"
+				"button_menu"		"game_action Ground Pause, Pause"
+				"left_bumper"		"game_action Ground CamFire, Cam Fire"
+				"right_bumper"		"game_action Ground CycleTarget, Cycle Target"
+				"button_back_left_upper"		"game_action Ground NextUnit, Next Unit"
+				"button_back_right_upper"		"game_action Ground ControlUnit, Control Unit"
+			}
+		}
+		group
+		{
+			"id"		"8"
+			"mode"		"absolute_mouse"
+			"bindings"
+			{
+				"output"		"game_action Ground Aim, Aim Gyro"
+			}
+			"settings"
+			{
+				"sensitivity"		"60"
+				"trackball"		"0"
+				"rotation_offset"		"0"
+				"gyro_enable_mode"		"1"
+				"acceleration"		"1"
+				"natural_sensitivity"		"1"
+			}
+		}
+		group
+		{
+			"id"		"10"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"pull"		"game_action Ground DriveSpeed, Drive Speed"
+			}
+			"settings"
+			{
+				"output_trigger"		"1"
+			}
+		}
+		"group_source_bindings"
+		{
+			"0"		"button_diamond active"
+			"1"		"left_trackpad inactive"
+			"2"		"right_trackpad active"
+			"3"		"right_joystick active"
+			"4"		"right_trigger active"
+			"5"		"left_trigger active"
+			"6"		"joystick active"
+			"7"		"switch active"
+			"8"		"gyro active"
+			"10"		"left_trigger active"
+		}
+	}
+	"preset"
+	{
+		"id"		"2"
+		"name"		"Air"
+		group
+		{
+			"id"		"0"
+			"mode"		"four_buttons"
+			"bindings"
+			{
+				"button_a"		"game_action Air Brake, Brake"
+				"button_b"		"game_action Air Quit, Quit"
+				"button_x"		"game_action Air SwitchWeapon, Switch Weapon"
+				"button_y"		"game_action Air AlternativeView, Alternative View"
+			}
+			"settings"
+			{
+				"requires_click"		"0"
+			}
+		}
+		group
+		{
+			"id"		"1"
+			"mode"		"dpad"
+			"bindings"
+			{
+				"dpad_north"		"game_action Air ZoomIn, Zoom In"
+				"dpad_south"		"game_action Air ZoomOut, Zoom Out"
+				"dpad_west"		"game_action Air SquadManager, Squad Manager"
+				"dpad_east"		"game_action Air Order, Order"
+			}
+			"settings"
+			{
+				"requires_click"		"0"
+				"layout"		"radial_top_down"
+			}
+		}
+		group
+		{
+			"id"		"2"
+			"mode"		"absolute_mouse"
+			"bindings"
+			{
+				"output"		"game_action Air Aim, Aim"
+				"click"		"game_action Air CamFire, Mouse Grab"
+			}
+			"settings"
+			{
+				"sensitivity"		"100"
+				"trackball"		"0"
+				"rotation_offset"		"0"
+			}
+		}
+		group
+		{
+			"id"		"4"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"click"		"game_action Air Fire, Fire"
+			}
+		}
+		group
+		{
+			"id"		"5"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"click"		"game_action Air Gun, Gun"
+			}
+		}
+		group
+		{
+			"id"		"6"
+			"mode"		"joystick_move"
+			"bindings"
+			{
+				"output"		"game_action Air FlyDir, Fly Direction"
+			}
+			"settings"
+			{
+				"deadzone_inner_radius"		"0.100000"
+				"deadzone_outer_radius"		"0.990000"
+				"deadzone_shape"		"1"
+				"edge_binding_radius"		"0.970000"
+			}
+		}
+		group
+		{
+			"id"		"3"
+			"mode"		"joystick_move"
+			"bindings"
+			{
+				"output"		"game_action Air FlyHeight, Fly Height"
+			}
+			"settings"
+			{
+				"deadzone_inner_radius"		"0.100000"
+				"deadzone_outer_radius"		"0.990000"
+				"deadzone_shape"		"1"
+				"edge_binding_radius"		"0.970000"
+			}
+		}
+		group
+		{
+			"id"		"7"
+			"mode"		"switches"
+			"bindings"
+			{
+				"button_escape"		"game_action Air Map, Map"
+				"button_menu"		"game_action Air Pause, Pause"
+				"left_bumper"		"game_action Air CamFire, Cam Fire"
+				"right_bumper"		"game_action Air CycleTarget, Cycle Target"
+				"button_back_left_upper"		"game_action Air NextUnit, Next Unit"
+				"button_back_right_upper"		"game_action Air ControlUnit, Control Unit"
+			}
+		}
+		group
+		{
+			"id"		"10"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"pull"		"game_action Air FlySpeed, Fly Speed"
+			}
+			"settings"
+			{
+				"output_trigger"		"1"
+			}
+		}
+		"group_source_bindings"
+		{
+			"0"		"button_diamond active"
+			"1"		"left_trackpad inactive"
+			"2"		"right_trackpad active"
+			"3"		"right_joystick active"
+			"4"		"right_trigger active"
+			"5"		"left_trigger active"
+			"6"		"joystick active"
+			"7"		"switch active"
+			"10"		"left_trigger active"
+		}
+	}
+	"preset"
+	{
+		"id"		"3"
+		"name"		"Host"
+		group
+		{
+			"id"		"0"
+			"mode"		"four_buttons"
+			"bindings"
+			{
+				"button_a"		"game_action Host Brake, Brake"
+				"button_b"		"game_action Host Quit, Quit"
+				"button_x"		"game_action Host SwitchWeapon, Switch Weapon"
+				"button_y"		"game_action Host AlternativeView, Alternative View"
+			}
+			"settings"
+			{
+				"requires_click"		"0"
+			}
+		}
+		group
+		{
+			"id"		"1"
+			"mode"		"dpad"
+			"bindings"
+			{
+				"dpad_north"		"game_action Host ZoomIn, Zoom In"
+				"dpad_south"		"game_action Host ZoomOut, Zoom Out"
+				"dpad_west"		"game_action Host SquadManager, Squad Manager"
+				"dpad_east"		"game_action Host Order, Order"
+			}
+			"settings"
+			{
+				"requires_click"		"0"
+				"layout"		"radial_top_down"
+			}
+		}
+		group
+		{
+			"id"		"2"
+			"mode"		"absolute_mouse"
+			"bindings"
+			{
+				"output"		"game_action Host Aim, Aim"
+				"click"		"game_action Host CamFire, Mouse Grab"
+			}
+			"settings"
+			{
+				"sensitivity"		"100"
+				"trackball"		"0"
+				"rotation_offset"		"0"
+			}
+		}
+		group
+		{
+			"id"		"4"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"click"		"game_action Host Fire, Fire"
+			}
+		}
+		group
+		{
+			"id"		"5"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"click"		"game_action Host Gun, Gun"
+			}
+		}
+		group
+		{
+			"id"		"6"
+			"mode"		"joystick_move"
+			"bindings"
+			{
+				"output"		"game_action Host FlyDir, Fly Direction"
+			}
+			"settings"
+			{
+				"deadzone_inner_radius"		"0.100000"
+				"deadzone_outer_radius"		"0.990000"
+				"deadzone_shape"		"1"
+				"edge_binding_radius"		"0.970000"
+			}
+		}
+		group
+		{
+			"id"		"3"
+			"mode"		"joystick_move"
+			"bindings"
+			{
+				"output"		"game_action Host FlyHeight, Fly Height"
+			}
+			"settings"
+			{
+				"deadzone_inner_radius"		"0.100000"
+				"deadzone_outer_radius"		"0.990000"
+				"deadzone_shape"		"1"
+				"edge_binding_radius"		"0.970000"
+			}
+		}
+		group
+		{
+			"id"		"7"
+			"mode"		"switches"
+			"bindings"
+			{
+				"button_escape"		"game_action Host Map, Map"
+				"button_menu"		"game_action Host Pause, Pause"
+				"left_bumper"		"game_action Host CamFire, Cam Fire"
+				"right_bumper"		"game_action Host CycleTarget, Cycle Target"
+				"button_back_left_upper"		"game_action Host NextUnit, Next Unit"
+				"button_back_right_upper"		"game_action Host ControlUnit, Control Unit"
+			}
+		}
+		group
+		{
+			"id"		"10"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"pull"		"game_action Host FlySpeed, Fly Speed"
+			}
+			"settings"
+			{
+				"output_trigger"		"1"
+			}
+		}
+		"group_source_bindings"
+		{
+			"0"		"button_diamond active"
+			"1"		"left_trackpad inactive"
+			"2"		"right_trackpad active"
+			"3"		"right_joystick active"
+			"4"		"right_trigger active"
+			"5"		"left_trigger active"
+			"6"		"joystick active"
+			"7"		"switch active"
+			"10"		"left_trigger active"
+		}
+	}
+	"preset"
+	{
+		"id"		"4"
+		"name"		"Map"
+		group
+		{
+			"id"		"0"
+			"mode"		"four_buttons"
+			"bindings"
+			{
+				"button_a"		"game_action Map Brake, Brake"
+				"button_b"		"game_action Map Quit, Quit"
+				"button_x"		"game_action Map SwitchWeapon, Switch Weapon"
+				"button_y"		"game_action Map AlternativeView, Alternative View"
+			}
+			"settings"
+			{
+				"requires_click"		"0"
+			}
+		}
+		group
+		{
+			"id"		"1"
+			"mode"		"dpad"
+			"bindings"
+			{
+				"dpad_north"		"game_action Map ZoomIn, Zoom In"
+				"dpad_south"		"game_action Map ZoomOut, Zoom Out"
+				"dpad_west"		"game_action Map SquadManager, Squad Manager"
+				"dpad_east"		"game_action Map Order, Order"
+			}
+			"settings"
+			{
+				"requires_click"		"0"
+				"layout"		"radial_top_down"
+			}
+		}
+		group
+		{
+			"id"		"2"
+			"mode"		"absolute_mouse"
+			"bindings"
+			{
+				"output"		"game_action Map MenuCursor, Map Cursor"
+				"click"		"game_action Map PlaceMapMarker, Place Marker"
+			}
+			"settings"
+			{
+				"sensitivity"		"100"
+				"trackball"		"0"
+				"rotation_offset"		"0"
+			}
+		}
+		group
+		{
+			"id"		"4"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"click"		"game_action Map Fire, Fire"
+			}
+		}
+		group
+		{
+			"id"		"5"
+			"mode"		"trigger"
+			"bindings"
+			{
+				"click"		"game_action Map Gun, Gun"
+			}
+		}
+		group
+		{
+			"id"		"7"
+			"mode"		"switches"
+			"bindings"
+			{
+				"button_escape"		"game_action Map Map, Map"
+				"button_menu"		"game_action Map Pause, Pause"
+				"left_bumper"		"game_action Map CamFire, Cam Fire"
+				"right_bumper"		"game_action Map CycleTarget, Cycle Target"
+				"button_back_left_upper"		"game_action Map NextUnit, Next Unit"
+				"button_back_right_upper"		"game_action Map ControlUnit, Control Unit"
+			}
+		}
+		"group_source_bindings"
+		{
+			"0"		"button_diamond active"
+			"1"		"left_trackpad inactive"
+			"2"		"right_trackpad active"
+			"4"		"right_trigger active"
+			"5"		"left_trigger active"
+			"7"		"switch active"
+		}
+	}
+	"settings"
+	{
+		"left_trackpad_mode"		"0"
+		"right_trackpad_mode"		"0"
+	}
+}
