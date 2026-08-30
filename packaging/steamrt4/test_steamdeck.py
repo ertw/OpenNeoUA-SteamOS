@@ -147,6 +147,7 @@ class SteamDeckPolicyTests(unittest.TestCase):
                 STEAM_INPUT_REQUIRED_FILES,
             )
         self.assertIn("SteamInput", PACKAGE_TOP_LEVEL)
+        self.assertIn("install_steamdeck_spacewar.py", PACKAGE_TOP_LEVEL)
         for name in STEAM_INPUT_REQUIRED_FILES:
             self.assertTrue(
                 (
@@ -167,6 +168,9 @@ class SteamDeckPolicyTests(unittest.TestCase):
             (overlay / "bin").mkdir(parents=True)
             (overlay / "bin" / "OpenNeoUA").write_bytes(b"\x7fELF")
             (overlay / "bin" / "steam_appid.txt").write_text("480\n", encoding="utf-8")
+            installer = overlay / "install_steamdeck_spacewar.py"
+            installer.write_text("#!/usr/bin/env python3\nprint('ok')\n", encoding="utf-8")
+            installer.chmod(0o755)
             (overlay / "SteamInput").mkdir()
             (overlay / "SteamInput" / "game_actions_480.vdf").write_text("actions\n", encoding="utf-8")
 
@@ -178,6 +182,12 @@ class SteamDeckPolicyTests(unittest.TestCase):
             self.assertEqual(
                 (appdir / "usr" / "bin" / "steam_appid.txt").read_text(encoding="utf-8"),
                 "480\n",
+            )
+            self.assertTrue(
+                (appdir / "usr" / "bin" / "install_steamdeck_spacewar.py").is_file()
+            )
+            self.assertFalse(
+                (asset_root / "install_steamdeck_spacewar.py").exists()
             )
             self.assertTrue(
                 (asset_root / "SteamInput" / "game_actions_480.vdf").is_file()
