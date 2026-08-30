@@ -67,6 +67,8 @@
 !/Models/Base/
 /Models/Base/*
 !/Models/Base/new/
+!/vendor/
+!/vendor/**
 !/3ds/
 
 # ============================================================
