@@ -67,8 +67,7 @@
 !/Models/Base/
 /Models/Base/*
 !/Models/Base/new/
-!/vendor/
-!/vendor/**
+!/vendor/steamworks-sdk/*
 !/3ds/
 
 # ============================================================
