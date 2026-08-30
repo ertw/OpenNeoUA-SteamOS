@@ -43,6 +43,7 @@ SDL_JoystickGUID     NC_STACK_winp::_joyWantGuid;
 SDL_GameController  *NC_STACK_winp::_gameController = NULL;
 SDL_Joystick        *NC_STACK_winp::_joyHandle = NULL;
 SDL_Haptic          *NC_STACK_winp::_joyHaptic = NULL;
+bool                 NC_STACK_winp::_joyRumbleReady = false;
 SDL_JoystickID       NC_STACK_winp::_joyInstanceId = -1;
 
 std::array<int, 32>  NC_STACK_winp::_joyAxisMap;
@@ -692,6 +693,78 @@ void NC_STACK_winp::RefreshForceFeedbackDevice()
     Input::Engine.RebindForceFeedback();
 }
 
+void NC_STACK_winp::InitJoyRumble()
+{
+    _joyRumbleReady = false;
+
+#if SDL_VERSION_ATLEAST(2, 0, 16)
+    if ( _gameController && SDL_GameControllerHasRumble(_gameController) )
+    {
+        _joyRumbleReady = true;
+        return;
+    }
+
+    if ( _joyHandle && SDL_JoystickHasRumble(_joyHandle) )
+    {
+        _joyRumbleReady = true;
+        return;
+    }
+#endif
+
+    if ( _joyHaptic && SDL_HapticRumbleSupported(_joyHaptic) )
+        _joyRumbleReady = (SDL_HapticRumbleInit(_joyHaptic) == 0);
+}
+
+void NC_STACK_winp::PlayJoyRumble(Uint16 low, Uint16 high, Uint32 durationMs)
+{
+    if ( !_joyRumbleReady )
+        return;
+
+#if SDL_VERSION_ATLEAST(2, 0, 16)
+    if ( _gameController && SDL_GameControllerHasRumble(_gameController) )
+    {
+        SDL_GameControllerRumble(_gameController, low, high, durationMs);
+        return;
+    }
+
+    if ( _joyHandle && SDL_JoystickHasRumble(_joyHandle) )
+    {
+        SDL_JoystickRumble(_joyHandle, low, high, durationMs);
+        return;
+    }
+#endif
+
+    if ( _joyHaptic && SDL_HapticRumbleSupported(_joyHaptic) )
+    {
+        const Uint32 combined = (Uint32)low + (Uint32)high;
+        const float strength = combined / (2.0f * 65535.0f);
+        SDL_HapticRumblePlay(_joyHaptic, strength, durationMs);
+    }
+}
+
+void NC_STACK_winp::StopJoyRumble()
+{
+    if ( !_joyRumbleReady )
+        return;
+
+#if SDL_VERSION_ATLEAST(2, 0, 16)
+    if ( _gameController && SDL_GameControllerHasRumble(_gameController) )
+    {
+        SDL_GameControllerRumble(_gameController, 0, 0, 0);
+        return;
+    }
+
+    if ( _joyHandle && SDL_JoystickHasRumble(_joyHandle) )
+    {
+        SDL_JoystickRumble(_joyHandle, 0, 0, 0);
+        return;
+    }
+#endif
+
+    if ( _joyHaptic )
+        SDL_HapticRumbleStop(_joyHaptic);
+}
+
 void NC_STACK_winp::CloseJoystickDevice()
 {
     if ( !_joyHandle && !_gameController && !_joyHaptic )
@@ -705,6 +778,8 @@ void NC_STACK_winp::CloseJoystickDevice()
 
     ReleaseJoystickButtons();
     ZeroJoystickAxes();
+    StopJoyRumble();
+    _joyRumbleReady = false;
 
     SDL_Haptic *oldHaptic = _joyHaptic;
     _joyHaptic = NULL;
@@ -772,15 +847,17 @@ bool NC_STACK_winp::OpenJoystickIndex(int deviceIndex)
 
     _joyInstanceId = SDL_JoystickInstanceID(_joyHandle);
     _joyHaptic = SDL_HapticOpenFromJoystick(_joyHandle);
+    InitJoyRumble();
     _joyEnable = true;
 
-    sdlInputLog("\tInstance:%d\tAxes:%d\tHats:%d\tButtons:%d\tBalls:%d\tHaptic:%s\n",
+    sdlInputLog("\tInstance:%d\tAxes:%d\tHats:%d\tButtons:%d\tBalls:%d\tHaptic:%s\tRumble:%s\n",
                 (int)_joyInstanceId,
                 SDL_JoystickNumAxes(_joyHandle),
                 SDL_JoystickNumHats(_joyHandle),
                 SDL_JoystickNumButtons(_joyHandle),
                 SDL_JoystickNumBalls(_joyHandle),
-                _joyHaptic ? "yes" : "no");
+                _joyHaptic ? "yes" : "no",
+                _joyRumbleReady ? "yes" : "no");
 
     sdlJoyReadMapping(_joyHandle);
     RefreshForceFeedbackDevice();

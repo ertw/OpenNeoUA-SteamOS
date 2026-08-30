@@ -12,6 +12,66 @@
 
 namespace Input{
 
+namespace
+{
+
+Uint16 ffRumbleLevel(float magnitude)
+{
+    if ( magnitude <= 0.0f )
+        return 0;
+
+    if ( magnitude >= 1.0f )
+        return 65535;
+
+    return (Uint16)(magnitude * 65535.0f);
+}
+
+void ffPlayEngineRumble(float magnitude, Uint32 durationMs)
+{
+    const Uint16 low = ffRumbleLevel(magnitude * 0.85f);
+    const Uint16 high = ffRumbleLevel(magnitude * 0.65f);
+    NC_STACK_winp::PlayJoyRumble(low, high, durationMs);
+}
+
+void ffPlayPulseRumble(float magnitude, Uint32 durationMs)
+{
+    const Uint16 level = ffRumbleLevel(magnitude);
+    NC_STACK_winp::PlayJoyRumble(level, level, durationMs);
+}
+
+void ffPlayDirectionalRumble(float magnitude, float x, float y, Uint32 durationMs)
+{
+    const float absX = x >= 0.0f ? x : -x;
+    const float absY = y >= 0.0f ? y : -y;
+    const float total = absX + absY;
+    float leftWeight = 0.5f;
+    float rightWeight = 0.5f;
+
+    if ( total > 0.0f )
+    {
+        if ( x < 0.0f )
+            leftWeight = absX / total;
+        else if ( x > 0.0f )
+            rightWeight = absX / total;
+
+        if ( y < 0.0f )
+            leftWeight = std::max(leftWeight, absY / total);
+        else if ( y > 0.0f )
+            rightWeight = std::max(rightWeight, absY / total);
+    }
+
+    const Uint16 low = ffRumbleLevel(magnitude * leftWeight);
+    const Uint16 high = ffRumbleLevel(magnitude * rightWeight);
+    NC_STACK_winp::PlayJoyRumble(low, high, durationMs);
+}
+
+bool ffRumbleFallbackReady()
+{
+    return NC_STACK_winp::JoyRumbleReady();
+}
+
+}
+
 INPEngine INPEngine::Instance;
 
 int INPEngine::Init()
@@ -802,6 +862,13 @@ void INPEngine::FFDOTankEngine(int state, float p1, float p2)
             _ffTankEngine.Update(v5, v6);
         }
     }
+    else if ( ffRumbleFallbackReady() )
+    {
+        if ( state == FF_STATE_START || state == FF_STATE_UPDATE )
+            ffPlayEngineRumble(p1, 300);
+        else if ( state == FF_STATE_STOP )
+            NC_STACK_winp::StopJoyRumble();
+    }
 }
 
 void INPEngine::FFDOJetEngine(int state, float p1, float p2)
@@ -831,6 +898,13 @@ void INPEngine::FFDOJetEngine(int state, float p1, float p2)
             _ffJetEngine.Update(v5, v6);
         }
     }
+    else if ( ffRumbleFallbackReady() )
+    {
+        if ( state == FF_STATE_START || state == FF_STATE_UPDATE )
+            ffPlayEngineRumble(p1, 300);
+        else if ( state == FF_STATE_STOP )
+            NC_STACK_winp::StopJoyRumble();
+    }
 }
 
 void INPEngine::FFDOHeliEngine(int state, float p1, float p2)
@@ -859,6 +933,13 @@ void INPEngine::FFDOHeliEngine(int state, float p1, float p2)
             float v6 = 1000.0 / (p2 * 12.0 + 6.0);
             _ffCopterEngine.Update(v5, v6);
         }
+    }
+    else if ( ffRumbleFallbackReady() )
+    {
+        if ( state == FF_STATE_START || state == FF_STATE_UPDATE )
+            ffPlayEngineRumble(p1, 300);
+        else if ( state == FF_STATE_STOP )
+            NC_STACK_winp::StopJoyRumble();
     }
 }
 
@@ -896,6 +977,13 @@ void INPEngine::FFDOMiniGun(int state)
             _ffMGun.Stop();
         }
     }
+    else if ( ffRumbleFallbackReady() )
+    {
+        if ( state == FF_STATE_START )
+            ffPlayPulseRumble(0.55f, 60000);
+        else if ( state == FF_STATE_STOP )
+            NC_STACK_winp::StopJoyRumble();
+    }
 }
 
 void INPEngine::FFDOMissileFire(int state)
@@ -914,6 +1002,10 @@ void INPEngine::FFDOMissileFire(int state)
         {
             _ffMissFire.Stop();
         }
+    }
+    else if ( ffRumbleFallbackReady() && state == FF_STATE_START )
+    {
+        ffPlayPulseRumble(1.0f, 600);
     }
 }
 
@@ -934,6 +1026,10 @@ void INPEngine::FFDOGrenadeFire(int state)
             _ffGrenadeFire.Stop();
         }
     }
+    else if ( ffRumbleFallbackReady() && state == FF_STATE_START )
+    {
+        ffPlayPulseRumble(0.85f, 300);
+    }
 }
 
 void INPEngine::FFDOBombFire(int state)
@@ -952,6 +1048,10 @@ void INPEngine::FFDOBombFire(int state)
         {
             _ffBombFire.Stop();
         }
+    }
+    else if ( ffRumbleFallbackReady() && state == FF_STATE_START )
+    {
+        ffPlayPulseRumble(0.95f, 400);
     }
 }
 
@@ -972,6 +1072,10 @@ void INPEngine::FFDOCollision(int state, float a2, float a3, float a4)
             _ffCollide.Stop();
         }
     }
+    else if ( ffRumbleFallbackReady() && state == FF_STATE_START )
+    {
+        ffPlayDirectionalRumble(a2, a3, a4, 95);
+    }
 }
 
 void INPEngine::FFDOShake(int state, float a2, float a3, float a4, float a5)
@@ -991,6 +1095,11 @@ void INPEngine::FFDOShake(int state, float a2, float a3, float a4, float a5)
             _ffShake.Stop();
         }
     }
+    else if ( ffRumbleFallbackReady() && state == FF_STATE_START )
+    {
+        const Uint32 durationMs = (Uint32)(a3 * 0.63f);
+        ffPlayDirectionalRumble(a2, a4, a5, durationMs > 0 ? durationMs : 1000);
+    }
 }
 
 void INPEngine::FFstopAll()
@@ -1005,6 +1114,9 @@ void INPEngine::FFstopAll()
     _ffBombFire.Stop();
     _ffCollide.Stop();
     _ffShake.Stop();
+
+    if ( ffRumbleFallbackReady() )
+        NC_STACK_winp::StopJoyRumble();
 }
 
 std::array<KeyInfo, KC_MAX> INPEngine::KeyMatrix {{
