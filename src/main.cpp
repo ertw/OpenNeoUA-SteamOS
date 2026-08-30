@@ -347,7 +347,7 @@ static bool MenuSmokeFindEnabledRegionPoint(int *outX, int *outY)
 
 static void MenuSmokeSetPointerPhysical(int x, int y)
 {
-    NC_STACK_winp::_mPos = Common::Point(x, y);
+    NC_STACK_winp::SmokeSetPointerPhysical(Common::Point(x, y));
 }
 
 static bool MenuSmokePushSteamMenuNav(Input::MENU_NAV_ACTION action)
@@ -452,14 +452,13 @@ static bool RunMenuSmoke()
 
     GFX::Engine.SaveScreenshot("env:snaps/menu-campaign-map");
 
-    if (!MenuSmokePushMouse(SDL_MOUSEBUTTONDOWN, physicalClickX, physicalClickY, SDL_BUTTON_LEFT) || System::ProcessEvents())
+    // Stop at campaign map select.  A left click would start InitBriefing or
+    // ACTION_PLAY and can stall headless smoke runs for minutes.
+    if (userdata.EnvMode != ENVMODE_SINGLEPLAY)
+    {
+        ypa_log_out("menu smoke: left campaign map select before report\n");
         return false;
-    if (!MenuSmokeRenderFrames(1, &frameCount))
-        return false;
-    if (!MenuSmokePushMouse(SDL_MOUSEBUTTONUP, physicalClickX, physicalClickY, SDL_BUTTON_LEFT) || System::ProcessEvents())
-        return false;
-    if (!MenuSmokeRenderFrames(1, &frameCount))
-        return false;
+    }
 
     const char *renderer = (const char *)glGetString(GL_RENDERER);
     const char *version = (const char *)glGetString(GL_VERSION);
