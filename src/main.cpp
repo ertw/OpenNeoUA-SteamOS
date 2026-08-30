@@ -359,8 +359,6 @@ static bool RunMenuSmoke()
         return false;
     if (!MenuSmokeRenderFrames(1, &frameCount) || System::ProcessEvents())
         return false;
-    if (!MenuSmokePushSteamMenuNav(Input::MENU_NAV_CONFIRM))
-        return false;
     if (!MenuSmokeRenderFrames(2, &frameCount) || userdata.EnvMode != ENVMODE_SINGLEPLAY)
     {
         ypa_log_out("menu smoke: Steam MenuConfirm did not enter campaign map select\n");

@@ -35,6 +35,23 @@ bool MenuNavPressed(MENU_NAV_ACTION action)
     }
 }
 
+bool MenuNavHeld(MENU_NAV_ACTION action)
+{
+    if ( SteamBackend().Available() && SteamBackend().MenuNavActive(action) )
+        return true;
+
+    switch ( action )
+    {
+    case MENU_NAV_UP:      return Actions.Active(World::INPUT_BIND_ZOOMIN);
+    case MENU_NAV_DOWN:    return Actions.Active(World::INPUT_BIND_ZOOMOUT);
+    case MENU_NAV_LEFT:    return Actions.Active(World::INPUT_BIND_SQ_MANAGE);
+    case MENU_NAV_RIGHT:   return Actions.Active(World::INPUT_BIND_ORDER);
+    case MENU_NAV_CONFIRM: return Actions.Active(World::INPUT_BIND_FIRE);
+    case MENU_NAV_CANCEL:  return Actions.Active(World::INPUT_BIND_BRAKE);
+    default:               return false;
+    }
+}
+
 bool WidgetFocusable(const NC_STACK_button::button_str2 &widget)
 {
     if ( !(widget.flags & NC_STACK_button::FLAG_DRAW) )
@@ -63,6 +80,7 @@ void MenuFocusController::Reset(NC_STACK_button *screen)
     _focusIndex = -1;
     _entries.clear();
     _cursorInitialized = false;
+    _confirmHeld = false;
 
     if ( _screen )
         RebuildFocusList();
@@ -148,6 +166,25 @@ void MenuFocusController::ActivateFocused(TInputState *state)
     state->ClickInf.selected_btnID = widgetIndex;
 }
 
+void MenuFocusController::ReleaseFocused(TInputState *state)
+{
+    if ( !state || !_screen || _focusIndex < 0 || _focusIndex >= (int)_entries.size() )
+        return;
+
+    const int widgetIndex = _entries[(std::size_t)_focusIndex].Index;
+    if ( widgetIndex < 0 || widgetIndex >= (int)_screen->field_d8.size() )
+        return;
+
+    NC_STACK_button::button_str2 &widget = _screen->field_d8[(std::size_t)widgetIndex];
+    if ( !(widget.flags & NC_STACK_button::FLAG_DOWN) )
+        return;
+
+    state->ClickInf.flag |= TClickBoxInf::FLAG_OK | TClickBoxInf::FLAG_LM_UP |
+                            TClickBoxInf::FLAG_BTN_UP;
+    state->ClickInf.selected_btn = _screen;
+    state->ClickInf.selected_btnID = widgetIndex;
+}
+
 void MenuFocusController::ApplyCursorDelta(TInputState *state)
 {
     if ( !state )
@@ -196,8 +233,12 @@ void MenuFocusController::Apply(TInputState *state)
     if ( MenuNavPressed(MENU_NAV_RIGHT) )
         MoveFocus(1, 0);
 
-    if ( MenuNavPressed(MENU_NAV_CONFIRM) )
+    const bool confirmHeld = MenuNavHeld(MENU_NAV_CONFIRM);
+    if ( confirmHeld && !_confirmHeld )
         ActivateFocused(state);
+    else if ( !confirmHeld && _confirmHeld )
+        ReleaseFocused(state);
+    _confirmHeld = confirmHeld;
 
     if ( MenuNavPressed(MENU_NAV_CANCEL) )
         state->ClickInf.flag |= TClickBoxInf::FLAG_RM_DOWN;
