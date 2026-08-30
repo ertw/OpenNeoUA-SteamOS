@@ -1,0 +1,4 @@
+{
+  "name": "OpenNeoUA",
+  "install": "./.cursor/setup.sh"
+}
