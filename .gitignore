@@ -60,7 +60,13 @@
 !/Interface/
 !/Filters/
 !/Database/
-!/vendor/steamworks-sdk/*
+!/vendor/
+/vendor/*
+!/vendor/steamworks-sdk/
+!/vendor/steamworks-sdk/**
+!/vendor/README.md
+/vendor/ua.iso
+/vendor/*.iso
 !/3ds/
 
 # ============================================================

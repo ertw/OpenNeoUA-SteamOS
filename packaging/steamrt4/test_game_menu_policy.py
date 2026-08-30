@@ -48,7 +48,9 @@ class GameMenuPolicyTests(unittest.TestCase):
             self.assertEqual(command[-1], str(snapshot))
             self.assertIn("--pull", command)
             self.assertNotIn("UA-Complete", " ".join(command))
-            (snapshot / "UA-Complete").mkdir()
+            self.assertNotIn("vendor/ua.iso", " ".join(command))
+            (snapshot / "vendor" / "ua.iso").parent.mkdir(parents=True)
+            (snapshot / "vendor" / "ua.iso").write_bytes(b"iso")
             with self.assertRaises(SmokeTestError):
                 _refresh_image_command(snapshot)
 

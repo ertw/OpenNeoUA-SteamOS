@@ -324,6 +324,11 @@ struct InputNode
 
 
 namespace Input {
+
+// OpenNeoUA: defined in action_backend.h, which cannot be included here
+// because it reaches yw.h and yw.h includes this header.
+struct LegacyInputPrimitives;
+
 class INPEngine
 {
 public:
@@ -337,6 +342,11 @@ public:
     void RebindForceFeedback();
 
     void QueryInput(TInputState *state);
+
+    // OpenNeoUA: evaluates this frame's input expressions into the raw
+    // primitive layer the action facade consumes.  Exposed so the facade and
+    // its parity harness can be driven without going through QueryInput.
+    void EvaluateLegacyPrimitives(LegacyInputPrimitives *out);
     void SetPointerResolution(const Common::Point &physicalSize,
                               const Common::Point &logicalSize);
 

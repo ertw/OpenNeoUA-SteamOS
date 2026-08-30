@@ -482,6 +482,9 @@ def _refresh_image_command(snapshot: Path) -> list[str]:
         raise SmokeTestError("sanitized SteamRT4 snapshot is invalid")
     if any(child.name.casefold() == "ua-complete" for child in snapshot.iterdir()):
         raise SmokeTestError("sanitized Docker context contains UA-Complete")
+    vendor_iso = snapshot / "vendor" / "ua.iso"
+    if vendor_iso.is_file() or vendor_iso.is_symlink():
+        raise SmokeTestError("sanitized Docker context contains vendor/ua.iso")
     return [
         "docker", "build", "--platform", "linux/amd64", "--tag", IMAGE,
         "--file", str(dockerfile), "--pull", str(snapshot),

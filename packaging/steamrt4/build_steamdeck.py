@@ -3,9 +3,10 @@
 
 This module intentionally keeps all proprietary-asset handling on the host
 side of the Docker boundary.  The source snapshot passed to Docker is made by
-``local_ci.py`` and never contains ``UA-Complete``.  The ISO is mounted into a
-short-lived assembly container read-only and only the validated base-game
-payload is copied into the AppDir.
+``local_ci.py`` and never contains game ISOs.  The owned base-game ISO at
+``vendor/ua.iso`` (gitignored, local only) is mounted into a short-lived
+assembly container read-only and only the validated base-game payload is copied
+into the AppDir.
 
 The small validation functions are public on purpose: the GitHub asset-free
 test job and downstream packagers can exercise archive/path policy without
@@ -57,7 +58,7 @@ APPIMAGE_RUNTIME_URL = (
 )
 APPIMAGE_RUNTIME_SHA256 = "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d"
 
-DEFAULT_ASSETS_DIR = "UA-Complete"
+DEFAULT_ISO = Path("vendor/ua.iso")
 DEFAULT_OUTPUT_DIR = Path("build/steamdeck-private/artifacts")
 DEFAULT_CACHE_DIR = Path("build/steamdeck-private/cache")
 
@@ -716,19 +717,15 @@ def _png_rgba_256(source: Path | None, destination: Path) -> None:
     destination.chmod(0o644)
 
 
-def _resolve_asset_dir(repository: Path, value: Path) -> Path:
+def _resolve_iso(repository: Path, value: Path) -> Path:
     candidate = value if value.is_absolute() else repository / value
-    if candidate.exists():
-        return candidate
-    # macOS checkouts commonly use the lower-case directory from the original
-    # project while the public command spells it UA-Complete.
-    parent = candidate.parent
-    if parent.is_dir():
-        wanted = _fold(candidate.name)
-        matches = [item for item in parent.iterdir() if _fold(item.name) == wanted]
-        if len(matches) == 1:
-            return matches[0]
-    raise _error("assets directory is missing: {}".format(candidate))
+    if candidate.is_symlink() or not candidate.is_file():
+        raise _error(
+            "owned base-game ISO is missing: {} (copy your disc image to vendor/ua.iso)".format(
+                candidate
+            )
+        )
+    return candidate
 
 
 def _atomic_json(path: Path, value: object) -> None:
@@ -1461,7 +1458,12 @@ def _assemble_only(args: argparse.Namespace) -> int:
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--assets-dir", type=Path, default=Path(DEFAULT_ASSETS_DIR))
+    parser.add_argument(
+        "--iso",
+        type=Path,
+        default=DEFAULT_ISO,
+        help="path to the owned Urban Assault base-game ISO (default: vendor/ua.iso)",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--refresh-image", action="store_true")
     parser.add_argument("--keep-work", action="store_true")
@@ -1485,10 +1487,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _assemble_only(args)
 
         repository = REPOSITORY_ROOT
-        assets = _resolve_asset_dir(repository, args.assets_dir)
-        iso = assets / "Urban Assault.iso"
-        if iso.is_symlink() or not iso.is_file():
-            raise _error("owned base-game ISO is missing: {}".format(iso))
+        iso = _resolve_iso(repository, args.iso)
         output = args.output_dir if args.output_dir.is_absolute() else repository / args.output_dir
         work_parent = repository / "build" / "steamdeck-private" / "work"
         work_parent.mkdir(parents=True, exist_ok=True)
@@ -1498,7 +1497,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             overlay_archive, source_id, source_state, snapshot = _run_local_ci(repository, work, args.refresh_image)
             snapshot_parent = snapshot.parent
             # local_ci creates a sanitized snapshot; use it as the only Docker
-            # build context.  It cannot contain UA-Complete by construction.
+            # build context.  It cannot contain vendor/ua.iso by construction.
             if not _docker_available():
                 raise _error("Docker daemon is unavailable; private AppImage build cannot run")
             _build_image(snapshot, refresh=args.refresh_image)
