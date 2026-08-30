@@ -97,6 +97,10 @@ sh -n "${source_root}/OpenNeoUA.sh"
         "${source_root}/packaging/steamrt4/test_map_menu_focus.py" \
         "${source_root}/packaging/steamrt4/build_smoketest_image.py" \
         "${source_root}/packaging/steamrt4/test_steamdeck.py" \
+        "${source_root}/packaging/steamrt4/build_steamdeck.py" \
+        "${source_root}/packaging/steamrt4/test_apprun.py" \
+        "${source_root}/packaging/steamrt4/install_steamdeck_spacewar.py" \
+        "${source_root}/packaging/steamrt4/test_install_steamdeck_spacewar.py" \
     "${source_root}/packaging/steamrt4/test_steam_input.py" \
     "${source_root}/packaging/steamrt4/test_steam_input_iga.py" \
     "${source_root}/packaging/steamrt4/generate_iga_vdf.py" \
@@ -108,6 +112,8 @@ python3 "${source_root}/packaging/steamrt4/test_steam_input.py"
 python3 "${source_root}/packaging/steamrt4/test_steam_input_iga.py"
 python3 "${source_root}/packaging/steamrt4/test_redistribution_exemption.py"
 python3 "${source_root}/packaging/steamrt4/verify_steam_api_symbols.py"
+python3 "${source_root}/packaging/steamrt4/test_apprun.py"
+python3 "${source_root}/packaging/steamrt4/test_install_steamdeck_spacewar.py"
 
 phase="configure Release build"
 cmake \
