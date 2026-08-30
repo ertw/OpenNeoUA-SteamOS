@@ -126,6 +126,27 @@ class SteamInputIgaTests(unittest.TestCase):
         self.assertIn('"controller_neptune"', self.iga_text)
         self.assertIn('"openneoua_deck_iga.vdf"', self.iga_text)
 
+    def test_deck_iga_groups_are_top_level(self) -> None:
+        layout = (
+            REPO_ROOT / "packaging" / "steamrt4" / "steam_input" / "openneoua_deck_iga.vdf"
+        ).read_text(encoding="utf-8")
+        self.assertIn('\t"group"', layout)
+        self.assertNotRegex(
+            layout,
+            r'"preset"\s*\n\t\{\s*\n(?:\t\t"[^"]+"\t+"[^"]+"\s*\n)+\t\tgroup',
+        )
+        in_preset = False
+        for line in layout.splitlines():
+            if line == '\t"preset"':
+                in_preset = True
+            elif in_preset and line == "\t}":
+                in_preset = False
+            elif in_preset:
+                self.assertFalse(
+                    line.startswith('\t\t"group"') or line == "\t\tgroup",
+                    "Steam ignores groups nested inside IGA presets",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
