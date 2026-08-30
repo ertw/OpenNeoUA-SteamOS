@@ -4990,7 +4990,8 @@ void UserData::GameShellUiHandleInput()
     if ( EnvMode == ENVMODE_TITLE && Input->HotKeyID == 43 )
         p_YW->_helpURL = Locale::Text::Help(Locale::HELP_MAIN);
 
-    Input::ApplyMenuFocusInput(titel_button, Input);
+    if ( EnvMode == ENVMODE_TITLE )
+        Input::ApplyMenuFocusInput(titel_button, Input);
     r = titel_button->ProcessWidgetsEvents(Input);
 
     if ( r )
