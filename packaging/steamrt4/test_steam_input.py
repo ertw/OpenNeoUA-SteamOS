@@ -47,6 +47,7 @@ REQUIRED_BINDING_LABELS = (
     "Flight Speed Down",
     "Flight Speed Up",
     "Control Unit",
+    "Next Unit",
     "Zoom In",
     "Zoom Out",
     "Squad Manager",
@@ -56,10 +57,30 @@ REQUIRED_BINDING_LABELS = (
     "HUD",
     "Log",
     "New",
-    "Add",
+    "Set Commander",
     "Help",
     "Analyzer",
 )
+
+# A layout binding is "<control>" "<output> <input>, <label>".  The same input
+# may legitimately be emitted by more than one control (e.g. Mouse Grab on both
+# right-hand surfaces), but only when it drives the same labelled action.
+BINDING_PATTERN = re.compile(
+    r'^\t+"(?P<control>[A-Za-z0-9_]+)"\t+"'
+    r"(?P<output>key_press|mouse_button|mouse_wheel) (?P<input>[A-Za-z0-9_]+)"
+    r", (?P<label>[^\"]+)\"$"
+)
+
+# Inputs deliberately emitted by more than one control, with the exact number of
+# controls expected.  Anything else sharing an input is a layout collision: the
+# game resolves a keystroke through one binding table, so two controls emitting
+# the same key are indistinguishable to it.
+INTENTIONAL_DUPLICATE_BINDINGS = {
+    # Right trackpad and right stick both act as pointing devices.
+    ("mouse_button", "RIGHT"): 2,
+    # Control Unit is reachable from the right upper paddle and the radial menu.
+    ("key_press", "J"): 2,
+}
 
 FORBIDDEN_METADATA_PATTERNS = (
     re.compile(r"/home/", re.IGNORECASE),
@@ -95,6 +116,50 @@ class SteamInputAssetTests(unittest.TestCase):
             self.assertIn(label, text, msg=label)
         for pattern in FORBIDDEN_METADATA_PATTERNS:
             self.assertIsNone(pattern.search(text), msg=pattern.pattern)
+
+    def test_deck_iga_config_has_native_bindings(self) -> None:
+        text = (SOURCE_DIR / "openneoua_deck_iga.vdf").read_text(encoding="utf-8")
+        self.assertIn('"controller_mappings"', text)
+        self.assertIn('"controller_type"\t\t"controller_neptune"', text)
+        self.assertIn("game_action Ground Fire", text)
+        self.assertIn("game_action Menu MenuConfirm", text)
+        self.assertIn('"name"\t\t"Ground"', text)
+
+    def test_no_input_is_bound_to_two_different_actions(self) -> None:
+        text = (SOURCE_DIR / "openneoua_deck_default.vdf").read_text(encoding="utf-8")
+        labels_by_input: dict[tuple[str, str], set[str]] = {}
+        controls_by_input: dict[tuple[str, str], list[str]] = {}
+        for line in text.splitlines():
+            match = BINDING_PATTERN.match(line)
+            if match is None:
+                continue
+            key = (match.group("output"), match.group("input"))
+            labels_by_input.setdefault(key, set()).add(match.group("label"))
+            controls_by_input.setdefault(key, []).append(match.group("control"))
+        self.assertTrue(labels_by_input)
+        for key, labels in sorted(labels_by_input.items()):
+            self.assertEqual(
+                len(labels),
+                1,
+                msg="{} {} drives multiple actions {} via {}".format(
+                    key[0],
+                    key[1],
+                    sorted(labels),
+                    controls_by_input[key],
+                ),
+            )
+        shared = {
+            key: controls
+            for key, controls in controls_by_input.items()
+            if len(controls) > 1
+        }
+        self.assertEqual(
+            {key: len(controls) for key, controls in sorted(shared.items())},
+            INTENTIONAL_DUPLICATE_BINDINGS,
+            msg="undeclared duplicate bindings: {}".format(
+                {key: sorted(controls) for key, controls in sorted(shared.items())}
+            ),
+        )
 
     def test_copy_steam_input_assets_into_package_tree(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

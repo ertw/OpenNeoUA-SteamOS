@@ -7,6 +7,7 @@
 #include "game/ypaufo.h"
 #include "game/ypabact_internal.h"
 #include "common/log.h"
+#include "system/action_query.h"
 
 #include <math.h>
 
@@ -552,12 +553,12 @@ void NC_STACK_ypaufo::User_layer(update_msg *arg)
         const int zoomOutHotKey =
             _world->_GameShell->InputConfig[World::INPUT_BIND_ZOOMOUT].KeyID;
 
-        if (arg->inpt->HotKeyID == zoomInHotKey)
+        if ( arg->inpt->HotKeyID == zoomInHotKey || Input::ActionPressed(World::INPUT_BIND_ZOOMIN) )
         {
             zoomSteps++;
             arg->inpt->HotKeyID = -1;
         }
-        else if (arg->inpt->HotKeyID == zoomOutHotKey)
+        else if ( arg->inpt->HotKeyID == zoomOutHotKey || Input::ActionPressed(World::INPUT_BIND_ZOOMOUT) )
         {
             zoomSteps--;
             arg->inpt->HotKeyID = -1;
@@ -706,19 +707,19 @@ void NC_STACK_ypaufo::User_layer(update_msg *arg)
             }
         }
 
-        float v23 = -arg->inpt->Sliders[0] * _maxrot * v88;
+        float v23 = -Input::ActionAxisX(World::INPUT_BIND_FLY_DIR) * _maxrot * v88;
 
         if ( fabs(v23) > 0.0 )
             _rotation *= mat3x3::RotateY(v23);
 
-        float v25 = arg->inpt->Sliders[1] * _maxrot * v88;
+        float v25 = Input::ActionAxisX(World::INPUT_BIND_FLY_HEIGHT) * _maxrot * v88;
 
         if ( fabs(v25) > 0.0 )
             _rotation = mat3x3::RotateX(v25) * _rotation;
 
-        if ( arg->inpt->Sliders[2] != 0.0 )
+        if ( Input::ActionAxisX(World::INPUT_BIND_FLY_SPEED) != 0.0 )
         {
-            _ufoBoost = (arg->inpt->Sliders[2] * 4.0 + 1.0) * _mass * 9.80665;
+            _ufoBoost = (Input::ActionAxisX(World::INPUT_BIND_FLY_SPEED) * 4.0 + 1.0) * _mass * 9.80665;
 
             float v85 = _pSector->height - _position.y;
             float v96 = _player_max_altitude_above_ground - v85;
@@ -742,6 +743,15 @@ void NC_STACK_ypaufo::User_layer(update_msg *arg)
             }
         }
 
+        if ( Input::ActionHeld(World::INPUT_BIND_BRAKE) )
+        {
+            HandBrake(arg);
+            if ( GetHandBrakePower() > 0.0f )
+            {
+                _thraction = 0;
+                _ufoBoost = _mass * 9.80665;
+            }
+        }
         bact_arg79 arg79;
 
         arg79.tgType = BACT_TGT_TYPE_DRCT;
@@ -757,7 +767,7 @@ void NC_STACK_ypaufo::User_layer(update_msg *arg)
             arg79.tgType = BACT_TGT_TYPE_UNIT;
         }
 
-        if ( !spectatorObserver && arg->inpt->Buttons.IsAny({0, 5}) )
+        if ( !spectatorObserver && (Input::ActionHeld(World::INPUT_BIND_FIRE) || Input::ActionHeld(World::INPUT_BIND_CAMFIRE)) )
         {
             arg79.weapon = _weapon;
             arg79.direction = _rotation.AxisZ();
@@ -771,14 +781,15 @@ void NC_STACK_ypaufo::User_layer(update_msg *arg)
 
             arg79.start_point.y = _fire_pos.y;
             arg79.start_point.z = _fire_pos.z;
-            arg79.flags = (arg->inpt->Buttons.Is(5) ? 1 : 0);
-
+            arg79.flags = (Input::ActionHeld(World::INPUT_BIND_CAMFIRE) ? 1 : 0);
+            if ( (_oflags & BACT_OFLAG_VIEWER) && Input::ActionHeld(World::INPUT_BIND_BRAKE) )
+                arg79.flags |= BACT_ARG79_FLAG_RECOIL_BRAKE_HELD;
             LaunchMissile(&arg79);
         }
 
         if ( _weapon == -1 || spectatorObserver )
         {
-            if ( arg->inpt->Buttons.IsAny({0, 5}) )
+            if ( (Input::ActionHeld(World::INPUT_BIND_FIRE) || Input::ActionHeld(World::INPUT_BIND_CAMFIRE)) )
             {
                 if ( _thraction < _force )
                 {
@@ -793,7 +804,7 @@ void NC_STACK_ypaufo::User_layer(update_msg *arg)
             {
                 _thraction = 0;
 
-                if ( arg->inpt->Sliders[2] == 0.0 )
+                if ( Input::ActionAxisX(World::INPUT_BIND_FLY_SPEED) == 0.0 )
                     _fly_dir_length *= 0.6;
 
                 if ( _fly_dir_length < 0.1 )
@@ -815,7 +826,7 @@ void NC_STACK_ypaufo::User_layer(update_msg *arg)
         {
             if ( !UsesVehicleMinigunTiming() && (_status_flg & BACT_STFLAG_FIRE) )
             {
-                if ( arg->inpt->Buttons.Is(2) )
+                if ( Input::ActionHeld(World::INPUT_BIND_GUN) )
                 {
                     setState_msg arg78;
                     arg78.setFlags = 0;
@@ -826,7 +837,7 @@ void NC_STACK_ypaufo::User_layer(update_msg *arg)
                 }
             }
 
-            if ( arg->inpt->Buttons.Is(2) )
+            if ( Input::ActionHeld(World::INPUT_BIND_GUN) )
             {
                 if ( !UsesVehicleMinigunTiming() && !(_status_flg & BACT_STFLAG_FIRE) )
                 {

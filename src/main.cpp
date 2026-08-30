@@ -13,6 +13,9 @@
 #include "system/framepacer.h"
 #include "platform/winp.h"
 #include "platform/wintimer.h"
+#include "system/action_input.h"
+#include "system/action_backend.h"
+#include "system/steam_api_loader.h"
 
 #include "nucleus/ade.h"
 #include "nucleus/area.h"
@@ -43,6 +46,7 @@
 #include "gui/uaempty.h"
 #include "system/movie.h"
 #include "system/inivals.h"
+#include "system/steam_api_loader.h"
 #include "world/blacksecttint.h"
 #include "world/energyfx.h"
 #include "common/crashdiag.h"
@@ -371,14 +375,6 @@ static bool RunMenuSmoke()
 
 
 
-enum GAME_SCREEN_MODE {
-    GAME_SCREEN_MODE_UNKNOWN = 0,
-    GAME_SCREEN_MODE_MENU = 1,
-    GAME_SCREEN_MODE_GAME = 2,
-    GAME_SCREEN_MODE_REPLAY = 3
-};
-
-GAME_SCREEN_MODE GameScreenMode;
 UserData userdata;
 
 // Netplay and replays change the player settings; when they end, the copy
@@ -868,6 +864,7 @@ namespace
 
 void DeinitEngines()
 {
+    Steam::ApiLoader::Instance.Shutdown();
     if ( tformInited )
         TF::Engine.Deinit();
     if ( inputInited )
@@ -915,6 +912,9 @@ bool InitEngines()
     audioInited = SFXEngine::SFXe.init();
     inputInited = Input::Engine.Init();
     tformInited = TF::Engine.Init();
+
+    Steam::ApiLoader::Instance.Initialize();
+    Input::Actions.AddBackend(&Input::SteamBackend());
 
     const char *failed = !audioInited ? "audio" : !tformInited ? "tform" : !inputInited ? "input" : nullptr;
     if ( failed )

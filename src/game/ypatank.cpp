@@ -11,6 +11,7 @@
 #include "game/yparobo.h"
 #include "common/log.h"
 #include "system/inivals.h"
+#include "system/action_query.h"
 
 #include "game/yw_net.h"
 
@@ -907,7 +908,7 @@ void NC_STACK_ypatank::User_layer(update_msg *arg)
             }
         }
 
-        float v85 = -arg->inpt->Sliders[3] * _maxrot * v90 * 2.0;
+        float v85 = -Input::ActionAxisX(World::INPUT_BIND_DRIVE_DIR) * _maxrot * v90 * 2.0;
 
         if ( fabs(v85) > 0.0 )
             _rotation = mat3x3::RotateY(v85) * _rotation;
@@ -925,7 +926,7 @@ void NC_STACK_ypatank::User_layer(update_msg *arg)
             }
         }
 
-        float v88 = arg->inpt->Sliders[4];
+        float v88 = Input::ActionAxisX(World::INPUT_BIND_DRIVE_SPEED);
 
         if ( v88 > 1.0 )
             v88 = 1.0;
@@ -956,7 +957,7 @@ void NC_STACK_ypatank::User_layer(update_msg *arg)
         }
 
         float v75 = fabs(v88);
-        bool handBrakePressed = arg->inpt->Buttons.Is(3);
+        bool handBrakePressed = Input::ActionHeld(World::INPUT_BIND_BRAKE);
         int32_t playerTankBrakeTimeMs = ypatank_PlayerTankBrakeTimeMs();
         bool tractionMatchesRequestedDirection =
             (_thraction < -0.001f && v88 < -0.001f) ||
@@ -1024,7 +1025,7 @@ void NC_STACK_ypatank::User_layer(update_msg *arg)
                 _status_flg |= BACT_STFLAG_MOVE;
         }
 
-        _gun_angle_user += v90 * arg->inpt->Sliders[5];
+        _gun_angle_user += v90 * Input::ActionAxisX(World::INPUT_BIND_GUN_HEIGHT);
 
         if ( _gun_angle_user < USER_GROUND_AIM_MIN )
             _gun_angle_user = USER_GROUND_AIM_MIN;
@@ -1063,7 +1064,7 @@ void NC_STACK_ypatank::User_layer(update_msg *arg)
             arg79.tgType = BACT_TGT_TYPE_UNIT;
         }
 
-        if ( arg->inpt->Buttons.IsAny({0, 5}) )
+        if ( Input::ActionHeld(World::INPUT_BIND_FIRE) || Input::ActionHeld(World::INPUT_BIND_CAMFIRE) )
         {
             arg79.direction = v67;
             arg79.weapon = _weapon;
@@ -1076,10 +1077,9 @@ void NC_STACK_ypatank::User_layer(update_msg *arg)
 
             arg79.start_point.y = _fire_pos.y;
             arg79.start_point.z = _fire_pos.z;
-            arg79.flags = (arg->inpt->Buttons.Is(5) ? 1 : 0);
+            arg79.flags = (Input::ActionHeld(World::INPUT_BIND_CAMFIRE) ? 1 : 0);
             arg79.flags |= 2;
-            if ( (_oflags & BACT_OFLAG_VIEWER) && arg->inpt->HandBrakePressed )
-                arg79.flags |= BACT_ARG79_FLAG_RECOIL_BRAKE_HELD;
+            if ( (_oflags & BACT_OFLAG_VIEWER) && Input::ActionHeld(World::INPUT_BIND_BRAKE) )                arg79.flags |= BACT_ARG79_FLAG_RECOIL_BRAKE_HELD;
 
             LaunchMissile(&arg79);
         }

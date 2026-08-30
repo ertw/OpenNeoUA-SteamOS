@@ -34,6 +34,8 @@
 #include "world/analyzer.h"
 #include "system/inivals.h"
 #include "game/yw_game_ui_internal.h"
+#include "system/action_set_sync.h"
+#include "system/action_input.h"
 
 GuiBase *dword_5BAFAC = nullptr;
 std::string dword_5BAF98;
@@ -3667,6 +3669,9 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
     if ( _shellConfIsParsed )
     {
         if ( _preferences & World::PREF_JOYDISABLE )
+            v38 = 1;
+
+        if ( Input::SteamInputControlsJoystick() )
             v38 = 1;
     }
 
