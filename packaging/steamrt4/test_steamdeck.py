@@ -155,6 +155,34 @@ class SteamDeckPolicyTests(unittest.TestCase):
                 msg=name,
             )
 
+    def test_appdir_payload_copies_steam_appid_next_to_binary(self) -> None:
+        try:
+            from build_steamdeck import _copy_overlay_payload
+        except ImportError:  # pragma: no cover
+            from packaging.steamrt4.build_steamdeck import _copy_overlay_payload
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            overlay = root / "overlay"
+            (overlay / "bin").mkdir(parents=True)
+            (overlay / "bin" / "OpenNeoUA").write_bytes(b"\x7fELF")
+            (overlay / "bin" / "steam_appid.txt").write_text("480\n", encoding="utf-8")
+            (overlay / "SteamInput").mkdir()
+            (overlay / "SteamInput" / "game_actions_480.vdf").write_text("actions\n", encoding="utf-8")
+
+            appdir = root / "AppDir"
+            asset_root = appdir / "usr" / "share" / "openneoua"
+            _copy_overlay_payload(overlay, appdir, asset_root)
+
+            self.assertTrue((appdir / "usr" / "bin" / "OpenNeoUA").is_file())
+            self.assertEqual(
+                (appdir / "usr" / "bin" / "steam_appid.txt").read_text(encoding="utf-8"),
+                "480\n",
+            )
+            self.assertTrue(
+                (asset_root / "SteamInput" / "game_actions_480.vdf").is_file()
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
