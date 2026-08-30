@@ -122,14 +122,21 @@ int TMovie::EventsWatcher(void *, SDL_Event *event)
         break;
 
         case SDL_KEYDOWN:
+        case SDL_MOUSEBUTTONDOWN:
+        case SDL_FINGERDOWN:
+        case SDL_CONTROLLERBUTTONDOWN:
+        case SDL_JOYBUTTONDOWN:
             Instance._ctx->playing = false;
             return 0;
 
         case SDL_KEYUP:
         case SDL_TEXTINPUT:
-        case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
         case SDL_MOUSEMOTION:
+        case SDL_FINGERUP:
+        case SDL_FINGERMOTION:
+        case SDL_CONTROLLERBUTTONUP:
+        case SDL_JOYBUTTONUP:
             return 0;
     }
 
