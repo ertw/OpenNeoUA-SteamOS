@@ -37,8 +37,14 @@ bool MenuNavPressed(MENU_NAV_ACTION action)
 
 bool MenuNavHeld(MENU_NAV_ACTION action)
 {
-    if ( SteamBackend().Available() && SteamBackend().MenuNavActive(action) )
-        return true;
+    if ( SteamBackend().Available() )
+    {
+        if ( SteamBackend().SmokeModeActive() )
+            return SteamBackend().MenuNavActive(action);
+
+        if ( SteamBackend().MenuNavActive(action) )
+            return true;
+    }
 
     switch ( action )
     {
