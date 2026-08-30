@@ -114,7 +114,7 @@
 			"anti_deadzone"		"0"
 			"anti_deadzone_buffer"		"0"
 			"edge_binding_radius"		"0.970000"
-			"haptic_intensity"		"2"
+			"haptic_intensity"		"0"
 		}
 	}
 	"group"

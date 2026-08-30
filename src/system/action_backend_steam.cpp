@@ -1,5 +1,6 @@
 #include "action_backend.h"
 
+#include "../log.h"
 #include "steam_api_loader.h"
 
 namespace Input
@@ -63,6 +64,8 @@ void SteamInputBackend::ResetHandles()
     _aimDelY = 0.0f;
     _aimHandle = 0;
     _handlesReady = false;
+    _nativeBindingState = NATIVE_BINDING_UNKNOWN;
+    _nativeBindingProbeFrames = 0;
 }
 
 void SteamInputBackend::EnsureHandles()
@@ -127,6 +130,7 @@ void SteamInputBackend::EnableSmokeMode()
     _smokeMode = true;
     _handlesReady = true;
     ResetHandles();
+    _nativeBindingState = NATIVE_BINDING_NATIVE;
 }
 
 void SteamInputBackend::PulseMenuNav(MENU_NAV_ACTION action)
@@ -146,6 +150,89 @@ bool SteamInputBackend::ConsumeMenuConfirmRelease()
     const bool release = _smokeMenuConfirmRelease;
     _smokeMenuConfirmRelease = false;
     return release;
+}
+
+void SteamInputBackend::ProbeNativeBindings()
+{
+    if ( _nativeBindingState != NATIVE_BINDING_UNKNOWN )
+        return;
+
+    _nativeBindingProbeFrames++;
+
+    Steam::ApiLoader &steam = Steam::ApiLoader::Instance;
+    if ( !steam.Ready() || steam.ControllerCount() <= 0 )
+        return;
+
+    const Steam::ApiTable &api = steam.Api();
+    if ( !api.GetAnalogActionOrigins || !api.GetDigitalActionOrigins ||
+         !api.GetAnalogActionHandle || !api.GetDigitalActionHandle ||
+         !api.GetActionSetHandle )
+    {
+        if ( _nativeBindingProbeFrames >= 60 )
+            _nativeBindingState = NATIVE_BINDING_LEGACY;
+        return;
+    }
+
+    void *iface = steam.InputInterface();
+    const Steam::InputHandle controller = steam.Controllers()[0];
+
+    struct Probe
+    {
+        const char *ActionSet;
+        const char *Action;
+        bool Analog;
+    };
+
+    static const Probe kProbes[] = {
+        { "Ground", "DriveDir", true },
+        { "Air",    "FlyDir",   true },
+        { "Ground", "Fire",     false },
+    };
+
+    for ( const Probe &probe : kProbes )
+    {
+        const Steam::InputActionSetHandle set =
+            api.GetActionSetHandle(iface, probe.ActionSet);
+        if ( !set )
+            continue;
+
+        uint32_t origins[4] = {};
+        int count = 0;
+
+        if ( probe.Analog )
+        {
+            const Steam::InputAnalogActionHandle action =
+                api.GetAnalogActionHandle(iface, probe.Action);
+            if ( action )
+            {
+                count = api.GetAnalogActionOrigins(iface, controller, action, set,
+                                                   origins, 4);
+            }
+        }
+        else
+        {
+            const Steam::InputDigitalActionHandle action =
+                api.GetDigitalActionHandle(iface, probe.Action);
+            if ( action )
+            {
+                count = api.GetDigitalActionOrigins(iface, controller, action, set,
+                                                    origins, 4);
+            }
+        }
+
+        if ( count > 0 )
+        {
+            _nativeBindingState = NATIVE_BINDING_NATIVE;
+            ypa_log_out("steam.input: native game_action layout detected\n");
+            return;
+        }
+    }
+
+    if ( _nativeBindingProbeFrames >= 180 )
+    {
+        _nativeBindingState = NATIVE_BINDING_LEGACY;
+        ypa_log_out("steam.input: legacy layout detected; SDL joystick merge enabled\n");
+    }
 }
 
 void SteamInputBackend::ContributeSmoke(ActionFrame *frame)
@@ -290,6 +377,8 @@ void SteamInputBackend::Contribute(ActionFrame *frame)
         const bool active = frame->Samples[binding].active;
         _resolved[binding].WasHotKeyActive = active;
     }
+
+    ProbeNativeBindings();
 }
 
 bool SteamInputBackend::MenuNavActive(MENU_NAV_ACTION action) const

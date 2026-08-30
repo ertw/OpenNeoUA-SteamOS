@@ -173,10 +173,22 @@ public:
     void PulseMenuConfirmRelease();
     bool ConsumeMenuConfirmRelease();
 
+    // True when the active controller config binds native game_action movement
+    // or fire controls.  Legacy keyboard/mouse layouts leave these unbound.
+    bool NativeLayoutActive() const { return _nativeBindingState == NATIVE_BINDING_NATIVE; }
+
 private:
+    enum NATIVE_BINDING_STATE
+    {
+        NATIVE_BINDING_UNKNOWN = 0,
+        NATIVE_BINDING_LEGACY,
+        NATIVE_BINDING_NATIVE
+    };
+
     void EnsureHandles();
     void ResetHandles();
     void ContributeSmoke(ActionFrame *frame);
+    void ProbeNativeBindings();
 
     std::array<ResolvedAction, World::INPUT_BIND_MAX> _resolved;
     std::array<Steam::InputDigitalActionHandle, MENU_NAV_COUNT> _menuNavResolved = {{0}};
@@ -190,6 +202,8 @@ private:
     bool _smokeMode = false;
     std::array<bool, MENU_NAV_COUNT> _smokeMenuNavPulse = {{false}};
     bool _smokeMenuConfirmRelease = false;
+    int _nativeBindingState = NATIVE_BINDING_UNKNOWN;
+    int _nativeBindingProbeFrames = 0;
 };
 
 SteamInputBackend &SteamBackend();
