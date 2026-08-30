@@ -32,14 +32,6 @@ require_absolute_directory_path CI_WORK_ROOT "${work_root}"
 require_absolute_directory_path CI_OUTPUT_DIR "${output_dir}"
 require_absolute_directory_path CI_RUNTIME_DIR "${runtime_dir}"
 
-phase="configure git safe directory"
-if command -v git >/dev/null 2>&1; then
-    # GitHub Actions checks out the repo as a different UID than the SteamRT4
-    # container user; mark the mounted workspace trusted before package.py
-    # reads commit metadata.
-    git config --global --add safe.directory "${source_root}"
-fi
-
 build_dir="${work_root}/cmake-build"
 staging_dir="${work_root}/staging-install"
 dependency_report="${work_root}/dependency-versions.txt"
@@ -57,6 +49,14 @@ mkdir -p \
     "${runtime_dir}" \
     "${HOME:?HOME must be set}" \
     "${PYTHONPYCACHEPREFIX:?PYTHONPYCACHEPREFIX must be set}"
+
+phase="configure git safe directory"
+if command -v git >/dev/null 2>&1; then
+    # GitHub Actions checks out the repo as a different UID than the SteamRT4
+    # container user; mark the mounted workspace trusted before package.py
+    # reads commit metadata.
+    git config --global --add safe.directory "${source_root}"
+fi
 
 phase="record dependency versions"
 {
