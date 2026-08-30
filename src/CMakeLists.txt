@@ -10,6 +10,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(CMAKE_CXX_STANDARD 14)
 
+option(ENABLE_STEAMWORKS "Build Steam Input support" ON)
+
 set(SOURCES
     3ds.cpp
     ade.cpp
@@ -63,6 +65,11 @@ set(SOURCES
     sample.cpp
     skeleton.cpp
     sklt.cpp
+    system/action_backend_legacy.cpp
+    system/action_backend_steam.cpp
+    system/action_input.cpp
+    system/action_set_sync.cpp
+    system/menu_focus.cpp
     system/fsmgr.cpp
     system/gfx.cpp
     system/glfuncs.cpp
@@ -71,6 +78,7 @@ set(SOURCES
     system/luascript.cpp
     system/movie.cpp
     system/sound.cpp
+    system/steam_api_loader.cpp
     system/stdshdr.cpp
     system/system.cpp
     system/tform.cpp
@@ -186,6 +194,13 @@ if(WIN32)
     target_link_libraries(OpenNeoUA dbghelp)
 endif()
 
+# Steam Input is bound at runtime with dlopen, so no Steamworks SDK is needed
+# to build and the executable still runs with no Steam client present.
+if(ENABLE_STEAMWORKS AND UNIX AND NOT APPLE)
+    target_compile_definitions(OpenNeoUA PRIVATE OPENNEOUA_ENABLE_STEAMWORKS)
+    target_link_libraries(OpenNeoUA ${CMAKE_DL_LIBS})
+endif()
+
 install(TARGETS OpenNeoUA RUNTIME DESTINATION bin)
 
 # Steam can wrap bin/OpenNeoUA directly as a non-Steam ELF.  $ORIGIN/../lib
@@ -261,4 +276,32 @@ target_link_libraries(
 add_test(
     NAME sdl_virtual_controller
     COMMAND test_sdl_virtual_controller
+)
+
+# Parity harness for the Steam Input action facade. It links only the facade
+# translation units, so it needs no window, no Steam client and no game data.
+add_executable(
+    test_action_parity
+    tests/test_action_parity.cpp
+    system/action_input.cpp
+    system/action_backend_legacy.cpp
+)
+
+target_include_directories(
+    test_action_parity
+    PRIVATE
+    ${PROJECT_SOURCE_DIR}
+    ${SDL2_INCLUDE_DIRS}
+    ${SDL2_IMAGE_INCLUDE_DIRS}
+    ${SDL2_TTF_INCLUDE_DIRS}
+    ${SDL2_NET_INCLUDE_DIRS}
+    ${OpenGL_INCLUDE_DIR}
+    ${VORBISFILE_INCLUDE_DIRS}
+    ${OPENAL_INCLUDE_DIR}
+    ${LUA_INCLUDE_DIR}
+)
+
+add_test(
+    NAME action_parity
+    COMMAND test_action_parity
 )

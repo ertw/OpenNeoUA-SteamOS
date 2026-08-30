@@ -6,6 +6,9 @@
 #include "includes.h"
 #include "system/gfx.h"
 #include "system/inpt.h"
+#include "system/action_input.h"
+#include "system/action_backend.h"
+#include "system/steam_api_loader.h"
 #include "winp.h"
 #include "wintimer.h"
 
@@ -43,6 +46,7 @@
 #include "gui/uaempty.h"
 #include "system/movie.h"
 #include "system/inivals.h"
+#include "system/steam_api_loader.h"
 #include "world/blacksecttint.h"
 #include "world/energyfx.h"
 #include "obj3d.h"
@@ -379,14 +383,6 @@ int tform_inited = 0;
 int audio_inited = 0;
 int input_inited = 0;
 
-enum GAME_SCREEN_MODE {
-    GAME_SCREEN_MODE_UNKNOWN = 0,
-    GAME_SCREEN_MODE_MENU = 1,
-    GAME_SCREEN_MODE_GAME = 2,
-    GAME_SCREEN_MODE_REPLAY = 3
-};
-
-GAME_SCREEN_MODE GameScreenMode;
 UserData userdata;
 
 static int DiagnosticLevelId()
@@ -914,6 +910,8 @@ int init_classesLists_and_variables()
 
 void deinit_globl_engines()
 {
+    Steam::ApiLoader::Instance.Shutdown();
+
     if ( tform_inited )
         TF::Engine.Deinit();
     if ( input_inited )
@@ -964,6 +962,12 @@ int WinMain__sub0__sub0()
     audio_inited = SFXEngine::SFXe.init();
     input_inited = Input::Engine.Init();
     tform_inited = TF::Engine.Init();
+
+    // OpenNeoUA: optional and non-fatal. The log line it emits is the primary
+    // on-device diagnostic for Steam Input, including the app-id mismatch that
+    // a non-Steam shortcut causes.
+    Steam::ApiLoader::Instance.Initialize();
+    Input::Actions.AddBackend(&Input::SteamBackend());
 
     if ( !audio_inited )
     {

@@ -1,0 +1,523 @@
+"In Game Actions"
+{
+	"actions"
+	{
+		"Menu"
+		{
+			"title"		"#Set_Menu"
+			"Button"
+			{
+				"Fire"		"#Action_Fire"
+				"SwitchWeapon"		"#Action_SwitchWeapon"
+				"Gun"		"#Action_Gun"
+				"Brake"		"#Action_Brake"
+				"Waypoint"		"#Action_Waypoint"
+				"CamFire"		"#Action_CamFire"
+				"CycleTarget"		"#Action_CycleTarget"
+				"AlternativeView"		"#Action_AlternativeView"
+				"Order"		"#Action_Order"
+				"Attack"		"#Action_Attack"
+				"SquadNew"		"#Action_SquadNew"
+				"SquadAdd"		"#Action_SquadAdd"
+				"ControlUnit"		"#Action_ControlUnit"
+				"Autopilot"		"#Action_Autopilot"
+				"Map"		"#Action_Map"
+				"SquadManager"		"#Action_SquadManager"
+				"MapLandLayer"		"#Action_MapLandLayer"
+				"MapOwnerLayer"		"#Action_MapOwnerLayer"
+				"MapHeightLayer"		"#Action_MapHeightLayer"
+				"MapLockView"		"#Action_MapLockView"
+				"ZoomIn"		"#Action_ZoomIn"
+				"ZoomOut"		"#Action_ZoomOut"
+				"MapMinimize"		"#Action_MapMinimize"
+				"NextCommander"		"#Action_NextCommander"
+				"ControlToHost"		"#Action_ControlToHost"
+				"NextUnit"		"#Action_NextUnit"
+				"ControlToComm"		"#Action_ControlToComm"
+				"Quit"		"#Action_Quit"
+				"Hud"		"#Action_Hud"
+				"LogWindow"		"#Action_LogWindow"
+				"LastMessage"		"#Action_LastMessage"
+				"Pause"		"#Action_Pause"
+				"OrderToAll"		"#Action_OrderToAll"
+				"Aggressiveness1"		"#Action_Aggressiveness1"
+				"Aggressiveness2"		"#Action_Aggressiveness2"
+				"Aggressiveness3"		"#Action_Aggressiveness3"
+				"Aggressiveness4"		"#Action_Aggressiveness4"
+				"Aggressiveness5"		"#Action_Aggressiveness5"
+				"Help"		"#Action_Help"
+				"LastSeat"		"#Action_LastSeat"
+				"SetCommander"		"#Action_SetCommander"
+				"Analyzer"		"#Action_Analyzer"
+				"CockpitCamera"		"#Action_CockpitCamera"
+				"Sprint"		"#Action_Sprint"
+				"PlaceMapMarker"		"#Action_PlaceMapMarker"
+				"ToggleUfoSpyUi"		"#Action_ToggleUfoSpyUi"
+				"MenuUp"		"#Action_MenuUp"
+				"MenuDown"		"#Action_MenuDown"
+				"MenuLeft"		"#Action_MenuLeft"
+				"MenuRight"		"#Action_MenuRight"
+				"MenuConfirm"		"#Action_MenuConfirm"
+				"MenuCancel"		"#Action_MenuCancel"
+			}
+			"AnalogTrigger"
+			{
+				"FlySpeed"		"#Action_FlySpeed"
+				"DriveSpeed"		"#Action_DriveSpeed"
+			}
+			"StickPadGyro"
+			{
+				"FlyDir"
+				{
+					"title"		"#Action_FlyDir"
+					"input_mode"		"joystick_move"
+				}
+				"FlyHeight"
+				{
+					"title"		"#Action_FlyHeight"
+					"input_mode"		"joystick_move"
+				}
+				"DriveDir"
+				{
+					"title"		"#Action_DriveDir"
+					"input_mode"		"joystick_move"
+				}
+				"GunHeight"
+				{
+					"title"		"#Action_GunHeight"
+					"input_mode"		"joystick_move"
+				}
+				"MenuCursor"
+				{
+					"title"		"#Action_MenuCursor"
+					"input_mode"		"absolute_mouse"
+				}
+			}
+		}
+		"Ground"
+		{
+			"title"		"#Set_Ground"
+			"Button"
+			{
+				"Fire"		"#Action_Fire"
+				"SwitchWeapon"		"#Action_SwitchWeapon"
+				"Gun"		"#Action_Gun"
+				"Brake"		"#Action_Brake"
+				"Waypoint"		"#Action_Waypoint"
+				"CamFire"		"#Action_CamFire"
+				"CycleTarget"		"#Action_CycleTarget"
+				"AlternativeView"		"#Action_AlternativeView"
+				"Order"		"#Action_Order"
+				"Attack"		"#Action_Attack"
+				"SquadNew"		"#Action_SquadNew"
+				"SquadAdd"		"#Action_SquadAdd"
+				"ControlUnit"		"#Action_ControlUnit"
+				"Autopilot"		"#Action_Autopilot"
+				"Map"		"#Action_Map"
+				"SquadManager"		"#Action_SquadManager"
+				"MapLandLayer"		"#Action_MapLandLayer"
+				"MapOwnerLayer"		"#Action_MapOwnerLayer"
+				"MapHeightLayer"		"#Action_MapHeightLayer"
+				"MapLockView"		"#Action_MapLockView"
+				"ZoomIn"		"#Action_ZoomIn"
+				"ZoomOut"		"#Action_ZoomOut"
+				"MapMinimize"		"#Action_MapMinimize"
+				"NextCommander"		"#Action_NextCommander"
+				"ControlToHost"		"#Action_ControlToHost"
+				"NextUnit"		"#Action_NextUnit"
+				"ControlToComm"		"#Action_ControlToComm"
+				"Quit"		"#Action_Quit"
+				"Hud"		"#Action_Hud"
+				"LogWindow"		"#Action_LogWindow"
+				"LastMessage"		"#Action_LastMessage"
+				"Pause"		"#Action_Pause"
+				"OrderToAll"		"#Action_OrderToAll"
+				"Aggressiveness1"		"#Action_Aggressiveness1"
+				"Aggressiveness2"		"#Action_Aggressiveness2"
+				"Aggressiveness3"		"#Action_Aggressiveness3"
+				"Aggressiveness4"		"#Action_Aggressiveness4"
+				"Aggressiveness5"		"#Action_Aggressiveness5"
+				"Help"		"#Action_Help"
+				"LastSeat"		"#Action_LastSeat"
+				"SetCommander"		"#Action_SetCommander"
+				"Analyzer"		"#Action_Analyzer"
+				"CockpitCamera"		"#Action_CockpitCamera"
+				"Sprint"		"#Action_Sprint"
+				"PlaceMapMarker"		"#Action_PlaceMapMarker"
+				"ToggleUfoSpyUi"		"#Action_ToggleUfoSpyUi"
+			}
+			"AnalogTrigger"
+			{
+				"FlySpeed"		"#Action_FlySpeed"
+				"DriveSpeed"		"#Action_DriveSpeed"
+			}
+			"StickPadGyro"
+			{
+				"FlyDir"
+				{
+					"title"		"#Action_FlyDir"
+					"input_mode"		"joystick_move"
+				}
+				"FlyHeight"
+				{
+					"title"		"#Action_FlyHeight"
+					"input_mode"		"joystick_move"
+				}
+				"DriveDir"
+				{
+					"title"		"#Action_DriveDir"
+					"input_mode"		"joystick_move"
+				}
+				"GunHeight"
+				{
+					"title"		"#Action_GunHeight"
+					"input_mode"		"joystick_move"
+				}
+				"Aim"
+				{
+					"title"		"#Action_Aim"
+					"input_mode"		"absolute_mouse"
+				}
+			}
+		}
+		"Air"
+		{
+			"title"		"#Set_Air"
+			"Button"
+			{
+				"Fire"		"#Action_Fire"
+				"SwitchWeapon"		"#Action_SwitchWeapon"
+				"Gun"		"#Action_Gun"
+				"Brake"		"#Action_Brake"
+				"Waypoint"		"#Action_Waypoint"
+				"CamFire"		"#Action_CamFire"
+				"CycleTarget"		"#Action_CycleTarget"
+				"AlternativeView"		"#Action_AlternativeView"
+				"Order"		"#Action_Order"
+				"Attack"		"#Action_Attack"
+				"SquadNew"		"#Action_SquadNew"
+				"SquadAdd"		"#Action_SquadAdd"
+				"ControlUnit"		"#Action_ControlUnit"
+				"Autopilot"		"#Action_Autopilot"
+				"Map"		"#Action_Map"
+				"SquadManager"		"#Action_SquadManager"
+				"MapLandLayer"		"#Action_MapLandLayer"
+				"MapOwnerLayer"		"#Action_MapOwnerLayer"
+				"MapHeightLayer"		"#Action_MapHeightLayer"
+				"MapLockView"		"#Action_MapLockView"
+				"ZoomIn"		"#Action_ZoomIn"
+				"ZoomOut"		"#Action_ZoomOut"
+				"MapMinimize"		"#Action_MapMinimize"
+				"NextCommander"		"#Action_NextCommander"
+				"ControlToHost"		"#Action_ControlToHost"
+				"NextUnit"		"#Action_NextUnit"
+				"ControlToComm"		"#Action_ControlToComm"
+				"Quit"		"#Action_Quit"
+				"Hud"		"#Action_Hud"
+				"LogWindow"		"#Action_LogWindow"
+				"LastMessage"		"#Action_LastMessage"
+				"Pause"		"#Action_Pause"
+				"OrderToAll"		"#Action_OrderToAll"
+				"Aggressiveness1"		"#Action_Aggressiveness1"
+				"Aggressiveness2"		"#Action_Aggressiveness2"
+				"Aggressiveness3"		"#Action_Aggressiveness3"
+				"Aggressiveness4"		"#Action_Aggressiveness4"
+				"Aggressiveness5"		"#Action_Aggressiveness5"
+				"Help"		"#Action_Help"
+				"LastSeat"		"#Action_LastSeat"
+				"SetCommander"		"#Action_SetCommander"
+				"Analyzer"		"#Action_Analyzer"
+				"CockpitCamera"		"#Action_CockpitCamera"
+				"Sprint"		"#Action_Sprint"
+				"PlaceMapMarker"		"#Action_PlaceMapMarker"
+				"ToggleUfoSpyUi"		"#Action_ToggleUfoSpyUi"
+			}
+			"AnalogTrigger"
+			{
+				"FlySpeed"		"#Action_FlySpeed"
+				"DriveSpeed"		"#Action_DriveSpeed"
+			}
+			"StickPadGyro"
+			{
+				"FlyDir"
+				{
+					"title"		"#Action_FlyDir"
+					"input_mode"		"joystick_move"
+				}
+				"FlyHeight"
+				{
+					"title"		"#Action_FlyHeight"
+					"input_mode"		"joystick_move"
+				}
+				"DriveDir"
+				{
+					"title"		"#Action_DriveDir"
+					"input_mode"		"joystick_move"
+				}
+				"GunHeight"
+				{
+					"title"		"#Action_GunHeight"
+					"input_mode"		"joystick_move"
+				}
+				"Aim"
+				{
+					"title"		"#Action_Aim"
+					"input_mode"		"absolute_mouse"
+				}
+			}
+		}
+		"Host"
+		{
+			"title"		"#Set_Host"
+			"Button"
+			{
+				"Fire"		"#Action_Fire"
+				"SwitchWeapon"		"#Action_SwitchWeapon"
+				"Gun"		"#Action_Gun"
+				"Brake"		"#Action_Brake"
+				"Waypoint"		"#Action_Waypoint"
+				"CamFire"		"#Action_CamFire"
+				"CycleTarget"		"#Action_CycleTarget"
+				"AlternativeView"		"#Action_AlternativeView"
+				"Order"		"#Action_Order"
+				"Attack"		"#Action_Attack"
+				"SquadNew"		"#Action_SquadNew"
+				"SquadAdd"		"#Action_SquadAdd"
+				"ControlUnit"		"#Action_ControlUnit"
+				"Autopilot"		"#Action_Autopilot"
+				"Map"		"#Action_Map"
+				"SquadManager"		"#Action_SquadManager"
+				"MapLandLayer"		"#Action_MapLandLayer"
+				"MapOwnerLayer"		"#Action_MapOwnerLayer"
+				"MapHeightLayer"		"#Action_MapHeightLayer"
+				"MapLockView"		"#Action_MapLockView"
+				"ZoomIn"		"#Action_ZoomIn"
+				"ZoomOut"		"#Action_ZoomOut"
+				"MapMinimize"		"#Action_MapMinimize"
+				"NextCommander"		"#Action_NextCommander"
+				"ControlToHost"		"#Action_ControlToHost"
+				"NextUnit"		"#Action_NextUnit"
+				"ControlToComm"		"#Action_ControlToComm"
+				"Quit"		"#Action_Quit"
+				"Hud"		"#Action_Hud"
+				"LogWindow"		"#Action_LogWindow"
+				"LastMessage"		"#Action_LastMessage"
+				"Pause"		"#Action_Pause"
+				"OrderToAll"		"#Action_OrderToAll"
+				"Aggressiveness1"		"#Action_Aggressiveness1"
+				"Aggressiveness2"		"#Action_Aggressiveness2"
+				"Aggressiveness3"		"#Action_Aggressiveness3"
+				"Aggressiveness4"		"#Action_Aggressiveness4"
+				"Aggressiveness5"		"#Action_Aggressiveness5"
+				"Help"		"#Action_Help"
+				"LastSeat"		"#Action_LastSeat"
+				"SetCommander"		"#Action_SetCommander"
+				"Analyzer"		"#Action_Analyzer"
+				"CockpitCamera"		"#Action_CockpitCamera"
+				"Sprint"		"#Action_Sprint"
+				"PlaceMapMarker"		"#Action_PlaceMapMarker"
+				"ToggleUfoSpyUi"		"#Action_ToggleUfoSpyUi"
+			}
+			"AnalogTrigger"
+			{
+				"FlySpeed"		"#Action_FlySpeed"
+				"DriveSpeed"		"#Action_DriveSpeed"
+			}
+			"StickPadGyro"
+			{
+				"FlyDir"
+				{
+					"title"		"#Action_FlyDir"
+					"input_mode"		"joystick_move"
+				}
+				"FlyHeight"
+				{
+					"title"		"#Action_FlyHeight"
+					"input_mode"		"joystick_move"
+				}
+				"DriveDir"
+				{
+					"title"		"#Action_DriveDir"
+					"input_mode"		"joystick_move"
+				}
+				"GunHeight"
+				{
+					"title"		"#Action_GunHeight"
+					"input_mode"		"joystick_move"
+				}
+				"Aim"
+				{
+					"title"		"#Action_Aim"
+					"input_mode"		"absolute_mouse"
+				}
+			}
+		}
+		"Map"
+		{
+			"title"		"#Set_Map"
+			"Button"
+			{
+				"Fire"		"#Action_Fire"
+				"SwitchWeapon"		"#Action_SwitchWeapon"
+				"Gun"		"#Action_Gun"
+				"Brake"		"#Action_Brake"
+				"Waypoint"		"#Action_Waypoint"
+				"CamFire"		"#Action_CamFire"
+				"CycleTarget"		"#Action_CycleTarget"
+				"AlternativeView"		"#Action_AlternativeView"
+				"Order"		"#Action_Order"
+				"Attack"		"#Action_Attack"
+				"SquadNew"		"#Action_SquadNew"
+				"SquadAdd"		"#Action_SquadAdd"
+				"ControlUnit"		"#Action_ControlUnit"
+				"Autopilot"		"#Action_Autopilot"
+				"Map"		"#Action_Map"
+				"SquadManager"		"#Action_SquadManager"
+				"MapLandLayer"		"#Action_MapLandLayer"
+				"MapOwnerLayer"		"#Action_MapOwnerLayer"
+				"MapHeightLayer"		"#Action_MapHeightLayer"
+				"MapLockView"		"#Action_MapLockView"
+				"ZoomIn"		"#Action_ZoomIn"
+				"ZoomOut"		"#Action_ZoomOut"
+				"MapMinimize"		"#Action_MapMinimize"
+				"NextCommander"		"#Action_NextCommander"
+				"ControlToHost"		"#Action_ControlToHost"
+				"NextUnit"		"#Action_NextUnit"
+				"ControlToComm"		"#Action_ControlToComm"
+				"Quit"		"#Action_Quit"
+				"Hud"		"#Action_Hud"
+				"LogWindow"		"#Action_LogWindow"
+				"LastMessage"		"#Action_LastMessage"
+				"Pause"		"#Action_Pause"
+				"OrderToAll"		"#Action_OrderToAll"
+				"Aggressiveness1"		"#Action_Aggressiveness1"
+				"Aggressiveness2"		"#Action_Aggressiveness2"
+				"Aggressiveness3"		"#Action_Aggressiveness3"
+				"Aggressiveness4"		"#Action_Aggressiveness4"
+				"Aggressiveness5"		"#Action_Aggressiveness5"
+				"Help"		"#Action_Help"
+				"LastSeat"		"#Action_LastSeat"
+				"SetCommander"		"#Action_SetCommander"
+				"Analyzer"		"#Action_Analyzer"
+				"CockpitCamera"		"#Action_CockpitCamera"
+				"Sprint"		"#Action_Sprint"
+				"PlaceMapMarker"		"#Action_PlaceMapMarker"
+				"ToggleUfoSpyUi"		"#Action_ToggleUfoSpyUi"
+			}
+			"AnalogTrigger"
+			{
+				"FlySpeed"		"#Action_FlySpeed"
+				"DriveSpeed"		"#Action_DriveSpeed"
+			}
+			"StickPadGyro"
+			{
+				"FlyDir"
+				{
+					"title"		"#Action_FlyDir"
+					"input_mode"		"joystick_move"
+				}
+				"FlyHeight"
+				{
+					"title"		"#Action_FlyHeight"
+					"input_mode"		"joystick_move"
+				}
+				"DriveDir"
+				{
+					"title"		"#Action_DriveDir"
+					"input_mode"		"joystick_move"
+				}
+				"GunHeight"
+				{
+					"title"		"#Action_GunHeight"
+					"input_mode"		"joystick_move"
+				}
+				"MenuCursor"
+				{
+					"title"		"#Action_MenuCursor"
+					"input_mode"		"absolute_mouse"
+				}
+			}
+		}
+	}
+	"configurations"
+	{
+		"controller_neptune"
+		{
+			"0"
+			{
+				"path"		"openneoua_deck_iga.vdf"
+			}
+		}
+	}
+	"localization"
+	{
+		"english"
+		{
+			"Set_Menu"		"Menu Controls"
+			"Set_Ground"		"Ground Controls"
+			"Set_Air"		"Air Controls"
+			"Set_Host"		"Host Controls"
+			"Set_Map"		"Map Controls"
+			"Action_Aggressiveness1"		"Aggressiveness1"
+			"Action_Aggressiveness2"		"Aggressiveness2"
+			"Action_Aggressiveness3"		"Aggressiveness3"
+			"Action_Aggressiveness4"		"Aggressiveness4"
+			"Action_Aggressiveness5"		"Aggressiveness5"
+			"Action_Aim"		"Aim"
+			"Action_AlternativeView"		"Alternative View"
+			"Action_Analyzer"		"Analyzer"
+			"Action_Attack"		"Attack"
+			"Action_Autopilot"		"Autopilot"
+			"Action_Brake"		"Brake"
+			"Action_CamFire"		"Cam Fire"
+			"Action_CockpitCamera"		"Cockpit Camera"
+			"Action_ControlToComm"		"Control To Comm"
+			"Action_ControlToHost"		"Control To Host"
+			"Action_ControlUnit"		"Control Unit"
+			"Action_CycleTarget"		"Cycle Target"
+			"Action_DriveDir"		"Drive Dir"
+			"Action_DriveSpeed"		"Drive Speed"
+			"Action_Fire"		"Fire"
+			"Action_FlyDir"		"Fly Dir"
+			"Action_FlyHeight"		"Fly Height"
+			"Action_FlySpeed"		"Fly Speed"
+			"Action_Gun"		"Gun"
+			"Action_GunHeight"		"Gun Height"
+			"Action_Help"		"Help"
+			"Action_Hud"		"Hud"
+			"Action_LastMessage"		"Last Message"
+			"Action_LastSeat"		"Last Seat"
+			"Action_LogWindow"		"Log Window"
+			"Action_Map"		"Map"
+			"Action_MapHeightLayer"		"Map Height Layer"
+			"Action_MapLandLayer"		"Map Land Layer"
+			"Action_MapLockView"		"Map Lock View"
+			"Action_MapMinimize"		"Map Minimize"
+			"Action_MapOwnerLayer"		"Map Owner Layer"
+			"Action_MenuCancel"		"Cancel"
+			"Action_MenuConfirm"		"Confirm"
+			"Action_MenuCursor"		"Map Cursor"
+			"Action_MenuDown"		"Menu Down"
+			"Action_MenuLeft"		"Menu Left"
+			"Action_MenuRight"		"Menu Right"
+			"Action_MenuUp"		"Menu Up"
+			"Action_NextCommander"		"Next Commander"
+			"Action_NextUnit"		"Next Unit"
+			"Action_Order"		"Order"
+			"Action_OrderToAll"		"Order To All"
+			"Action_Pause"		"Pause"
+			"Action_PlaceMapMarker"		"Place Map Marker"
+			"Action_Quit"		"Quit"
+			"Action_SetCommander"		"Set Commander"
+			"Action_Sprint"		"Sprint"
+			"Action_SquadAdd"		"Squad Add"
+			"Action_SquadManager"		"Squad Manager"
+			"Action_SquadNew"		"Squad New"
+			"Action_SwitchWeapon"		"Switch Weapon"
+			"Action_ToggleUfoSpyUi"		"Toggle UFO Spy UI"
+			"Action_Waypoint"		"Waypoint"
+			"Action_ZoomIn"		"Zoom In"
+			"Action_ZoomOut"		"Zoom Out"
+		}
+	}
+}

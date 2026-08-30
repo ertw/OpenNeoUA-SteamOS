@@ -11,6 +11,7 @@
 
 
 #include "log.h"
+#include "system/action_query.h"
 
 
 NC_STACK_ypacar::NC_STACK_ypacar()
@@ -368,12 +369,12 @@ void NC_STACK_ypacar::User_layer(update_msg *arg)
             }
         }
 
-        if ( arg->inpt->Sliders[3] != 0.0 )
+        if ( Input::ActionAxisX(World::INPUT_BIND_DRIVE_DIR) != 0.0 )
         {
             if ( _fly_dir_length != 0.0 )
             {
                 float v63 = fabs(_fly_dir_length);
-                float angle = -arg->inpt->Sliders[3] * _maxrot * v78 * (sqrt(v63) * 0.2);
+                float angle = -Input::ActionAxisX(World::INPUT_BIND_DRIVE_DIR) * _maxrot * v78 * (sqrt(v63) * 0.2);
 
                 _rotation = mat3x3::RotateY(angle) * _rotation;
             }
@@ -392,8 +393,8 @@ void NC_STACK_ypacar::User_layer(update_msg *arg)
             }
         }
 
-        float v76 = arg->inpt->Sliders[4];
-        float v65 = fabs(arg->inpt->Sliders[4]);
+        float v76 = Input::ActionAxisX(World::INPUT_BIND_DRIVE_SPEED);
+        float v65 = fabs(Input::ActionAxisX(World::INPUT_BIND_DRIVE_SPEED));
 
         if ( v76 < -1.0 )
             v76 = -1.0;
@@ -417,7 +418,7 @@ void NC_STACK_ypacar::User_layer(update_msg *arg)
         if ( fabs(v76) > 0.001 )
             _status_flg |= BACT_STFLAG_MOVE;
 
-        _gun_angle_user += v78 * arg->inpt->Sliders[5];
+        _gun_angle_user += v78 * Input::ActionAxisX(World::INPUT_BIND_GUN_HEIGHT);
 
         if ( _gun_angle_user < -0.3 )
             _gun_angle_user = -0.3;
@@ -442,7 +443,7 @@ void NC_STACK_ypacar::User_layer(update_msg *arg)
             arg79.target.pbact = arg106.ret_bact;
         }
 
-        if ( arg->inpt->Buttons.IsAny({0, 5}) )
+        if ( (Input::ActionHeld(World::INPUT_BIND_FIRE) || Input::ActionHeld(World::INPUT_BIND_CAMFIRE)) )
         {
             if ( _carKamikaze )
             {
@@ -462,8 +463,8 @@ void NC_STACK_ypacar::User_layer(update_msg *arg)
                 arg79.start_point.y = _fire_pos.y;
                 arg79.start_point.z = _fire_pos.z;
 
-                arg79.flags = (arg->inpt->Buttons.Is(5) ? 1 : 0) | 2;
-                if ( (_oflags & BACT_OFLAG_VIEWER) && arg->inpt->Buttons.Is(3) )
+                arg79.flags = (Input::ActionHeld(World::INPUT_BIND_CAMFIRE) ? 1 : 0) | 2;
+                if ( (_oflags & BACT_OFLAG_VIEWER) && Input::ActionHeld(World::INPUT_BIND_BRAKE) )
                     arg79.flags |= BACT_ARG79_FLAG_RECOIL_BRAKE_HELD;
 
                 LaunchMissile(&arg79);
@@ -474,7 +475,7 @@ void NC_STACK_ypacar::User_layer(update_msg *arg)
         {
             if ( !UsesVehicleMinigunTiming() && (_status_flg & BACT_STFLAG_FIRE) )
             {
-                if ( !arg->inpt->Buttons.Is(2) )
+                if ( !Input::ActionHeld(World::INPUT_BIND_GUN) )
                 {
                     setState_msg arg78;
                     arg78.setFlags = 0;
@@ -485,7 +486,7 @@ void NC_STACK_ypacar::User_layer(update_msg *arg)
                 }
             }
 
-            if ( arg->inpt->Buttons.Is(2) )
+            if ( Input::ActionHeld(World::INPUT_BIND_GUN) )
             {
                 if ( !UsesVehicleMinigunTiming() && !(_status_flg & BACT_STFLAG_FIRE) )
                 {
@@ -510,7 +511,7 @@ void NC_STACK_ypacar::User_layer(update_msg *arg)
         {
             move_msg arg74;
 
-            if ( arg->inpt->Buttons.Is(3) )
+            if ( Input::ActionHeld(World::INPUT_BIND_BRAKE) )
             {
                 HandBrake(arg);
                 if ( GetHandBrakePower() > 0.0f )
