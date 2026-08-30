@@ -274,6 +274,39 @@ static bool MenuSmokeFindEnabledRegionPoint(int *outX, int *outY)
         return false;
 
     TMapRegionsNet &regions = ypaworld->_globalMapRegions;
+    const Common::Point screenSize = ypaworld->_screenSize;
+
+    int bestIndex = 0;
+    float bestArea = 0.0f;
+    for ( int i = 1; i < 256; ++i )
+    {
+        const TMapRegionInfo &info = regions.MapRegions[i];
+        if ( info.Status != TMapRegionInfo::STATUS_ENABLED &&
+             info.Status != TMapRegionInfo::STATUS_COMPLETED )
+            continue;
+
+        const Common::FRect &rect = info.Rect;
+        if ( rect.right <= rect.left || rect.bottom <= rect.top )
+            continue;
+
+        const float area = (rect.right - rect.left) * (rect.bottom - rect.top);
+        if ( area > bestArea )
+        {
+            bestArea = area;
+            bestIndex = i;
+        }
+    }
+
+    if ( bestIndex > 0 )
+    {
+        const Common::FRect &rect = regions.MapRegions[bestIndex].Rect;
+        const float centerX = (rect.left + rect.right) * 0.5f;
+        const float centerY = (rect.top + rect.bottom) * 0.5f;
+        *outX = (int)((centerX + 1.0f) * 0.5f * screenSize.x);
+        *outY = (int)((centerY + 1.0f) * 0.5f * screenSize.y);
+        return true;
+    }
+
     if ( !regions.MaskImage )
         return false;
 
@@ -301,8 +334,8 @@ static bool MenuSmokeFindEnabledRegionPoint(int *outX, int *outY)
                  status != TMapRegionInfo::STATUS_COMPLETED )
                 continue;
 
-            *outX = x * ypaworld->_screenSize.x / width;
-            *outY = y * ypaworld->_screenSize.y / height;
+            *outX = x * screenSize.x / width;
+            *outY = y * screenSize.y / height;
             found = true;
             break;
         }
@@ -310,6 +343,11 @@ static bool MenuSmokeFindEnabledRegionPoint(int *outX, int *outY)
 
     SDL_UnlockSurface(bitmap->swTex);
     return found;
+}
+
+static void MenuSmokeSetPointerPhysical(int x, int y)
+{
+    NC_STACK_winp::_mPos = Common::Point(x, y);
 }
 
 static bool MenuSmokePushSteamMenuNav(Input::MENU_NAV_ACTION action)
@@ -373,8 +411,14 @@ static bool RunMenuSmoke()
         return false;
     }
 
-    if (!MenuSmokeRenderFrames(8, &frameCount))
+    if (!MenuSmokeRenderFrames(15, &frameCount))
         return false;
+
+    if (!ypaworld->_globalMapRegions.MaskImage)
+    {
+        ypa_log_out("menu smoke: campaign map mask image is not loaded\n");
+        return false;
+    }
 
     int mapClickX = 0;
     int mapClickY = 0;
@@ -388,12 +432,18 @@ static bool RunMenuSmoke()
     const int physicalClickY = mapClickY * physical.y / logical.y;
     int selectedRegion = 0;
 
-    if (!MenuSmokePushMouse(SDL_MOUSEMOTION, physicalClickX, physicalClickY) || System::ProcessEvents())
-        return false;
-    if (!MenuSmokeRenderFrames(1, &frameCount))
-        return false;
-
-    selectedRegion = ypaworld->_globalMapRegions.SelectedRegion;
+    for (int attempt = 0; attempt < 3; ++attempt)
+    {
+        MenuSmokeSetPointerPhysical(physicalClickX, physicalClickY);
+        if (!MenuSmokePushMouse(SDL_MOUSEMOTION, physicalClickX, physicalClickY) || System::ProcessEvents())
+            return false;
+        MenuSmokeSetPointerPhysical(physicalClickX, physicalClickY);
+        if (!MenuSmokeRenderFrames(2, &frameCount))
+            return false;
+        selectedRegion = ypaworld->_globalMapRegions.SelectedRegion;
+        if (selectedRegion > 0)
+            break;
+    }
     if (selectedRegion <= 0)
     {
         ypa_log_out("menu smoke: campaign map hover did not select a region\n");
