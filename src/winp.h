@@ -57,6 +57,8 @@ public:
     static Input::TQueryState GetQueryInterface()
     { return Input::TQueryState(__ClassName, QueryKeyboard, QueryPointer, HasFocus); };
 
+    static void SmokeSetPointerPhysical(const Common::Point &pos) { _mPos = pos; }
+
 protected:
     static void CheckJoy();
     static void KeyDown(int16_t vk);

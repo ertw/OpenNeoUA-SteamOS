@@ -166,9 +166,17 @@ public:
 
     static float CombineTrigger(float current, float incoming);
 
+    // Deterministic Steam Input pulses for --menu-smoke-dir runs without a client.
+    void EnableSmokeMode();
+    bool SmokeModeActive() const { return _smokeMode; }
+    void PulseMenuNav(MENU_NAV_ACTION action);
+    void PulseMenuConfirmRelease();
+    bool ConsumeMenuConfirmRelease();
+
 private:
     void EnsureHandles();
     void ResetHandles();
+    void ContributeSmoke(ActionFrame *frame);
 
     std::array<ResolvedAction, World::INPUT_BIND_MAX> _resolved;
     std::array<Steam::InputDigitalActionHandle, MENU_NAV_COUNT> _menuNavResolved = {{0}};
@@ -179,6 +187,9 @@ private:
     float _aimDelY = 0.0f;
     Steam::InputAnalogActionHandle _aimHandle = 0;
     bool _handlesReady = false;
+    bool _smokeMode = false;
+    std::array<bool, MENU_NAV_COUNT> _smokeMenuNavPulse = {{false}};
+    bool _smokeMenuConfirmRelease = false;
 };
 
 SteamInputBackend &SteamBackend();
