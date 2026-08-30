@@ -1,4 +1,5 @@
 #include <inttypes.h>
+#include <limits.h>
 #include <string.h>
 #include <algorithm>
 #include <cctype>
@@ -6,6 +7,7 @@
 
 #include "includes.h"
 #include "yw.h"
+#include "system/action_table.h"
 #include "yw_internal.h"
 #include "font.h"
 #include "button.h"
@@ -7246,70 +7248,14 @@ bool UserData::ShellSoundsLoad()
 
 int UserData::InputIndexFromConfig(uint32_t type, uint32_t index)
 {
-    static const std::array<int, 8> BUTTON
-    {
-        World::INPUT_BIND_FIRE,       World::INPUT_BIND_SWITCH_WEAPON,
-        World::INPUT_BIND_GUN,        World::INPUT_BIND_BRAKE,
-        World::INPUT_BIND_WAPOINT,    World::INPUT_BIND_CAMFIRE,
-        World::INPUT_BIND_CYCLE_TARGET, World::INPUT_BIND_ALTERNATIVE_VIEW
-    };
+    // OpenNeoUA: the channel/slot tables that used to live here now live in
+    // World::ActionTable, which is also what the action facade and the Steam
+    // Input action names derive from. Keeping one table removes the risk of the
+    // forward and reverse mappings drifting apart.
+    if ( index >= (uint32_t)World::ActionTable::SlotsForChannel((int)type) )
+        return -1;
 
-    static const std::array<int, 6> SLIDER
-    {
-        World::INPUT_BIND_FLY_DIR,    World::INPUT_BIND_FLY_HEIGHT,
-        World::INPUT_BIND_FLY_SPEED,  World::INPUT_BIND_DRIVE_DIR,
-        World::INPUT_BIND_DRIVE_SPEED,World::INPUT_BIND_GUN_HEIGHT,
-    };
-
-    static const std::array<int, 53> HOTKEY
-    {
-        World::INPUT_BIND_ORDER,      World::INPUT_BIND_ATTACK,
-        World::INPUT_BIND_NEW,        World::INPUT_BIND_ADD,
-        World::INPUT_BIND_CONTROL,    -1,
-        -1,                           World::INPUT_BIND_AUTOPILOT,
-        World::INPUT_BIND_MAP,        World::INPUT_BIND_SQ_MANAGE,
-
-        // 10
-        World::INPUT_BIND_LANDLAYER,  World::INPUT_BIND_OWNER,
-        World::INPUT_BIND_HEIGHT,     -1,
-        World::INPUT_BIND_LOCKVIEW,   -1,
-        World::INPUT_BIND_ZOOMIN,     World::INPUT_BIND_ZOOMOUT,
-        World::INPUT_BIND_MINIMAP,    -1,
-
-        // 20
-        World::INPUT_BIND_NEXT_COMM,  World::INPUT_BIND_TO_HOST,
-        World::INPUT_BIND_NEXT_UNIT,  World::INPUT_BIND_TO_COMM,
-        World::INPUT_BIND_QUIT,       World::INPUT_BIND_HUD,
-        -1,                           World::INPUT_BIND_LOG_WND,
-        -1,                           -1,
-
-        // 30
-        -1,                           World::INPUT_BIND_LAST_MSG,
-        World::INPUT_BIND_PAUSE,      -1,
-        -1,                           -1,
-        -1,                           World::INPUT_BIND_TO_ALL,
-        World::INPUT_BIND_AGGR_1,     World::INPUT_BIND_AGGR_2,
-
-        // 40
-        World::INPUT_BIND_AGGR_3,     World::INPUT_BIND_AGGR_4,
-        World::INPUT_BIND_AGGR_5,     World::INPUT_BIND_HELP,
-        World::INPUT_BIND_LAST_SEAT,  World::INPUT_BIND_SET_COMM,
-        World::INPUT_BIND_ANALYZER,   World::INPUT_BIND_COCKPIT_CAMERA,
-        World::INPUT_BIND_SPRINT,     World::INPUT_BIND_PLACE_MAP_MARKER,
-
-        // 50/51 are intentionally reserved for the retired split Camera Zoom
-        // profile slots. New remappable hotkeys continue at 52.
-        -1,                           -1,
-        World::INPUT_BIND_TOGGLE_UFO_SPY_UI
-    };
-
-    if ( type == World::INPUT_BIND_TYPE_BUTTON && index < BUTTON.size())
-        return BUTTON[index];
-    else if ( type == World::INPUT_BIND_TYPE_SLIDER && index < SLIDER.size() )
-        return SLIDER[index];
-    else if ( type == World::INPUT_BIND_TYPE_HOTKEY && index < HOTKEY.size() )
-        return HOTKEY[index];
-    return -1;
+    return World::ActionTable::BindingForSlot((int)type, (int)index);
 }
 
 bool UserData::IsHasSGM(const std::string &username, int id)

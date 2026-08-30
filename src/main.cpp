@@ -43,6 +43,7 @@
 #include "gui/uaempty.h"
 #include "system/movie.h"
 #include "system/inivals.h"
+#include "system/steam_api_loader.h"
 #include "world/blacksecttint.h"
 #include "world/energyfx.h"
 #include "obj3d.h"
@@ -914,6 +915,8 @@ int init_classesLists_and_variables()
 
 void deinit_globl_engines()
 {
+    Steam::ApiLoader::Instance.Shutdown();
+
     if ( tform_inited )
         TF::Engine.Deinit();
     if ( input_inited )
@@ -964,6 +967,11 @@ int WinMain__sub0__sub0()
     audio_inited = SFXEngine::SFXe.init();
     input_inited = Input::Engine.Init();
     tform_inited = TF::Engine.Init();
+
+    // OpenNeoUA: optional and non-fatal. The log line it emits is the primary
+    // on-device diagnostic for Steam Input, including the app-id mismatch that
+    // a non-Steam shortcut causes.
+    Steam::ApiLoader::Instance.Initialize();
 
     if ( !audio_inited )
     {

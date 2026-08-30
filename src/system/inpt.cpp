@@ -4,7 +4,9 @@
 #include "../ini.h"
 #include "../log.h"
 #include "inpt.h"
+#include "action_input.h"
 #include "inivals.h"
+#include "steam_api_loader.h"
 #include "winp.h"
 
 namespace Input{
@@ -302,38 +304,47 @@ void INPEngine::RebindForceFeedback()
     _ffShake.Bind(joyHaptic);
 }
 
-void INPEngine::QueryInput(TInputState *state)
+void INPEngine::EvaluateLegacyPrimitives(LegacyInputPrimitives *out)
 {
-    *state = TInputState();
+    *out = LegacyInputPrimitives();
 
     if ( _timer )
-        state->Period = _timer->itimer_func64();
+        out->Period = _timer->itimer_func64();
     else
-        state->Period = 20;
+        out->Period = 20;
 
     if ( !_wimp.HasFocus || _wimp.HasFocus() )
     {
-        if ( _keyboard.KeyboardQuery )
-            _keyboard.KeyboardQuery(state);
+        out->HasFocus = true;
 
-        state->HotKeyID = CheckHotKey(state->KbdLastHit);
+        // QueryKeyboard writes through a TInputState; only the four keyboard
+        // fields are taken from it, exactly as before.
+        TInputState keyboard;
+
+        if ( _keyboard.KeyboardQuery )
+            _keyboard.KeyboardQuery(&keyboard);
+
+        out->KbdLastDown = keyboard.KbdLastDown;
+        out->KbdLastHit = keyboard.KbdLastHit;
+        out->Chr = keyboard.chr;
+
+        out->HotKeyID = CheckHotKey(out->KbdLastHit);
 
         if ( _wimp.PointerQuery )
-            _wimp.PointerQuery(&state->ClickInf);
+            _wimp.PointerQuery(&out->ClickInf);
 
-        ApplyPointerResolution(&state->ClickInf.move);
-        ApplyPointerResolution(&state->ClickInf.ldw_pos);
-        ApplyPointerResolution(&state->ClickInf.lup_pos);
+        ApplyPointerResolution(&out->ClickInf.move);
+        ApplyPointerResolution(&out->ClickInf.ldw_pos);
+        ApplyPointerResolution(&out->ClickInf.lup_pos);
 
-        ClickCheck.CheckClick(&state->ClickInf);
+        ClickCheck.CheckClick(&out->ClickInf);
 
         for (size_t i = 0; i < _buttons.size(); i++)
         {
             bool btn = true;
             UpdateList(&_buttons[i], &btn);
 
-            if (btn)
-                state->Buttons.Set(i);
+            out->ButtonState[i] = btn;
         }
 
         for (size_t i = 0; i < _sliders.size(); i++)
@@ -342,15 +353,36 @@ void INPEngine::QueryInput(TInputState *state)
             float pos = 0.0;
             UpdateList(&_sliders[i], &btn, &pos);
 
-            if (btn)
-                state->Sliders[i] = pos;
+            out->SliderValid[i] = btn;
+            out->SliderPos[i] = pos;
         }
     }
     else
     {
+        out->HasFocus = false;
+
         for ( InputNodeList &lst : _sliders )
             UpdateList(&lst);
     }
+}
+
+void INPEngine::QueryInput(TInputState *state)
+{
+    // OpenNeoUA: TInputState is now produced by the action facade. The legacy
+    // expression evaluator still supplies the raw primitives, so the keyboard,
+    // mouse and joystick path is unchanged; only the assembly of TInputState
+    // moved. BuildLegacyInputState remains as the reference the parity harness
+    // diffs against, and as the revert path.
+    LegacyInputPrimitives primitives;
+    EvaluateLegacyPrimitives(&primitives);
+
+    Steam::ApiLoader::Instance.RunFrame();
+
+    Actions.Update(primitives);
+    Actions.PopulateLegacyState(state);
+
+    if ( ActionParity::Enabled() )
+        ActionParity::Check(primitives, *state);
 }
 
 void INPEngine::SetPointerResolution(const Common::Point &physicalSize,
