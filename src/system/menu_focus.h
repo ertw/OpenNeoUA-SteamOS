@@ -44,6 +44,7 @@ private:
     int _focusIndex = -1;
     float _cursorX = 0.0f;
     float _cursorY = 0.0f;
+    bool _cursorInitialized = false;
 };
 
 // Applies menu focus for the active button screen when appropriate.

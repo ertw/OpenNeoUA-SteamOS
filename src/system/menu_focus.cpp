@@ -62,6 +62,7 @@ void MenuFocusController::Reset(NC_STACK_button *screen)
     _screen = screen;
     _focusIndex = -1;
     _entries.clear();
+    _cursorInitialized = false;
 
     if ( _screen )
         RebuildFocusList();
@@ -152,9 +153,21 @@ void MenuFocusController::ApplyCursorDelta(TInputState *state)
     if ( !state )
         return;
 
+    const float deltaX = SteamBackend().MenuCursorDeltaX();
+    const float deltaY = SteamBackend().MenuCursorDeltaY();
+    if ( deltaX == 0.0f && deltaY == 0.0f )
+        return;
+
+    if ( !_cursorInitialized )
+    {
+        _cursorX = (float)state->ClickInf.move.ScreenPos.x;
+        _cursorY = (float)state->ClickInf.move.ScreenPos.y;
+        _cursorInitialized = true;
+    }
+
     const float scale = 12.0f;
-    _cursorX += SteamBackend().MenuCursorDeltaX() * scale;
-    _cursorY += SteamBackend().MenuCursorDeltaY() * scale;
+    _cursorX += deltaX * scale;
+    _cursorY += deltaY * scale;
 
     if ( GameScreenMode == GAME_SCREEN_MODE_MENU && ypaworld )
     {
