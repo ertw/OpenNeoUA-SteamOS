@@ -230,6 +230,38 @@ void ActionInput::PopulateLegacyState(TInputState *state) const
 #endif
 }
 
+void ActionInput::RefreshFromLegacyMergedState(const TInputState *state)
+{
+    if ( !state )
+        return;
+
+#ifdef OPENNEOUA_ENABLE_STEAMWORKS
+    if ( SteamInputControlsJoystick() )
+        return;
+#endif
+
+    for ( std::size_t slot = 0; slot < World::ActionTable::BUTTON_SLOTS; slot++ )
+    {
+        const int binding = World::ActionTable::BindingForSlot(
+            World::INPUT_BIND_TYPE_BUTTON, (int)slot);
+        if ( binding <= 0 || binding >= World::INPUT_BIND_MAX )
+            continue;
+
+        _samples[binding].active = state->Buttons.Is(slot);
+    }
+
+    for ( std::size_t slot = 0; slot < World::ActionTable::SLIDER_SLOTS; slot++ )
+    {
+        const int binding = World::ActionTable::BindingForSlot(
+            World::INPUT_BIND_TYPE_SLIDER, (int)slot);
+        if ( binding <= 0 || binding >= World::INPUT_BIND_MAX )
+            continue;
+
+        _samples[binding].posX = state->Sliders[slot];
+        _samples[binding].active = state->Sliders[slot] != 0.0f;
+    }
+}
+
 const ActionSample &ActionInput::Sample(int binding) const
 {
     static const ActionSample Empty;

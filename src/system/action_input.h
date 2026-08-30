@@ -56,6 +56,11 @@ public:
     // from the samples; every other slot is carried through verbatim.
     void PopulateLegacyState(TInputState *state) const;
 
+    // After yw_game_ui merges the virtual SDL joystick into TInputState, copy
+    // the merged button and slider slots back into the facade so ActionAxisX
+    // and ActionHeld see the same values vehicles always read.
+    void RefreshFromLegacyMergedState(const TInputState *state);
+
     const ActionSample &Sample(int binding) const;
     bool Active(int binding) const;
     bool Pressed(int binding) const;
@@ -63,7 +68,7 @@ public:
     float AnalogX(int binding) const;
     float AnalogY(int binding) const;
 
-    // True when Steam Input is active with at least one connected controller.
+    // True when the native IGA layout is driving movement through Steam Input.
     bool SteamInputLive() const;
 
     void PushActionSet(ACTION_SET set);

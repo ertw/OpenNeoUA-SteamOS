@@ -83,7 +83,11 @@ bool SteamInputControlsJoystick()
     if ( SteamBackend().SmokeModeActive() )
         return true;
 
-    return Steam::ApiLoader::Instance.Ready() && Steam::ApiLoader::Instance.ControllerCount() > 0;
+    // Only treat Steam Input as the movement authority when the active layout
+    // binds native game_action analogs.  Legacy keyboard/mouse layouts still
+    // drive movement through the virtual SDL joystick and must keep the merge
+    // path in yw_game_ui.cpp enabled.
+    return SteamBackend().NativeLayoutActive();
 }
 
 }

@@ -17586,18 +17586,22 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
     if ( gui_lstvw.IsOpen() )
         inpt->Sliders[1] = 0;
 
-    if ( _mouseGrabbed ) // If grabbed mouse
+    const bool steamAimActive = Input::SteamInputControlsJoystick();
+    if ( _mouseGrabbed || steamAimActive )
     {
         // Piu-piu mazafaka
-        winp->selected_btnID = -1;
-        winp->flag &= ~(TClickBoxInf::FLAG_BTN_DOWN | TClickBoxInf::FLAG_BTN_HOLD | TClickBoxInf::FLAG_BTN_UP);
+        if ( _mouseGrabbed )
+        {
+            winp->selected_btnID = -1;
+            winp->flag &= ~(TClickBoxInf::FLAG_BTN_DOWN | TClickBoxInf::FLAG_BTN_HOLD | TClickBoxInf::FLAG_BTN_UP);
+        }
 
         inpt->Sliders[0] += inpt->Sliders[10];
         inpt->Sliders[1] += inpt->Sliders[11];
         inpt->Sliders[3] += inpt->Sliders[10];
         inpt->Sliders[5] -= inpt->Sliders[11] * 1.5;
 
-        if ( World::IsFixedInputShortcutHeld(World::INPUT_BIND_FIRE) )
+        if ( _mouseGrabbed && World::IsFixedInputShortcutHeld(World::INPUT_BIND_FIRE) )
             inpt->Buttons.Set(0);
 
     }
@@ -17775,6 +17779,8 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
             inpt->HandBrakePressed = true;
         }
     }
+
+    Input::Actions.RefreshFromLegacyMergedState(inpt);
 }
 
 
