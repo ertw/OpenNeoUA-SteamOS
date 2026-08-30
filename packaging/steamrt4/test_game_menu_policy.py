@@ -41,7 +41,7 @@ class GameMenuPolicyTests(unittest.TestCase):
     def test_refresh_command_uses_sanitized_context_and_pull(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             snapshot = Path(directory)
-            dockerfile = snapshot / "packaging" / "steamrt4" / "Dockerfile.steamdeck"
+            dockerfile = snapshot / "packaging" / "steamrt4" / "Dockerfile.smoketest"
             dockerfile.parent.mkdir(parents=True)
             dockerfile.write_text("FROM scratch\n", encoding="utf-8")
             command = _refresh_image_command(snapshot)

@@ -1,0 +1,26 @@
+# Dedicated runtime image for OpenNeoUA menu/campaign-map smoke tests.
+#
+# Unlike Dockerfile.steamdeck, this image only needs to extract an AppImage and
+# run OpenNeoUA under xvfb with software GL.  It is host-independent: no runtime
+# package installs inside the container.
+FROM registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:4.0.20260805.254769
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+       ca-certificates python3 squashfs-tools \
+       xvfb libgl1 libgl1-mesa-dri libglu1-mesa mesa-utils \
+       libasound2 libopenal1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY packaging/steamrt4/run_smoketest.sh /opt/openneoua/packaging/steamrt4/run_smoketest.sh
+RUN chmod 0755 /opt/openneoua/packaging/steamrt4/run_smoketest.sh
+
+WORKDIR /opt/openneoua
+ENV SDL_VIDEODRIVER=x11 \
+    SDL_AUDIODRIVER=dummy \
+    LIBGL_ALWAYS_SOFTWARE=1 \
+    MESA_LOADER_DRIVER_OVERRIDE=softpipe \
+    GALLIUM_DRIVER=softpipe \
+    ALSOFT_DRIVERS=null \
+    OPENALSOFT_DRIVERS=null
