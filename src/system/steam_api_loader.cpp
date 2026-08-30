@@ -105,6 +105,37 @@ bool ManifestExistsIn(const std::string &dir)
     return static_cast<bool>(probe);
 }
 
+bool FileExists(const std::string &path)
+{
+    if ( path.empty() )
+        return false;
+
+    std::ifstream probe(path);
+    return static_cast<bool>(probe);
+}
+
+void LogSteamInitContext()
+{
+    char cwd[4096] = {};
+    if ( !getcwd(cwd, sizeof(cwd)) )
+        cwd[0] = '\0';
+
+    const std::string exeDir = DirectoryForExecutable();
+    const char *steamAppId = std::getenv("SteamAppId");
+    const char *steamGameId = std::getenv("SteamGameId");
+
+    ypa_log_out(
+        "steam.input: init context cwd=%s exe_dir=%s SteamAppId=%s SteamGameId=%s "
+        "appid_in_cwd=%s appid_next_to_exe=%s\n",
+        cwd[0] ? cwd : "(unknown)",
+        exeDir.empty() ? "(unknown)" : exeDir.c_str(),
+        (steamAppId && steamAppId[0]) ? steamAppId : "(unset)",
+        (steamGameId && steamGameId[0]) ? steamGameId : "(unset)",
+        FileExists(JoinDir(cwd[0] ? std::string(cwd) : std::string(), "steam_appid.txt"))
+            ? "yes" : "no",
+        FileExists(JoinDir(exeDir, "steam_appid.txt")) ? "yes" : "no");
+}
+
 std::string ResolveManifestSourceDir()
 {
     // Overlay: <game-root>/bin/OpenNeoUA → <game-root>/SteamInput/
@@ -244,7 +275,12 @@ void ApiLoader::Fail(LOADER_STATUS status, const std::string &reason)
 bool ApiLoader::CallSteamApiInit()
 {
     if ( _api.Init )
-        return _api.Init();
+    {
+        if ( _api.Init() )
+            return true;
+        LogSteamInitContext();
+        return false;
+    }
 
     if ( !_api.InternalInit )
         return false;
@@ -262,6 +298,7 @@ bool ApiLoader::CallSteamApiInit()
     const int32_t result = _api.InternalInit(kVersionCheck, errMsg);
     if ( result != 0 )
     {
+        LogSteamInitContext();
         Fail(STEAM_STATUS_API_INIT_FAILED,
              errMsg[0] != '\0' ? std::string(errMsg)
                                : std::string("SteamInternal_SteamAPI_Init returned ") +
