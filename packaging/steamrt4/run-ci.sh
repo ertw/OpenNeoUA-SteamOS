@@ -74,18 +74,21 @@ phase="verify fonts, scripts, and launcher"
 (cd "${source_root}/Fonts" && sha256sum -c SHA256SUMS)
 bash -n \
     "${source_root}/packaging/steamrt4/install-dependencies.sh" \
-    "${source_root}/packaging/steamrt4/run-ci.sh"
+    "${source_root}/packaging/steamrt4/run-ci.sh" \
+    "${source_root}/packaging/steamrt4/run_smoketest.sh"
 sh -n "${source_root}/OpenNeoUA.sh"
-python3 -m py_compile \
-    "${source_root}/packaging/steamrt4/package.py" \
-    "${source_root}/packaging/steamrt4/local_ci.py" \
-    "${source_root}/packaging/steamrt4/test_local_ci.py" \
-    "${source_root}/packaging/steamrt4/test_launcher.py" \
-    "${source_root}/packaging/steamrt4/test_resolver_write_paths.py" \
-    "${source_root}/packaging/steamrt4/test_overlay_mutation.py" \
-    "${source_root}/packaging/steamrt4/test_game_menu.py" \
-    "${source_root}/packaging/steamrt4/test_game_menu_policy.py" \
-    "${source_root}/packaging/steamrt4/test_steamdeck.py" \
+    python3 -m py_compile \
+        "${source_root}/packaging/steamrt4/package.py" \
+        "${source_root}/packaging/steamrt4/local_ci.py" \
+        "${source_root}/packaging/steamrt4/test_local_ci.py" \
+        "${source_root}/packaging/steamrt4/test_launcher.py" \
+        "${source_root}/packaging/steamrt4/test_resolver_write_paths.py" \
+        "${source_root}/packaging/steamrt4/test_overlay_mutation.py" \
+        "${source_root}/packaging/steamrt4/test_game_menu.py" \
+        "${source_root}/packaging/steamrt4/test_game_menu_policy.py" \
+        "${source_root}/packaging/steamrt4/test_map_menu_focus.py" \
+        "${source_root}/packaging/steamrt4/build_smoketest_image.py" \
+        "${source_root}/packaging/steamrt4/test_steamdeck.py" \
     "${source_root}/packaging/steamrt4/test_steam_input.py" \
     "${source_root}/packaging/steamrt4/test_steam_input_iga.py" \
     "${source_root}/packaging/steamrt4/generate_iga_vdf.py" \

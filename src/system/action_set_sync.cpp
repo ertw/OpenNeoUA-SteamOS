@@ -1,5 +1,6 @@
 #include "action_set_sync.h"
 
+#include "action_backend.h"
 #include "action_input.h"
 #include "steam_api_loader.h"
 #include "../global.h"
@@ -79,6 +80,9 @@ void SyncSteamActionSet()
 
 bool SteamInputControlsJoystick()
 {
+    if ( SteamBackend().SmokeModeActive() )
+        return true;
+
     return Steam::ApiLoader::Instance.Ready() && Steam::ApiLoader::Instance.ControllerCount() > 0;
 }
 

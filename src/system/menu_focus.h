@@ -37,6 +37,7 @@ private:
     void RebuildFocusList();
     void MoveFocus(int dx, int dy);
     void ActivateFocused(TInputState *state);
+    void ReleaseFocused(TInputState *state);
     void ApplyCursorDelta(TInputState *state);
 
     NC_STACK_button *_screen = nullptr;
@@ -45,6 +46,7 @@ private:
     float _cursorX = 0.0f;
     float _cursorY = 0.0f;
     bool _cursorInitialized = false;
+    bool _confirmHeld = false;
 };
 
 // Applies menu focus for the active button screen when appropriate.
