@@ -59,8 +59,7 @@
 !/Interface/
 !/Filters/
 !/Database/
-!/vendor/
-!/vendor/**
+!/vendor/steamworks-sdk/*
 !/3ds/
 
 # ============================================================
