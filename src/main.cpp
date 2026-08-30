@@ -6,6 +6,9 @@
 #include "includes.h"
 #include "system/gfx.h"
 #include "system/inpt.h"
+#include "system/action_input.h"
+#include "system/action_backend.h"
+#include "system/steam_api_loader.h"
 #include "winp.h"
 #include "wintimer.h"
 
@@ -380,14 +383,6 @@ int tform_inited = 0;
 int audio_inited = 0;
 int input_inited = 0;
 
-enum GAME_SCREEN_MODE {
-    GAME_SCREEN_MODE_UNKNOWN = 0,
-    GAME_SCREEN_MODE_MENU = 1,
-    GAME_SCREEN_MODE_GAME = 2,
-    GAME_SCREEN_MODE_REPLAY = 3
-};
-
-GAME_SCREEN_MODE GameScreenMode;
 UserData userdata;
 
 static int DiagnosticLevelId()
@@ -972,6 +967,7 @@ int WinMain__sub0__sub0()
     // on-device diagnostic for Steam Input, including the app-id mismatch that
     // a non-Steam shortcut causes.
     Steam::ApiLoader::Instance.Initialize();
+    Input::Actions.AddBackend(&Input::SteamBackend());
 
     if ( !audio_inited )
     {

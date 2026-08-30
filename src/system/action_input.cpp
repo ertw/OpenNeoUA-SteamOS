@@ -4,7 +4,12 @@
 #include <cstring>
 
 #include "action_input.h"
+#include "action_set_sync.h"
 #include "../log.h"
+
+#ifdef OPENNEOUA_ENABLE_STEAMWORKS
+#include "action_backend.h"
+#endif
 
 namespace Input
 {
@@ -235,6 +240,25 @@ bool ActionInput::Pressed(int binding) const
 bool ActionInput::Released(int binding) const
 {
     return Sample(binding).released;
+}
+
+float ActionInput::AnalogX(int binding) const
+{
+    return Sample(binding).posX;
+}
+
+float ActionInput::AnalogY(int binding) const
+{
+    return Sample(binding).posY;
+}
+
+bool ActionInput::SteamInputLive() const
+{
+#ifdef OPENNEOUA_ENABLE_STEAMWORKS
+    return SteamInputControlsJoystick();
+#else
+    return false;
+#endif
 }
 
 void ActionInput::PushActionSet(ACTION_SET set)

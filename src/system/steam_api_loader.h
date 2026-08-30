@@ -13,23 +13,11 @@
 // present, which is required for desktop development, the CTest suite and the
 // AppImage path.
 //
-// TODO: the flat symbol names and the ISteamInput interface version below are
-// taken from the published Steamworks flat API and have NOT been verified
-// against a real binary, because obtaining the SDK requires a Valve login.
-// Before shipping, verify with:
-//     nm -D --defined-only libsteam_api.so | grep ISteamInput
-// and confirm SteamInputInterfaceVersion() matches the accessor that binary
-// actually exports (see docs/steam-input-migration-plan.md, 2.4).
-//
-// Two names are known to be version-sensitive and should be checked first:
-//   - SteamAPI_Init: an exported function in older SDKs, but from SDK 1.59 the
-//     header makes it inline over the exported SteamInternal_SteamAPI_Init.
-//     If the grep shows only the latter, add it as a fallback in
-//     ResolveSymbols(); its signature takes an interface-version string and a
-//     SteamErrMsg out-buffer and returns ESteamAPIInitResult, not bool.
-//   - the SteamAPI_SteamInput_vNNN accessor, which is bumped per interface
-//     revision. A missing accessor is reported as "symbols incomplete" with
-//     the exact name, so the startup log identifies the required version.
+// Two names are version-sensitive and should be checked first against the
+// vendored SDK binary (vendor/steamworks-sdk/redistributable_bin/linux64):
+//   - SteamInternal_SteamAPI_Init (modern SDKs; no exported SteamAPI_Init)
+//   - SteamAPI_SteamInput_vNNN and SteamAPI_SteamUtils_vNNN accessors
+// Verify with: python3 packaging/steamrt4/verify_steam_api_symbols.py
 
 namespace Steam
 {
@@ -82,6 +70,12 @@ typedef InputDigitalActionHandle (*PFN_ISteamInput_GetDigitalActionHandle)(void 
 typedef DigitalActionData (*PFN_ISteamInput_GetDigitalActionData)(void *self, InputHandle controller, InputDigitalActionHandle action);
 typedef InputAnalogActionHandle (*PFN_ISteamInput_GetAnalogActionHandle)(void *self, const char *actionName);
 typedef AnalogActionData (*PFN_ISteamInput_GetAnalogActionData)(void *self, InputHandle controller, InputAnalogActionHandle action);
+typedef int  (*PFN_ISteamInput_GetDigitalActionOrigins)(void *self, InputHandle controller, InputDigitalActionHandle action, InputActionSetHandle set, uint32_t *originsOut, uint32_t originsOutCount);
+typedef int  (*PFN_ISteamInput_GetAnalogActionOrigins)(void *self, InputHandle controller, InputAnalogActionHandle action, InputActionSetHandle set, uint32_t *originsOut, uint32_t originsOutCount);
+typedef const char *(*PFN_ISteamInput_GetGlyphPNGForActionOrigin)(void *self, uint32_t origin, int32_t flags, uint32_t *sizeOut);
+typedef void (*PFN_ISteamInput_ShowBindingPanel)(void *self, InputHandle controller);
+typedef void *(*PFN_SteamAPI_SteamUtils)();
+typedef bool (*PFN_ISteamUtils_ShowGamepadTextInput)(void *self, uint32_t inputMode, uint32_t lineInputMode, const char *description, uint32_t charMax, const char *existingText);
 
 // The resolved flat API.  Every pointer is either null or usable; callers must
 // still check, because a library can export a subset of these symbols.
@@ -105,6 +99,12 @@ struct ApiTable
     PFN_ISteamInput_GetDigitalActionData          GetDigitalActionData     = nullptr;
     PFN_ISteamInput_GetAnalogActionHandle         GetAnalogActionHandle    = nullptr;
     PFN_ISteamInput_GetAnalogActionData           GetAnalogActionData      = nullptr;
+    PFN_ISteamInput_GetDigitalActionOrigins       GetDigitalActionOrigins  = nullptr;
+    PFN_ISteamInput_GetAnalogActionOrigins        GetAnalogActionOrigins   = nullptr;
+    PFN_ISteamInput_GetGlyphPNGForActionOrigin    GetGlyphForActionOrigin  = nullptr;
+    PFN_ISteamInput_ShowBindingPanel              ShowBindingPanel         = nullptr;
+    PFN_SteamAPI_SteamUtils                       SteamUtils               = nullptr;
+    PFN_ISteamUtils_ShowGamepadTextInput          ShowGamepadTextInput     = nullptr;
 };
 
 enum LOADER_STATUS
@@ -157,6 +157,16 @@ public:
     int ControllerCount() const { return _controllerCount; }
     const InputHandle *Controllers() const { return _controllers; }
 
+    void *UtilsInterface() const { return _utilsInterface; }
+
+    // Opens the Steam Input binding panel for the first connected controller.
+    void OpenBindingPanel();
+
+    // Requests the Big Picture overlay text field for gamepad name entry.
+    bool ShowGamepadTextInput(const char *description,
+                              uint32_t charMax,
+                              const char *existingText = "");
+
     // The ISteamInput accessor this build expects to resolve.
     static const char *SteamInputInterfaceVersion();
 
@@ -168,10 +178,12 @@ public:
 private:
     bool ResolveSymbols();
     bool CallSteamApiInit();
+    bool InstallActionManifest();
     void Fail(LOADER_STATUS status, const std::string &reason);
 
     void *_library = nullptr;
     void *_inputInterface = nullptr;
+    void *_utilsInterface = nullptr;
     ApiTable _api;
     LOADER_STATUS _status = STEAM_STATUS_IDLE;
     std::string _statusText = "not initialised";

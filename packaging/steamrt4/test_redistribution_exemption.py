@@ -46,7 +46,11 @@ except ImportError:  # pragma: no cover
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-STEAM_API_LICENSE = REPO_ROOT / REDISTRIBUTABLE_SOURCE_DIR / "STEAMWORKS-SDK-LICENSE.txt"
+STEAM_API_LICENSE = REPO_ROOT / "vendor" / "steamworks-sdk" / "Readme.txt"
+VENDOR_STEAM_API = (
+    REPO_ROOT / "vendor" / "steamworks-sdk" / "redistributable_bin" / "linux64" / STEAM_API_LIBRARY_NAME
+)
+PINNED_STEAM_API_SHA256 = "eb2dd015b84177cf4f4326fe578aab375fd8931bbbd719c7492420d9777007fe"
 
 PAYLOAD = b"\x7fELF-not-really-an-elf-but-hashable\n"
 PAYLOAD_SHA256 = hashlib.sha256(PAYLOAD).hexdigest()
@@ -123,29 +127,27 @@ class ExemptionTableTests(unittest.TestCase):
         exemption = REDISTRIBUTION_EXEMPTIONS[STEAM_API_LIBRARY_NAME]
         self.assertEqual(
             exemption.license_path,
-            str(REDISTRIBUTABLE_SOURCE_DIR / "STEAMWORKS-SDK-LICENSE.txt"),
+            "vendor/steamworks-sdk/Readme.txt",
         )
         self.assertIn("Steamworks", exemption.origin)
 
 
-class PlaceholderLicenseTests(unittest.TestCase):
-    def test_in_tree_license_is_marked_as_a_placeholder(self) -> None:
+class VendorSteamApiTests(unittest.TestCase):
+    def test_vendored_sdk_license_is_present(self) -> None:
         self.assertTrue(STEAM_API_LICENSE.is_file())
         self.assertFalse(STEAM_API_LICENSE.is_symlink())
-        text = STEAM_API_LICENSE.read_text(encoding="utf-8")
-        self.assertIn("PLACEHOLDER", text)
-        self.assertIn("THIS IS NOT A LICENSE", text)
-        self.assertIn("Steamworks SDK Access Agreement", text)
-        self.assertIn("GPLv2", text)
-        self.assertIn("no linking exception", text)
+        text = STEAM_API_LICENSE.read_text(encoding="latin-1")
+        self.assertIn("Valve Corporation", text)
 
-    def test_steam_api_pin_is_still_the_placeholder(self) -> None:
-        # Guards the TODO: once the real digest is pinned this test must be
-        # updated together with REDISTRIBUTION_EXEMPTION_RECORDS.
+    def test_steam_api_pin_matches_vendored_binary(self) -> None:
+        if not VENDOR_STEAM_API.is_file():
+            self.skipTest("vendored libsteam_api.so is not present")
+        digest = hashlib.sha256(VENDOR_STEAM_API.read_bytes()).hexdigest()
         self.assertEqual(
             REDISTRIBUTION_EXEMPTIONS[STEAM_API_LIBRARY_NAME].sha256,
-            REDISTRIBUTION_PLACEHOLDER_SHA256,
+            digest,
         )
+        self.assertEqual(digest, PINNED_STEAM_API_SHA256)
 
 
 class PolicyTests(unittest.TestCase):

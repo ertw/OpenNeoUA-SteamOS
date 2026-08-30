@@ -2,11 +2,13 @@
 #define SYSTEM_ACTION_BACKEND_H_INCLUDED
 
 #include <array>
+#include <cstring>
 #include <string>
 #include <vector>
 
 #include "action_table.h"
 #include "inpt.h"
+#include "steam_api_loader.h"
 
 // OpenNeoUA: producers of action state for the ActionInput facade.
 //
@@ -121,6 +123,58 @@ public:
 private:
     const LegacyInputPrimitives *_primitives = nullptr;
 };
+
+enum MENU_NAV_ACTION
+{
+    MENU_NAV_UP = 0,
+    MENU_NAV_DOWN,
+    MENU_NAV_LEFT,
+    MENU_NAV_RIGHT,
+    MENU_NAV_CONFIRM,
+    MENU_NAV_CANCEL,
+
+    MENU_NAV_COUNT
+};
+
+class SteamInputBackend : public IActionBackend
+{
+public:
+    struct ResolvedAction
+    {
+        int Binding = -1;
+        Steam::InputDigitalActionHandle Digital = 0;
+        Steam::InputAnalogActionHandle Analog = 0;
+        int HotKeySlot = -1;
+        bool WasHotKeyActive = false;
+        int AnalogKind = 0;
+    };
+
+    SteamInputBackend();
+
+    const char *Name() const override { return "steam-input"; }
+    bool Available() const override;
+    void Contribute(ActionFrame *frame) override;
+
+    bool MenuNavActive(MENU_NAV_ACTION action) const;
+
+    float MenuCursorDeltaX() const { return _menuCursorDelX; }
+    float MenuCursorDeltaY() const { return _menuCursorDelY; }
+
+    static float CombineTrigger(float current, float incoming);
+
+private:
+    void EnsureHandles();
+    void ResetHandles();
+
+    std::array<ResolvedAction, World::INPUT_BIND_MAX> _resolved;
+    std::array<Steam::InputDigitalActionHandle, MENU_NAV_COUNT> _menuNavResolved = {{0}};
+    std::array<bool, MENU_NAV_COUNT> _menuNavActive = {{false}};
+    float _menuCursorDelX = 0.0f;
+    float _menuCursorDelY = 0.0f;
+    bool _handlesReady = false;
+};
+
+SteamInputBackend &SteamBackend();
 
 // Builds TInputState exactly as INPEngine::QueryInput did before the facade
 // existed.  Kept as the parity reference and as the one-line revert path.

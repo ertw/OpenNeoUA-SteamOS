@@ -48,6 +48,10 @@ FONT_CHECKSUMS = {
 
 REDISTRIBUTABLE_SOURCE_DIR = Path("packaging") / "steamrt4" / "redistributable"
 STEAM_API_LIBRARY_NAME = "libsteam_api.so"
+VENDOR_STEAMWORKS_SDK = Path("vendor") / "steamworks-sdk"
+VENDOR_STEAM_API_LIBRARY = (
+    VENDOR_STEAMWORKS_SDK / "redistributable_bin" / "linux64" / STEAM_API_LIBRARY_NAME
+)
 # Sentinel for an exemption whose real digest is not known yet.  Staging refuses
 # to ship a library while its pin still carries this value.
 REDISTRIBUTION_PLACEHOLDER_SHA256 = "placeholder-pin-the-real-sha256"
@@ -62,16 +66,14 @@ class RedistributionExemption(NamedTuple):
     origin: str
 
 
-# TODO: replace the libsteam_api.so placeholder digest with the lowercase SHA-256
-# of the x86-64 redistributable from the Steamworks SDK
-# (redistributable_bin/linux64/libsteam_api.so), and replace
-# packaging/steamrt4/redistributable/STEAMWORKS-SDK-LICENSE.txt with the verbatim
-# redistribution terms shipped in that SDK.
+# Pinned digest of vendor/steamworks-sdk/redistributable_bin/linux64/libsteam_api.so
+# (Steamworks SDK v1.65).  Regenerate after upgrading the vendored SDK:
+#     sha256sum vendor/steamworks-sdk/redistributable_bin/linux64/libsteam_api.so
 REDISTRIBUTION_EXEMPTION_RECORDS = (
     RedistributionExemption(
         name=STEAM_API_LIBRARY_NAME,
-        sha256=REDISTRIBUTION_PLACEHOLDER_SHA256,
-        license_path=str(REDISTRIBUTABLE_SOURCE_DIR / "STEAMWORKS-SDK-LICENSE.txt"),
+        sha256="eb2dd015b84177cf4f4326fe578aab375fd8931bbbd719c7492420d9777007fe",
+        license_path=str(VENDOR_STEAMWORKS_SDK / "Readme.txt"),
         origin="Steamworks SDK redistributable (Valve Corporation), dlopen()ed for Steam Input",
     ),
 )
@@ -145,6 +147,7 @@ STEAM_INPUT_SOURCE_DIR = Path("packaging") / "steamrt4" / "steam_input"
 STEAM_INPUT_REQUIRED_FILES = (
     "REVISION.txt",
     "openneoua_deck_default.vdf",
+    "game_actions_480.vdf",
 )
 
 
@@ -1403,6 +1406,9 @@ def verify_package_layout(staging_root: Path) -> None:
         fail("installed OpenNeoUA is not x86-64 ELF")
     if not os.access(executable, os.X_OK):
         fail("installed OpenNeoUA is not executable")
+    for path in staging_root.rglob("*"):
+        if path.is_file() and path.suffix.lower() == ".iso":
+            fail("game ISO must not be packaged: {}".format(path.relative_to(staging_root)))
     runpath = readelf_runpath(executable)
     if "$ORIGIN/../lib" not in runpath:
         fail(
@@ -1501,9 +1507,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         type=Path,
         help=(
             "optional {} to stage under the Steamworks redistribution exemption "
-            "(default: <source-root>/{}); packaging succeeds without it and Steam "
-            "Input support is unavailable at runtime".format(
+            "(default: <source-root>/{} when present, else <source-root>/{}); "
+            "packaging succeeds without it and Steam Input support is unavailable at runtime".format(
                 STEAM_API_LIBRARY_NAME,
+                VENDOR_STEAM_API_LIBRARY.as_posix(),
                 (REDISTRIBUTABLE_SOURCE_DIR / STEAM_API_LIBRARY_NAME).as_posix(),
             )
         ),
@@ -1573,6 +1580,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         steam_api_source = (
             args.steam_api_library.resolve()
             if args.steam_api_library is not None
+            else (source_root / VENDOR_STEAM_API_LIBRARY)
+            if (source_root / VENDOR_STEAM_API_LIBRARY).is_file()
             else source_root / REDISTRIBUTABLE_SOURCE_DIR / STEAM_API_LIBRARY_NAME
         )
         redistributed: Dict[str, str] = {}

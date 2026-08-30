@@ -5,6 +5,7 @@
 #include "../log.h"
 #include "inpt.h"
 #include "action_input.h"
+#include "action_set_sync.h"
 #include "inivals.h"
 #include "steam_api_loader.h"
 #include "winp.h"
@@ -377,6 +378,7 @@ void INPEngine::QueryInput(TInputState *state)
     EvaluateLegacyPrimitives(&primitives);
 
     Steam::ApiLoader::Instance.RunFrame();
+    SyncSteamActionSet();
 
     Actions.Update(primitives);
     Actions.PopulateLegacyState(state);

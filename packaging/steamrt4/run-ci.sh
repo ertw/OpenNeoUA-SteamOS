@@ -87,10 +87,14 @@ python3 -m py_compile \
     "${source_root}/packaging/steamrt4/test_game_menu_policy.py" \
     "${source_root}/packaging/steamrt4/test_steamdeck.py" \
     "${source_root}/packaging/steamrt4/test_steam_input.py" \
-    "${source_root}/packaging/steamrt4/test_redistribution_exemption.py"
+    "${source_root}/packaging/steamrt4/test_steam_input_iga.py" \
+    "${source_root}/packaging/steamrt4/test_redistribution_exemption.py" \
+    "${source_root}/packaging/steamrt4/verify_steam_api_symbols.py"
 python3 "${source_root}/packaging/steamrt4/test_launcher.py"
 python3 "${source_root}/packaging/steamrt4/test_steam_input.py"
+python3 "${source_root}/packaging/steamrt4/test_steam_input_iga.py"
 python3 "${source_root}/packaging/steamrt4/test_redistribution_exemption.py"
+python3 "${source_root}/packaging/steamrt4/verify_steam_api_symbols.py"
 
 phase="configure Release build"
 cmake \
@@ -134,6 +138,10 @@ package_command=(
 )
 if [[ -n "${dirty_base_commit}" ]]; then
     package_command+=(--dirty-base-commit "${dirty_base_commit}")
+fi
+steam_api_library="${source_root}/vendor/steamworks-sdk/redistributable_bin/linux64/libsteam_api.so"
+if [[ -f "${steam_api_library}" ]]; then
+    package_command+=(--steam-api-library "${steam_api_library}")
 fi
 "${package_command[@]}"
 

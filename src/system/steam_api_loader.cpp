@@ -1,6 +1,8 @@
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <string>
+#include <unistd.h>
 
 #include "steam_api_loader.h"
 #include "../log.h"
@@ -23,6 +25,8 @@ const char *const LIBRARY_NAME = "libsteam_api.so";
 // Set to opt out at runtime without rebuilding; useful when bisecting an input
 // problem on device, where the Steam client is always present.
 const char *const DISABLE_ENV = "OPENNEOUA_NO_STEAM_INPUT";
+const char *const MANIFEST_NAME = "game_actions_480.vdf";
+const char *const MANIFEST_SUBDIR = "SteamInput";
 
 #ifdef OPENNEOUA_STEAM_DLOPEN
 // Resolves one symbol and records the first failure.  Returning through a
@@ -62,11 +66,56 @@ const char *StatusName(LOADER_STATUS status)
     return "unknown";
 }
 
+std::string DirectoryForExecutable()
+{
+    char buffer[4096];
+    const ssize_t length = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+    if ( length <= 0 )
+        return std::string();
+
+    buffer[length] = '\0';
+    std::string path(buffer);
+    const std::size_t slash = path.find_last_of('/');
+    if ( slash == std::string::npos )
+        return std::string();
+
+    return path.substr(0, slash);
+}
+
+std::string ResolveManifestSourcePath()
+{
+    const std::string binDir = DirectoryForExecutable();
+    if ( binDir.empty() )
+        return std::string();
+
+    return binDir + "/../" + MANIFEST_SUBDIR + "/" + MANIFEST_NAME;
+}
+
+bool CopyManifestToRuntimePath(const std::string &source, std::string *destination)
+{
+    std::ifstream input(source, std::ios::binary);
+    if ( !input )
+        return false;
+
+    const char *tempRoot = std::getenv("TMPDIR");
+    if ( !tempRoot || !tempRoot[0] )
+        tempRoot = "/tmp";
+
+    *destination = std::string(tempRoot) + "/openneoua_steam_input_" + MANIFEST_NAME;
+
+    std::ofstream output(*destination, std::ios::binary | std::ios::trunc);
+    if ( !output )
+        return false;
+
+    output << input.rdbuf();
+    return output.good();
+}
+
 }
 
 const char *ApiLoader::SteamInputInterfaceVersion()
 {
-    return "SteamAPI_SteamInput_v006";
+    return "SteamAPI_SteamInput_v007";
 }
 
 bool ApiLoader::CompiledIn()
@@ -94,6 +143,7 @@ void ApiLoader::Fail(LOADER_STATUS status, const std::string &reason)
 #endif
 
     _inputInterface = nullptr;
+    _utilsInterface = nullptr;
     _api = ApiTable();
     _controllerCount = 0;
 }
@@ -109,9 +159,9 @@ bool ApiLoader::CallSteamApiInit()
     // Minimal interface set for Steam Input.  Extend when later phases need
     // ISteamUtils (text entry) or other interfaces.
     static const char kVersionCheck[] =
-        "SteamUtils010"
+        "SteamUtils011"
         "\0"
-        "SteamInput006"
+        "SteamInput007"
         "\0"
         "\0";
 
@@ -162,11 +212,22 @@ bool ApiLoader::ResolveSymbols()
     Resolve(_library, "SteamAPI_ISteamInput_GetAnalogActionData",
             &_api.GetAnalogActionData, &missing);
 
-    // Optional: only needed by later phases, so their absence is not fatal.
+    // Optional: glyphs, binding panel and text entry are not required to play.
     Resolve(_library, "SteamAPI_ISteamInput_SetInputActionManifestFilePath",
             &_api.SetActionManifestPath, &optional);
     Resolve(_library, "SteamAPI_ISteamInput_GetCurrentActionSet",
             &_api.GetCurrentActionSet, &optional);
+    Resolve(_library, "SteamAPI_ISteamInput_GetDigitalActionOrigins",
+            &_api.GetDigitalActionOrigins, &optional);
+    Resolve(_library, "SteamAPI_ISteamInput_GetAnalogActionOrigins",
+            &_api.GetAnalogActionOrigins, &optional);
+    Resolve(_library, "SteamAPI_ISteamInput_GetGlyphPNGForActionOrigin",
+            &_api.GetGlyphForActionOrigin, &optional);
+    Resolve(_library, "SteamAPI_ISteamInput_ShowBindingPanel",
+            &_api.ShowBindingPanel, &optional);
+    Resolve(_library, "SteamAPI_SteamUtils_v011", &_api.SteamUtils, &optional);
+    Resolve(_library, "SteamAPI_ISteamUtils_ShowGamepadTextInput",
+            &_api.ShowGamepadTextInput, &optional);
 
     if ( !missing.empty() )
     {
@@ -175,6 +236,45 @@ bool ApiLoader::ResolveSymbols()
         return false;
     }
 
+    return true;
+#else
+    return false;
+#endif
+}
+
+bool ApiLoader::InstallActionManifest()
+{
+#ifdef OPENNEOUA_STEAM_DLOPEN
+    if ( !_api.SetActionManifestPath || !_inputInterface )
+        return true;
+
+    const std::string sourcePath = ResolveManifestSourcePath();
+    if ( sourcePath.empty() )
+    {
+        ypa_log_out("steam.input: manifest source path could not be resolved\n");
+        return false;
+    }
+
+    std::ifstream probe(sourcePath);
+    if ( !probe )
+    {
+        ypa_log_out("steam.input: manifest missing at %s\n", sourcePath.c_str());
+        return false;
+    }
+
+    std::string manifestPath = sourcePath;
+    std::string copiedPath;
+    if ( CopyManifestToRuntimePath(sourcePath, &copiedPath) )
+        manifestPath = copiedPath;
+
+    if ( !_api.SetActionManifestPath(_inputInterface, manifestPath.c_str()) )
+    {
+        ypa_log_out("steam.input: SetInputActionManifestFilePath failed for %s\n",
+                    manifestPath.c_str());
+        return false;
+    }
+
+    ypa_log_out("steam.input: manifest installed from %s\n", manifestPath.c_str());
     return true;
 #else
     return false;
@@ -245,6 +345,18 @@ bool ApiLoader::Initialize()
         return false;
     }
 
+    if ( !InstallActionManifest() )
+    {
+        if ( _api.InputShutdown )
+            _api.InputShutdown(_inputInterface);
+        if ( _api.Shutdown )
+            _api.Shutdown();
+        Fail(STEAM_STATUS_INPUT_INIT_FAILED, "action manifest could not be installed");
+        return false;
+    }
+
+    _utilsInterface = _api.SteamUtils ? _api.SteamUtils() : nullptr;
+
     _status = STEAM_STATUS_READY;
     _statusText = "ready";
     _controllerCount = 0;
@@ -297,10 +409,34 @@ void ApiLoader::Shutdown()
 #endif
 
     _inputInterface = nullptr;
+    _utilsInterface = nullptr;
     _api = ApiTable();
     _status = STEAM_STATUS_IDLE;
     _statusText = "not initialised";
     _controllerCount = 0;
+}
+
+void ApiLoader::OpenBindingPanel()
+{
+    if ( _status != STEAM_STATUS_READY || !_api.ShowBindingPanel || _controllerCount <= 0 )
+        return;
+
+    _api.ShowBindingPanel(_inputInterface, _controllers[0]);
+}
+
+bool ApiLoader::ShowGamepadTextInput(const char *description,
+                                     uint32_t charMax,
+                                     const char *existingText)
+{
+    if ( _status != STEAM_STATUS_READY || !_api.ShowGamepadTextInput || !_utilsInterface )
+        return false;
+
+    return _api.ShowGamepadTextInput(_utilsInterface,
+                                     0,
+                                     0,
+                                     description ? description : "",
+                                     charMax,
+                                     existingText ? existingText : "");
 }
 
 }

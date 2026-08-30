@@ -105,14 +105,18 @@ To publish the layout, export it from that shortcut in Steam as
 
 ## Private Steam Deck AppImage (local only)
 
-Builds an AppImage from a locally owned `UA-Complete/Urban Assault.iso`. Game
-data never enters CI.
+Builds an AppImage from a locally owned base-game ISO at `vendor/ua.iso`. Game
+data never enters CI or public artifacts — keep the ISO gitignored.
 
 ```sh
+cp "/path/to/Urban Assault.iso" vendor/ua.iso
 ./packaging/steamrt4/build_steamdeck.py \
-  --assets-dir UA-Complete \
   --output-dir build/steamdeck-private/artifacts
 ```
+
+Use `--iso` to override the default path. Steam Input support is bundled from
+the vendored Steamworks SDK at `vendor/steamworks-sdk/` when you build the
+overlay with `./packaging/steamrt4/local_ci.py`.
 
 `chmod +x` the AppImage and copy it to the Deck. Saves live in
 `~/.local/share/OpenNeoUA`.

@@ -60,6 +60,11 @@ public:
     bool Active(int binding) const;
     bool Pressed(int binding) const;
     bool Released(int binding) const;
+    float AnalogX(int binding) const;
+    float AnalogY(int binding) const;
+
+    // True when Steam Input is active with at least one connected controller.
+    bool SteamInputLive() const;
 
     void PushActionSet(ACTION_SET set);
     void PopActionSet();

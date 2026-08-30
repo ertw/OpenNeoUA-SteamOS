@@ -66,7 +66,10 @@ set(SOURCES
     skeleton.cpp
     sklt.cpp
     system/action_backend_legacy.cpp
+    system/action_backend_steam.cpp
     system/action_input.cpp
+    system/action_set_sync.cpp
+    system/menu_focus.cpp
     system/fsmgr.cpp
     system/gfx.cpp
     system/glfuncs.cpp
