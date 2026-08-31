@@ -5,11 +5,184 @@
 #include "../log.h"
 #include "inpt.h"
 #include "inivals.h"
+#include "gamepad_util.h"
 #include "winp.h"
+#include "../yw.h"
 
 namespace Input{
 
 INPEngine INPEngine::Instance;
+SemanticInput Actions;
+
+namespace
+{
+int ButtonSlotForBinding(int binding)
+{
+    switch (binding)
+    {
+    case World::INPUT_BIND_FIRE: return 0;
+    case World::INPUT_BIND_SWITCH_WEAPON: return 1;
+    case World::INPUT_BIND_GUN: return 2;
+    case World::INPUT_BIND_BRAKE: return 3;
+    case World::INPUT_BIND_WAPOINT: return 4;
+    case World::INPUT_BIND_CAMFIRE: return 5;
+    case World::INPUT_BIND_CYCLE_TARGET: return 6;
+    case World::INPUT_BIND_ALTERNATIVE_VIEW: return 7;
+    default: return -1;
+    }
+}
+
+int SliderSlotForBinding(int binding)
+{
+    switch (binding)
+    {
+    case World::INPUT_BIND_FLY_DIR: return 0;
+    case World::INPUT_BIND_FLY_HEIGHT: return 1;
+    case World::INPUT_BIND_FLY_SPEED: return 2;
+    case World::INPUT_BIND_DRIVE_DIR: return 3;
+    case World::INPUT_BIND_DRIVE_SPEED: return 4;
+    case World::INPUT_BIND_GUN_HEIGHT: return 5;
+    default: return -1;
+    }
+}
+
+int HotKeySlotForBinding(int binding)
+{
+    switch (binding)
+    {
+    case World::INPUT_BIND_ORDER: return 0;
+    case World::INPUT_BIND_ATTACK: return 1;
+    case World::INPUT_BIND_NEW: return 2;
+    case World::INPUT_BIND_ADD: return 3;
+    case World::INPUT_BIND_CONTROL: return 4;
+    case World::INPUT_BIND_AUTOPILOT: return 7;
+    case World::INPUT_BIND_MAP: return 8;
+    case World::INPUT_BIND_SQ_MANAGE: return 9;
+    case World::INPUT_BIND_LANDLAYER: return 10;
+    case World::INPUT_BIND_OWNER: return 11;
+    case World::INPUT_BIND_HEIGHT: return 12;
+    case World::INPUT_BIND_LOCKVIEW: return 14;
+    case World::INPUT_BIND_ZOOMIN: return 16;
+    case World::INPUT_BIND_ZOOMOUT: return 17;
+    case World::INPUT_BIND_MINIMAP: return 18;
+    case World::INPUT_BIND_NEXT_COMM: return 20;
+    case World::INPUT_BIND_TO_HOST: return 21;
+    case World::INPUT_BIND_NEXT_UNIT: return 22;
+    case World::INPUT_BIND_TO_COMM: return 23;
+    case World::INPUT_BIND_QUIT: return 24;
+    case World::INPUT_BIND_HUD: return 25;
+    case World::INPUT_BIND_LOG_WND: return 27;
+    case World::INPUT_BIND_LAST_MSG: return 31;
+    case World::INPUT_BIND_PAUSE: return 32;
+    case World::INPUT_BIND_TO_ALL: return 37;
+    case World::INPUT_BIND_AGGR_1: return 38;
+    case World::INPUT_BIND_AGGR_2: return 39;
+    case World::INPUT_BIND_AGGR_3: return 40;
+    case World::INPUT_BIND_AGGR_4: return 41;
+    case World::INPUT_BIND_AGGR_5: return 42;
+    case World::INPUT_BIND_HELP: return 43;
+    case World::INPUT_BIND_LAST_SEAT: return 44;
+    case World::INPUT_BIND_SET_COMM: return 45;
+    case World::INPUT_BIND_ANALYZER: return 46;
+    case World::INPUT_BIND_COCKPIT_CAMERA: return 47;
+    case World::INPUT_BIND_SPRINT: return 48;
+    case World::INPUT_BIND_PLACE_MAP_MARKER: return 49;
+    case World::INPUT_BIND_TOGGLE_UFO_SPY_UI: return 52;
+    case World::INPUT_BIND_MAP_FOCUS: return 53;
+    default: return -1;
+    }
+}
+}
+
+float SemanticInput::Strongest(float a, float b)
+{
+    return GamepadUtil::Strongest(a, b);
+}
+
+void SemanticInput::Reset()
+{
+    _samples = std::array<ActionSample, SEMANTIC_ACTION_COUNT>();
+    _digital.Reset();
+    _controller = ControllerState();
+}
+
+void SemanticInput::Update(TInputState *state, const ControllerState &controller,
+                           bool controllerEnabled)
+{
+    if (!state)
+        return;
+
+    _controller = controllerEnabled ? controller : ControllerState();
+
+    for (int binding = 1; binding < SEMANTIC_ACTION_COUNT; ++binding)
+    {
+        const int buttonSlot = ButtonSlotForBinding(binding);
+        const int sliderSlot = SliderSlotForBinding(binding);
+        const int hotKeySlot = HotKeySlotForBinding(binding);
+        bool physical = false;
+        float analog = 0.0f;
+
+        if (buttonSlot >= 0)
+            physical = state->Buttons.Is(buttonSlot);
+        if (sliderSlot >= 0)
+            analog = state->Sliders[sliderSlot];
+        if (hotKeySlot >= 0 && hotKeySlot < (int)Engine._hotKeys.size())
+        {
+            const int key = Engine._hotKeys[hotKeySlot];
+            physical = key > KC_NONE && key < KC_MAX && Engine.GetKeyState(key);
+        }
+
+        const bool native = _controller.Connected && _controller.Actions[binding];
+        const std::size_t pendingBefore = _digital.PendingHotkeys();
+        const GamepadUtil::DigitalEdge edge =
+            _digital.Update(binding, physical, native, hotKeySlot);
+        ActionSample &sample = _samples[binding];
+        sample.Held = edge.Held;
+        sample.Pressed = edge.Pressed;
+        sample.Released = edge.Released;
+        sample.Analog = analog;
+
+        if (buttonSlot >= 0 && native)
+            state->Buttons.Set(buttonSlot);
+
+        if (binding == World::INPUT_BIND_QUIT &&
+            _digital.PendingHotkeys() > pendingBefore)
+        {
+            if (state->KbdLastHit == KC_NONE)
+                state->KbdLastHit = KC_ESCAPE;
+        }
+    }
+
+    // A physical keyboard hotkey owns its frame. Native edges remain queued
+    // and are delivered one at a time on later free frames.
+    state->HotKeyID = (int16_t)_digital.DeliverHotkey(state->HotKeyID);
+}
+
+bool SemanticInput::Held(int binding) const
+{
+    return binding > 0 && binding < SEMANTIC_ACTION_COUNT && _samples[binding].Held;
+}
+
+bool SemanticInput::Pressed(int binding) const
+{
+    return binding > 0 && binding < SEMANTIC_ACTION_COUNT && _samples[binding].Pressed;
+}
+
+bool SemanticInput::Released(int binding) const
+{
+    return binding > 0 && binding < SEMANTIC_ACTION_COUNT && _samples[binding].Released;
+}
+
+float SemanticInput::Analog(int binding) const
+{
+    return binding > 0 && binding < SEMANTIC_ACTION_COUNT ? _samples[binding].Analog : 0.0f;
+}
+
+bool MenuBackPressed(const TInputState *state)
+{
+    return (state && state->KbdLastHit == KC_ESCAPE) ||
+           Actions.Pressed(World::INPUT_BIND_QUIT);
+}
 
 int INPEngine::Init()
 {
@@ -32,20 +205,7 @@ int INPEngine::Init()
     _pointerPhysicalResolution = Common::Point();
     _pointerLogicalResolution = Common::Point();
 
-    SDL_Haptic *joyHaptic = NC_STACK_winp::GetJoyHaptic();
-    if (joyHaptic)
-    {
-        _ffTankEngine.Bind(joyHaptic);
-        _ffJetEngine.Bind(joyHaptic);
-        _ffCopterEngine.Bind(joyHaptic);
-        _ffRotDamper.Bind(joyHaptic);
-        _ffMGun.Bind(joyHaptic);
-        _ffMissFire.Bind(joyHaptic);
-        _ffGrenadeFire.Bind(joyHaptic);
-        _ffBombFire.Bind(joyHaptic);
-        _ffCollide.Bind(joyHaptic);
-        _ffShake.Bind(joyHaptic);
-    }
+    RebindForceFeedback(NC_STACK_winp::GetJoyHaptic());
 
     std::string val = System::IniConf::InputTimer.Get<std::string>(); // input.timer
 
@@ -246,6 +406,20 @@ int INPEngine::Init()
     return 1;
 }
 
+void INPEngine::RebindForceFeedback(SDL_Haptic *device)
+{
+    _ffTankEngine.Bind(device);
+    _ffJetEngine.Bind(device);
+    _ffCopterEngine.Bind(device);
+    _ffRotDamper.Bind(device);
+    _ffMGun.Bind(device);
+    _ffMissFire.Bind(device);
+    _ffGrenadeFire.Bind(device);
+    _ffBombFire.Bind(device);
+    _ffCollide.Bind(device);
+    _ffShake.Bind(device);
+}
+
 void INPEngine::Deinit()
 {
     if ( _timer )
@@ -307,6 +481,9 @@ void INPEngine::QueryInput(TInputState *state)
         for ( InputNodeList &lst : _sliders )
             UpdateList(&lst);
     }
+
+    Actions.Update(state, NC_STACK_winp::GetControllerState(),
+                   NC_STACK_winp::IsGameControllerActive());
 }
 
 void INPEngine::SetPointerResolution(const Common::Point &physicalSize,

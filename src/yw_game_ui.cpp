@@ -18,8 +18,10 @@
 #include "yparobo.h"
 #include "ypagun.h"
 #include "windp.h"
+#include "winp.h"
 #include "world/analyzer.h"
 #include "system/inivals.h"
+#include "system/gamepad_util.h"
 
 
 extern uint32_t bact_id;
@@ -17971,15 +17973,20 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
     //Precompute input
     TClickBoxInf *winp = &inpt->ClickInf;
 
+    const bool nativeControllerEnabled =
+        !(_preferences & World::PREF_JOYDISABLE);
+    NC_STACK_winp::SetNativeControllerEnabled(nativeControllerEnabled);
+
     inpt->Buttons.UnSet(31);
     inpt->HandBrakePressed = inpt->Buttons.Is(3);
 
-    const bool cycleTargetPressed = inpt->Buttons.Is(6);
-    if ( cycleTargetPressed && !_cycleTargetBtnIsDown && _userUnit )
+    const bool cycleTargetPressed = Input::Actions.Held(World::INPUT_BIND_CYCLE_TARGET);
+    if ( Input::Actions.Pressed(World::INPUT_BIND_CYCLE_TARGET) && _userUnit )
         _userUnit->RequestHomingTargetCycle();
     _cycleTargetBtnIsDown = cycleTargetPressed;
 
-    const bool alternativeViewPressed = inpt->Buttons.Is(7);
+    const bool alternativeViewPressed =
+        Input::Actions.Held(World::INPUT_BIND_ALTERNATIVE_VIEW);
     if ( _userUnit )
         _userUnit->SetAlternativeViewActive(alternativeViewPressed);
 
@@ -18000,8 +18007,10 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
     }
     else
     {
-        weaponSwitchPressed = inpt->Buttons.Is(1);
+        weaponSwitchPressed = Input::Actions.Held(World::INPUT_BIND_SWITCH_WEAPON);
     }
+    weaponSwitchPressed = weaponSwitchPressed ||
+        Input::Actions.Held(World::INPUT_BIND_SWITCH_WEAPON);
 
     // The fixed secondary shortcut comes from the shared input definition.
     // On an eligible UFO the same MMB edge belongs to Toggle UFO Spy UI, so do
@@ -18105,7 +18114,46 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
 
     }
 
-    if ( !v38 )
+    // SDL_GameController axes are semantic and contextual. They deliberately
+    // remain live in cursor mode; only the mouse path is grab-dependent.
+    if (nativeControllerEnabled && NC_STACK_winp::IsGameControllerActive())
+    {
+        const Input::ControllerState &pad = Input::Actions.Controller();
+        const bool ground = _userUnit->_bact_type == BACT_TYPES_TANK ||
+                            _userUnit->_bact_type == BACT_TYPES_CAR;
+        const bool hostOrGun = _userUnit->_bact_type == BACT_TYPES_ROBO ||
+                               _userUnit->_bact_type == BACT_TYPES_GUN;
+        Input::GamepadUtil::ContextResult existing;
+        existing.DriveDir = inpt->Sliders[3];
+        existing.DriveSpeed = inpt->Sliders[4];
+        existing.GunHeight = inpt->Sliders[5];
+        existing.FlyDir = inpt->Sliders[0];
+        existing.FlyHeight = inpt->Sliders[1];
+        existing.FlySpeed = inpt->Sliders[2];
+        const Input::GamepadUtil::Stick left = {pad.LeftX, pad.LeftY};
+        const Input::GamepadUtil::Stick right = {pad.RightX, pad.RightY};
+        const Input::GamepadUtil::Context context = ground
+            ? Input::GamepadUtil::CONTEXT_GROUND
+            : (hostOrGun ? Input::GamepadUtil::CONTEXT_GUN_OR_HOST
+                         : Input::GamepadUtil::CONTEXT_AIR);
+        const Input::GamepadUtil::ContextResult mapped =
+            Input::GamepadUtil::ApplyContext(context, left, right, existing);
+        inpt->Sliders[3] = mapped.DriveDir;
+        inpt->Sliders[4] = mapped.DriveSpeed;
+        inpt->Sliders[5] = mapped.GunHeight;
+        inpt->Sliders[0] = mapped.FlyDir;
+        inpt->Sliders[1] = mapped.FlyHeight;
+        inpt->Sliders[2] = mapped.FlySpeed;
+        if (mapped.AnalogGround)
+            inpt->Buttons.Set(31);
+        // Service brake is synthetic; HandBrakePressed captured explicit A above.
+        if (mapped.ServiceBrake)
+            inpt->Buttons.Set(3);
+    }
+
+    // Recognized controllers bypass the legacy raw joystick bridge. Unknown
+    // devices continue through it, including PREF_ALTJOYSTICK behavior.
+    if ( !v38 && !NC_STACK_winp::IsGameControllerActive() )
     {
         int v13 = _userUnit->_bact_type == BACT_TYPES_TANK || _userUnit->_bact_type == BACT_TYPES_CAR;
         int v34 = _userUnit->_bact_type == BACT_TYPES_ROBO;

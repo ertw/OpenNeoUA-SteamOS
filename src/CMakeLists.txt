@@ -238,3 +238,15 @@ endif()
 
 # Non-Debug configurations deliberately keep CMake's native optimization
 # flags; RelWithDebInfo must retain -O2 instead of being overridden by -O0.
+
+enable_testing()
+
+add_executable(test_gamepad_input tests/test_gamepad_input.cpp)
+target_include_directories(
+    test_gamepad_input
+    PRIVATE
+    ${PROJECT_SOURCE_DIR}
+    ${SDL2_INCLUDE_DIRS}
+)
+target_link_libraries(test_gamepad_input ${SDL2_LIBRARIES})
+add_test(NAME gamepad_input COMMAND test_gamepad_input)

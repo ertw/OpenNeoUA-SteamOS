@@ -394,7 +394,8 @@ void Init(bool oldGL)
 {
     EventHandlers.clear();
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC) < 0)
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_JOYSTICK |
+                 SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) < 0)
     {
         printf("Couldn't initialize SDL: %s", SDL_GetError());
         return;
