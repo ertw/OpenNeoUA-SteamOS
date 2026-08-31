@@ -77,6 +77,19 @@ def emit_binding(lines: list[str], control: str, value: str) -> None:
     lines.append('\t\t\t"{}"\t\t"{}"'.format(control, value))
 
 
+def emit_gameaction(lines: list[str], action_set: str, action: str) -> None:
+    """Connect a group output to an IGA analog action.
+
+    Steam accepts digital activators in ``bindings``, but analog group output
+    is selected through ``gameactions``. An ``output`` digital binding looks
+    plausible in the editor VDF yet produces an inactive analog action.
+    """
+    lines.append('\t\t"gameactions"')
+    lines.append("\t\t{")
+    lines.append('\t\t\t"{}"\t\t"{}"'.format(action_set, action))
+    lines.append("\t\t}")
+
+
 def emit_face_group(lines: list[str], gid: str, action_set: str) -> None:
     emit_group_open(lines, gid, "four_buttons")
     for control, action, label in FACE_BINDINGS:
@@ -148,13 +161,13 @@ def emit_analog_trigger_group(
     lines: list[str], gid: str, action_set: str, action: str, label: str
 ) -> None:
     emit_group_open(lines, gid, "trigger")
-    emit_binding(lines, "pull", game_action(action_set, action, label))
     lines.append("\t\t}")
     lines.append('\t\t"settings"')
     lines.append("\t\t{")
     lines.append('\t\t\t"output_trigger"\t\t"1"')
     lines.append('\t\t\t"haptic_intensity"\t\t"0"')
     lines.append("\t\t}")
+    emit_gameaction(lines, action_set, action)
     emit_group_close(lines)
 
 
@@ -170,15 +183,16 @@ def emit_joystick_group(
     emit_group_open(lines, gid, "joystick_move")
     if sprint_action:
         emit_binding(lines, "click", game_action(action_set, sprint_action, "Sprint"))
-    emit_binding(lines, "output", game_action(action_set, action, label))
     lines.append("\t\t}")
     lines.append('\t\t"settings"')
     lines.append("\t\t{")
+    lines.append('\t\t\t"virtual_mode"\t\t"1"')
     lines.append('\t\t\t"deadzone_inner_radius"\t\t"0.100000"')
     lines.append('\t\t\t"deadzone_outer_radius"\t\t"0.990000"')
     lines.append('\t\t\t"deadzone_shape"\t\t"1"')
     lines.append('\t\t\t"edge_binding_radius"\t\t"0.970000"')
     lines.append("\t\t}")
+    emit_gameaction(lines, action_set, action)
     emit_group_close(lines)
 
 
@@ -195,7 +209,6 @@ def emit_absolute_mouse_group(
     gyro: bool = False,
 ) -> None:
     emit_group_open(lines, gid, "absolute_mouse")
-    emit_binding(lines, "output", game_action(action_set, action, label))
     if click_action:
         emit_binding(lines, "click", game_action(action_set, click_action, click_label))
     lines.append("\t\t}")
@@ -209,6 +222,7 @@ def emit_absolute_mouse_group(
         lines.append('\t\t\t"acceleration"\t\t"1"')
         lines.append('\t\t\t"natural_sensitivity"\t\t"1"')
     lines.append("\t\t}")
+    emit_gameaction(lines, action_set, action)
     emit_group_close(lines)
 
 
@@ -355,7 +369,7 @@ def build_vdf() -> str:
         '\t"creator"\t\t"0"',
         '\t"controller_type"\t\t"controller_neptune"',
         '\t"controller_capacitor"\t\t"1"',
-        '\t"revision"\t\t"7"',
+        '\t"revision"\t\t"8"',
     ]
     for action_set in ACTION_SETS:
         emit_groups_for_set(lines, sources, action_set)

@@ -119,6 +119,20 @@ class SteamInputIgaTests(unittest.TestCase):
         self.assertIn("AirMove", self.iga_actions["Air"])
         self.assertIn("HostView", self.iga_actions["Host"])
 
+    def test_deck_analog_groups_use_gameactions_outputs(self) -> None:
+        layout = (REPO_ROOT / "packaging" / "steamrt4" / "steam_input" / "openneoua_deck_iga.vdf").read_text(encoding="utf-8")
+        expected = {
+            "Menu": ("MenuCursor",),
+            "Ground": ("GroundMove", "Aim", "StrategicCursor"),
+            "Air": ("AirMove", "Aim", "StrategicCursor"),
+            "Host": ("HostView", "Aim", "StrategicCursor"),
+        }
+        for action_set, actions in expected.items():
+            for action in actions:
+                self.assertIn('"{}"\t\t"{}"'.format(action_set, action), layout)
+        self.assertNotRegex(layout, r'"output"\s+"game_action [^"]+"')
+        self.assertGreaterEqual(layout.count('"virtual_mode"\t\t"1"'), 3)
+
     def test_strategic_layers_have_valid_parents(self) -> None:
         for parent, layer in ACTION_LAYERS.items():
             self.assertIn('"{}"'.format(layer), self.iga_text)

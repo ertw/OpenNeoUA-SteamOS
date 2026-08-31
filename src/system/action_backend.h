@@ -172,6 +172,11 @@ public:
 
     float AimDeltaX() const { return _aimDelX; }
     float AimDeltaY() const { return _aimDelY; }
+    bool MoveHandleResolved() const { return _moveHandleResolved; }
+    bool MoveActive() const { return _moveActive; }
+    int MoveMode() const { return _moveMode; }
+    float MoveX() const { return _moveX; }
+    float MoveY() const { return _moveY; }
     bool UiActive(STEAM_UI_ACTION action) const { return _uiActive[(std::size_t)action]; }
     bool UiPressed(STEAM_UI_ACTION action) const { return _uiPressed[(std::size_t)action]; }
     bool UiReleased(STEAM_UI_ACTION action) const { return _uiReleased[(std::size_t)action]; }
@@ -197,6 +202,11 @@ private:
     float _menuCursorDelY = 0.0f;
     float _aimDelX = 0.0f;
     float _aimDelY = 0.0f;
+    bool _moveHandleResolved = false;
+    bool _moveActive = false;
+    int _moveMode = 0;
+    float _moveX = 0.0f;
+    float _moveY = 0.0f;
     Steam::InputAnalogActionHandle _aimHandle = 0;
     Steam::InputAnalogActionHandle _groundMoveHandle = 0;
     Steam::InputAnalogActionHandle _airMoveHandle = 0;
