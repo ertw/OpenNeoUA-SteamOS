@@ -6,7 +6,8 @@
 #include "yw.h"
 #include "ypagun.h"
 #include "yparobo.h"
-#include "world/gunrotation.h"#include "system/action_query.h"
+#include "world/gunrotation.h"
+#include "system/action_query.h"
 // OpenNeoUA custom: artillery shell guns are artillery pieces. They must be aimed only by
 // UpdateArtilleryShell()/ypabact_AimArtilleryShellLauncherVisual() at the current barrage zone,
 // not by the vanilla gun AI that tracks nearby visible enemies.

@@ -458,8 +458,8 @@ int TestEdgesAndHotKeyQueue()
     Check(Input::Actions.CurrentActionSet() == Input::ACTION_SET_MENU,
           "an empty stack must report the menu set");
     Input::Actions.PushActionSet(Input::ACTION_SET_GROUND);
-    Input::Actions.PushActionSet(Input::ACTION_SET_MAP);
-    Check(Input::Actions.CurrentActionSet() == Input::ACTION_SET_MAP, "map set expected");
+    Input::Actions.PushActionSet(Input::ACTION_SET_HOST);
+    Check(Input::Actions.CurrentActionSet() == Input::ACTION_SET_HOST, "host set expected");
     Check(Input::Actions.ActionSetDepth() == 2, "stack depth must be 2");
     Input::Actions.PopActionSet();
     Check(Input::Actions.CurrentActionSet() == Input::ACTION_SET_GROUND, "ground set expected");

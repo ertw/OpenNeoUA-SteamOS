@@ -136,6 +136,15 @@ enum MENU_NAV_ACTION
     MENU_NAV_COUNT
 };
 
+enum STEAM_UI_ACTION
+{
+    STEAM_UI_PRIMARY = 0,
+    STEAM_UI_SECONDARY,
+    STEAM_UI_MIDDLE,
+    STEAM_UI_CANCEL,
+    STEAM_UI_COUNT
+};
+
 class SteamInputBackend : public IActionBackend
 {
 public:
@@ -163,6 +172,9 @@ public:
 
     float AimDeltaX() const { return _aimDelX; }
     float AimDeltaY() const { return _aimDelY; }
+    bool UiActive(STEAM_UI_ACTION action) const { return _uiActive[(std::size_t)action]; }
+    bool UiPressed(STEAM_UI_ACTION action) const { return _uiPressed[(std::size_t)action]; }
+    bool UiReleased(STEAM_UI_ACTION action) const { return _uiReleased[(std::size_t)action]; }
 
     static float CombineTrigger(float current, float incoming);
 
@@ -186,7 +198,16 @@ private:
     float _aimDelX = 0.0f;
     float _aimDelY = 0.0f;
     Steam::InputAnalogActionHandle _aimHandle = 0;
+    Steam::InputAnalogActionHandle _groundMoveHandle = 0;
+    Steam::InputAnalogActionHandle _airMoveHandle = 0;
+    Steam::InputAnalogActionHandle _hostViewHandle = 0;
+    Steam::InputAnalogActionHandle _strategicCursorHandle = 0;
+    std::array<Steam::InputDigitalActionHandle, STEAM_UI_COUNT> _uiResolved = {{0}};
+    std::array<bool, STEAM_UI_COUNT> _uiActive = {{false}};
+    std::array<bool, STEAM_UI_COUNT> _uiPressed = {{false}};
+    std::array<bool, STEAM_UI_COUNT> _uiReleased = {{false}};
     bool _handlesReady = false;
+    bool _neutralizeWeaponsUntilReleased = false;
     bool _smokeMode = false;
     std::array<bool, MENU_NAV_COUNT> _smokeMenuNavPulse = {{false}};
     bool _smokeMenuConfirmRelease = false;

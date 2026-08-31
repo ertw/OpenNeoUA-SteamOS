@@ -66,6 +66,10 @@ typedef int  (*PFN_ISteamInput_GetConnectedControllers)(void *self, InputHandle 
 typedef InputActionSetHandle (*PFN_ISteamInput_GetActionSetHandle)(void *self, const char *actionSetName);
 typedef void (*PFN_ISteamInput_ActivateActionSet)(void *self, InputHandle controller, InputActionSetHandle actionSet);
 typedef InputActionSetHandle (*PFN_ISteamInput_GetCurrentActionSet)(void *self, InputHandle controller);
+typedef void (*PFN_ISteamInput_ActivateActionSetLayer)(void *self, InputHandle controller, InputActionSetHandle layer);
+typedef void (*PFN_ISteamInput_DeactivateActionSetLayer)(void *self, InputHandle controller, InputActionSetHandle layer);
+typedef void (*PFN_ISteamInput_DeactivateAllActionSetLayers)(void *self, InputHandle controller);
+typedef int (*PFN_ISteamInput_GetActiveActionSetLayers)(void *self, InputHandle controller, InputActionSetHandle *layersOut);
 typedef InputDigitalActionHandle (*PFN_ISteamInput_GetDigitalActionHandle)(void *self, const char *actionName);
 typedef DigitalActionData (*PFN_ISteamInput_GetDigitalActionData)(void *self, InputHandle controller, InputDigitalActionHandle action);
 typedef InputAnalogActionHandle (*PFN_ISteamInput_GetAnalogActionHandle)(void *self, const char *actionName);
@@ -95,6 +99,10 @@ struct ApiTable
     PFN_ISteamInput_GetActionSetHandle            GetActionSetHandle       = nullptr;
     PFN_ISteamInput_ActivateActionSet             ActivateActionSet        = nullptr;
     PFN_ISteamInput_GetCurrentActionSet           GetCurrentActionSet      = nullptr;
+    PFN_ISteamInput_ActivateActionSetLayer        ActivateActionSetLayer   = nullptr;
+    PFN_ISteamInput_DeactivateActionSetLayer      DeactivateActionSetLayer = nullptr;
+    PFN_ISteamInput_DeactivateAllActionSetLayers  DeactivateAllActionSetLayers = nullptr;
+    PFN_ISteamInput_GetActiveActionSetLayers      GetActiveActionSetLayers = nullptr;
     PFN_ISteamInput_GetDigitalActionHandle        GetDigitalActionHandle   = nullptr;
     PFN_ISteamInput_GetDigitalActionData          GetDigitalActionData     = nullptr;
     PFN_ISteamInput_GetAnalogActionHandle         GetAnalogActionHandle    = nullptr;

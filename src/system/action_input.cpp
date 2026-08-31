@@ -49,7 +49,6 @@ const char *ActionSetName(ACTION_SET set)
     case ACTION_SET_GROUND: return "Ground";
     case ACTION_SET_AIR:    return "Air";
     case ACTION_SET_HOST:   return "Host";
-    case ACTION_SET_MAP:    return "Map";
     case ACTION_SET_COUNT:  break;
     }
     return "Unknown";
@@ -151,14 +150,13 @@ void ActionInput::Update(const LegacyInputPrimitives &primitives)
     _passthrough = _frame.Passthrough;
     _hasPassthrough = _frame.HasPassthrough;
 
-    _pendingHotKeys.clear();
     for ( const HotKeyActivation &activation : _frame.HotKeys )
         _pendingHotKeys.push_back(activation);
 
     LegacyBackend.SetPrimitives(nullptr);
 }
 
-void ActionInput::PopulateLegacyState(TInputState *state) const
+void ActionInput::PopulateLegacyState(TInputState *state)
 {
     if ( !state )
         return;
@@ -181,6 +179,8 @@ void ActionInput::PopulateLegacyState(TInputState *state) const
     // Exactly one hotkey slot per frame, taken from the head of the FIFO so
     // the legacy consumers see what they saw before.
     state->HotKeyID = _pendingHotKeys.empty() ? -1 : (int16_t)_pendingHotKeys.front().Slot;
+    if ( !_pendingHotKeys.empty() )
+        _pendingHotKeys.pop_front();
 
     for ( std::size_t slot = 0; slot < _passthrough.ButtonState.size(); slot++ )
     {
