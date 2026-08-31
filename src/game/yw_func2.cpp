@@ -15,6 +15,7 @@
 #include "gui/button.h"
 #include "game/yw_net.h"
 #include "platform/windp.h"
+#include "platform/winp.h"
 #include <math.h>
 #include "gui/uamsgbox.h"
 #include "common/env.h"
@@ -2160,7 +2161,7 @@ void UserData::GameShellUiHandleInput()
                     if ( InputConfig[inpListActiveElement].Type == World::INPUT_BIND_TYPE_SLIDER )
                         confFirstKey = false;
                 }
-                else if ( Input->KbdLastHit == Input::KC_ESCAPE )
+                else if ( Input::MenuBackPressed(Input) )
                 {
                     InputPageCancel();
                 }
@@ -2205,6 +2206,7 @@ void UserData::GameShellUiHandleInput()
                     p_YW->_preferences &= ~World::PREF_JOYDISABLE;
                 else
                     p_YW->_preferences |= World::PREF_JOYDISABLE;
+                NC_STACK_winp::SetNativeControllerEnabled(confJoystickEnabled);
             }
 
             if ( inputChangedParts & ICHG_ALTJOYSTICK )
@@ -2297,7 +2299,7 @@ void UserData::GameShellUiHandleInput()
 
     if ( EnvMode == ENVMODE_SETTINGS && atmospherePageActive )
     {
-        if (Input->KbdLastHit == Input::KC_ESCAPE)
+        if (Input::MenuBackPressed(Input))
         {
             AtmosphereOptionsCancel();
         }
@@ -2363,7 +2365,7 @@ void UserData::GameShellUiHandleInput()
             }
 
         }
-        else if ( Input->KbdLastHit == Input::KC_ESCAPE )
+        else if ( Input::MenuBackPressed(Input) )
         {
             sub_46A3C0();
             EnvMode = ENVMODE_TITLE;
@@ -2764,7 +2766,7 @@ void UserData::GameShellUiHandleInput()
                         break;
                     }
                 }
-                else if ( Input->KbdLastHit == Input::KC_ESCAPE )
+                else if ( Input::MenuBackPressed(Input) )
                 {
                     diskScreenMode = 0;
                 }
@@ -2798,7 +2800,7 @@ void UserData::GameShellUiHandleInput()
             }
             else
             {
-                if ( Input->KbdLastHit == Input::KC_ESCAPE )
+                if ( Input::MenuBackPressed(Input) )
                     sub_46A7F8();
 
                 if ( Input->HotKeyID == 43 )
@@ -3075,7 +3077,7 @@ void UserData::GameShellUiHandleInput()
 
             sub_46B0E0();
         }
-        else if ( Input->KbdLastHit == Input::KC_ESCAPE )
+        else if ( Input::MenuBackPressed(Input) )
         {
             ExitFromLanguageMenu();
         }
@@ -3126,7 +3128,7 @@ void UserData::GameShellUiHandleInput()
     {
         const auto aboutEvent=about_button->ProcessWidgetsEvents(Input);
         if ( (aboutEvent&&aboutEvent.code==UIWidgets::ABOUT_UP_BACK) ||
-             Input->KbdLastHit == Input::KC_RETURN || Input->KbdLastHit == Input::KC_ESCAPE )
+             Input->KbdLastHit == Input::KC_RETURN || Input::MenuBackPressed(Input) )
         {
             EnvMode = ENVMODE_TITLE;
 
@@ -3709,7 +3711,7 @@ void UserData::GameShellUiHandleInput()
                     break;
                 }
             }
-            else if ( Input->KbdLastHit == Input::KC_ESCAPE )
+            else if ( Input::MenuBackPressed(Input) )
             {
                 ExitFromNetworkToMain();
             }

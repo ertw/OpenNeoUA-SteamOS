@@ -171,6 +171,9 @@ bool NC_STACK_ypaworld::IsPlayerSprintInputHeld() const
     // is inside the Host Station. Actual acceleration remains gated separately
     // by IsPlayerSprintEnabledFor(), but the same Shift press can no longer leak
     // into the legacy waypoint system.
+    if ( Input::Actions.Held(World::INPUT_BIND_SPRINT) )
+        return true;
+
     const UserData::TInputConf &bind =
         _GameShell->InputConfig[World::INPUT_BIND_SPRINT];
     return bind.Type == World::INPUT_BIND_TYPE_HOTKEY &&

@@ -342,7 +342,7 @@ void UserData::HandleDatabaseInput()
     if(!db_session)return;
     const auto result=database_button->ProcessWidgetsEvents(Input);
     const int key=Input->KbdLastHit;
-    if((result&&result.code==UIWidgets::DB_UP_BACK)||key==Input::KC_ESCAPE){CloseDatabaseMenu();return;}
+    if((result&&result.code==UIWidgets::DB_UP_BACK)||Input::MenuBackPressed(Input)){CloseDatabaseMenu();return;}
     const int rows=DatabaseLayout::For(*p_YW,db_workshop).rows;bool change=false;
     if(result)
     {

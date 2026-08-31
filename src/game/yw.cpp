@@ -977,7 +977,8 @@ size_t NC_STACK_ypaworld::Process(base_64arg *arg)
     extern bool SPEED_DOWN_NET; //In yw_net.cpp
 
     if ( (gui_lstvw.IsClosed() && lstvw2.IsClosed())
-            || (arg->field_8->KbdLastHit != Input::KC_RETURN && arg->field_8->KbdLastHit != Input::KC_ESCAPE) )
+            || (arg->field_8->KbdLastHit != Input::KC_RETURN &&
+                !Input::MenuBackPressed(arg->field_8)) )
     {
         _kbdLastKeyHit = Input::KC_NONE;
     }

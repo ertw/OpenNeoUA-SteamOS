@@ -567,6 +567,9 @@ bool UpdateReplayPlayback(base_64arg *arg)
     control.field_0 = 0;
     control.frame = 0;
 
+    if (Input::MenuBackPressed(arg->field_8))
+        return false;
+
     switch ( arg->field_8->KbdLastHit )
     {
     case Input::KC_S: control.field_0 = 1; break;

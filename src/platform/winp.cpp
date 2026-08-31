@@ -2,11 +2,14 @@
 #include <inttypes.h>
 #include "common/includes.h"
 #include "nucleus/nucleas.h"
+#include <algorithm>
+#include <cmath>
 #include "system/inpt.h"
 #include "platform/winp.h"
 #include "common/utils.h"
 #include "common/log.h"
 #include "gui/widget.h"
+#include "system/gamepad_util.h"
 
 std::map<int16_t, int16_t> NC_STACK_winp::KBDMapping;
 
@@ -18,6 +21,10 @@ bool NC_STACK_winp::_mLstate;
 bool NC_STACK_winp::_mRstate;
 bool NC_STACK_winp::_mMstate;
 bool NC_STACK_winp::_mDBLstate;
+bool NC_STACK_winp::_mLPhysical;
+bool NC_STACK_winp::_mRPhysical;
+bool NC_STACK_winp::_mLController;
+bool NC_STACK_winp::_mRController;
 
 int NC_STACK_winp::_mLUcnt, NC_STACK_winp::_mLDcnt;
 int NC_STACK_winp::_mRUcnt, NC_STACK_winp::_mRDcnt;
@@ -42,6 +49,14 @@ SDL_JoystickGUID     NC_STACK_winp::_joyWantGuid;
 
 SDL_Joystick        *NC_STACK_winp::_joyHandle = nullptr;
 SDL_Haptic          *NC_STACK_winp::_joyHaptic = nullptr;
+bool                 NC_STACK_winp::_joyHapticFromController = false;
+SDL_GameController  *NC_STACK_winp::_controllerHandle = nullptr;
+SDL_JoystickID       NC_STACK_winp::_controllerInstance = -1;
+bool                 NC_STACK_winp::_controllerInputEnabled = true;
+bool                 NC_STACK_winp::_leftTriggerPressed = false;
+bool                 NC_STACK_winp::_rightTriggerPressed = false;
+bool                 NC_STACK_winp::_controllerSuppressFrame = false;
+Input::ControllerState NC_STACK_winp::_controllerState;
 
 std::array<int, 32>  NC_STACK_winp::_joyAxisMap;
 std::array<bool, 32> NC_STACK_winp::_joyAxisMapInv;
@@ -292,6 +307,27 @@ int NC_STACK_winp::InputWatch(void *, SDL_Event *event)
         _mWheel += event->wheel.y;
         break;
 
+    case SDL_CONTROLLERDEVICEADDED:
+        if (!_controllerHandle)
+            FindController();
+        break;
+
+    case SDL_CONTROLLERDEVICEREMOVED:
+        if (event->cdevice.which == _controllerInstance)
+        {
+            CloseController();
+            FindController();
+        }
+        break;
+
+    case SDL_CONTROLLERDEVICEREMAPPED:
+        if (event->cdevice.which == _controllerInstance)
+        {
+            CloseController();
+            FindController();
+        }
+        break;
+
     default:
         break;
     }
@@ -302,23 +338,18 @@ int NC_STACK_winp::InputWatch(void *, SDL_Event *event)
 
 void NC_STACK_winp::OnMouseDown(Common::Point pos, int btn, int clkNum)
 {
+    _mPos = pos;
     if (btn == SDL_BUTTON_LEFT)
     {
-        _mLstate = true;
         _mLDpos = pos;
-
-        _mLDcnt++;
-
-        KeyDown(Input::KC_LMB);
+        _mLPhysical = true;
+        UpdateMouseButton(btn, _mLPhysical, _mLController);
     }
     else if (btn == SDL_BUTTON_RIGHT)
     {
-        _mRstate = true;
         _mRDpos = pos;
-
-        _mRDcnt++;
-
-        KeyDown(Input::KC_RMB);
+        _mRPhysical = true;
+        UpdateMouseButton(btn, _mRPhysical, _mRController);
     }
     else if (btn == SDL_BUTTON_MIDDLE)
     {
@@ -334,26 +365,21 @@ void NC_STACK_winp::OnMouseDown(Common::Point pos, int btn, int clkNum)
 
 void NC_STACK_winp::OnMouseUp(Common::Point pos, int btn, int clkNum)
 {
+    _mPos = pos;
     if (btn == SDL_BUTTON_LEFT)
     {
-        _mLstate = false;
         _mLUpos = pos;
-
-        _mLUcnt++;
-
-        KeyUp(Input::KC_LMB);
+        _mLPhysical = false;
+        UpdateMouseButton(btn, _mLPhysical, _mLController);
 
         if ((clkNum & 1) == 0)
             _mDBLstate = true;
     }
     else if (btn == SDL_BUTTON_RIGHT)
     {
-        _mRstate = false;
         _mRUpos = pos;
-
-        _mRUcnt++;
-
-        KeyUp(Input::KC_RMB);
+        _mRPhysical = false;
+        UpdateMouseButton(btn, _mRPhysical, _mRController);
     }
     else if (btn == SDL_BUTTON_MIDDLE)
     {
@@ -371,6 +397,216 @@ void NC_STACK_winp::OnMouseMove(Common::Point pos, Common::Point rel)
 {
     _mPos = pos;
     _mMoveQuery = rel;
+}
+
+void NC_STACK_winp::UpdateMouseButton(int btn, bool physical, bool controller)
+{
+    const bool combined = physical || controller;
+    if (btn == SDL_BUTTON_LEFT)
+    {
+        if (combined == _mLstate)
+            return;
+        _mLstate = combined;
+        if (combined)
+        {
+            _mLDpos = _mPos;
+            ++_mLDcnt;
+            KeyDown(Input::KC_LMB);
+        }
+        else
+        {
+            _mLUpos = _mPos;
+            ++_mLUcnt;
+            KeyUp(Input::KC_LMB);
+        }
+    }
+    else if (btn == SDL_BUTTON_RIGHT)
+    {
+        if (combined == _mRstate)
+            return;
+        _mRstate = combined;
+        if (combined)
+        {
+            _mRDpos = _mPos;
+            ++_mRDcnt;
+            KeyDown(Input::KC_RMB);
+        }
+        else
+        {
+            _mRUpos = _mPos;
+            ++_mRUcnt;
+            KeyUp(Input::KC_RMB);
+        }
+    }
+}
+
+std::pair<float, float> NC_STACK_winp::NormalizeStick(int16_t x, int16_t y,
+                                                       float deadzone)
+{
+    const Input::GamepadUtil::Stick stick =
+        Input::GamepadUtil::NormalizeStick(x, y, deadzone);
+    return std::make_pair(stick.X, stick.Y);
+}
+
+bool NC_STACK_winp::ApplyTriggerHysteresis(int16_t value, bool wasPressed,
+                                            float pressAt, float releaseAt)
+{
+    return Input::GamepadUtil::TriggerPressed(value, wasPressed, pressAt, releaseAt);
+}
+
+void NC_STACK_winp::SetNativeControllerEnabled(bool enabled)
+{
+    _controllerInputEnabled = enabled;
+    if (!enabled)
+    {
+        _controllerState = Input::ControllerState();
+        _leftTriggerPressed = false;
+        _rightTriggerPressed = false;
+        _mLController = false;
+        _mRController = false;
+        UpdateMouseButton(SDL_BUTTON_LEFT, _mLPhysical, _mLController);
+        UpdateMouseButton(SDL_BUTTON_RIGHT, _mRPhysical, _mRController);
+    }
+}
+
+void NC_STACK_winp::CloseController()
+{
+    SetNativeControllerEnabled(false);
+    _controllerSuppressFrame = true;
+    if (_joyHaptic && _joyHapticFromController)
+    {
+        Input::Engine.RebindForceFeedback(NULL);
+        SDL_HapticClose(_joyHaptic);
+        _joyHaptic = NULL;
+        _joyHapticFromController = false;
+    }
+    if (_controllerHandle)
+        SDL_GameControllerClose(_controllerHandle);
+    _controllerHandle = NULL;
+    _controllerInstance = -1;
+}
+
+void NC_STACK_winp::FindController()
+{
+    if (_controllerHandle)
+        return;
+
+    int fallback = -1;
+    int selected = -1;
+    for (int i = 0; i < SDL_NumJoysticks(); ++i)
+    {
+        if (!SDL_IsGameController(i))
+            continue;
+        if (fallback < 0)
+            fallback = i;
+        SDL_JoystickGUID guid = SDL_JoystickGetDeviceGUID(i);
+        if (sdlGUIDcmp(guid, _joyWantGuid))
+        {
+            selected = i;
+            break;
+        }
+    }
+    if (selected < 0)
+        selected = fallback;
+    if (selected < 0)
+    {
+        if (_joyHandle && !_joyHaptic && SDL_JoystickIsHaptic(_joyHandle))
+        {
+            _joyHaptic = SDL_HapticOpenFromJoystick(_joyHandle);
+            _joyHapticFromController = false;
+            Input::Engine.RebindForceFeedback(_joyHaptic);
+        }
+        return;
+    }
+
+    // A recognized controller owns haptics while active; do not leave effects
+    // bound to a concurrently connected legacy flight stick.
+    if (_joyHaptic && !_joyHapticFromController)
+    {
+        Input::Engine.RebindForceFeedback(NULL);
+        SDL_HapticClose(_joyHaptic);
+        _joyHaptic = NULL;
+    }
+
+    _controllerHandle = SDL_GameControllerOpen(selected);
+    if (!_controllerHandle)
+        return;
+    SDL_Joystick *joystick = SDL_GameControllerGetJoystick(_controllerHandle);
+    _controllerInstance = SDL_JoystickInstanceID(joystick);
+    _controllerInputEnabled = true;
+    if (!_joyHaptic && SDL_JoystickIsHaptic(joystick))
+    {
+        _joyHaptic = SDL_HapticOpenFromJoystick(joystick);
+        _joyHapticFromController = _joyHaptic != NULL;
+    }
+    Input::Engine.RebindForceFeedback(_joyHaptic);
+    sdlInputLog("Selected SDL game controller: %s\n", SDL_GameControllerName(_controllerHandle));
+}
+
+void NC_STACK_winp::CheckController()
+{
+    if (_controllerSuppressFrame)
+    {
+        _controllerSuppressFrame = false;
+        _controllerState = Input::ControllerState();
+        return;
+    }
+    if (_controllerHandle && !SDL_GameControllerGetAttached(_controllerHandle))
+    {
+        CloseController();
+        FindController();
+        _controllerState = Input::ControllerState();
+        return;
+    }
+    if (!_controllerHandle || !_controllerInputEnabled)
+    {
+        if (!_controllerInputEnabled)
+            _controllerState = Input::ControllerState();
+        return;
+    }
+
+    _controllerState = Input::ControllerState();
+    _controllerState.Connected = true;
+    const auto left = NormalizeStick(
+        SDL_GameControllerGetAxis(_controllerHandle, SDL_CONTROLLER_AXIS_LEFTX),
+        SDL_GameControllerGetAxis(_controllerHandle, SDL_CONTROLLER_AXIS_LEFTY));
+    const auto right = NormalizeStick(
+        SDL_GameControllerGetAxis(_controllerHandle, SDL_CONTROLLER_AXIS_RIGHTX),
+        SDL_GameControllerGetAxis(_controllerHandle, SDL_CONTROLLER_AXIS_RIGHTY));
+    _controllerState.LeftX = left.first;
+    _controllerState.LeftY = left.second;
+    _controllerState.RightX = right.first;
+    _controllerState.RightY = right.second;
+
+    auto mapButton = [&](SDL_GameControllerButton button, int binding) {
+        _controllerState.Actions[binding] =
+            SDL_GameControllerGetButton(_controllerHandle, button) != 0;
+    };
+    mapButton(SDL_CONTROLLER_BUTTON_A, World::INPUT_BIND_BRAKE);
+    mapButton(SDL_CONTROLLER_BUTTON_B, World::INPUT_BIND_QUIT);
+    mapButton(SDL_CONTROLLER_BUTTON_X, World::INPUT_BIND_SWITCH_WEAPON);
+    mapButton(SDL_CONTROLLER_BUTTON_Y, World::INPUT_BIND_ALTERNATIVE_VIEW);
+    mapButton(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, World::INPUT_BIND_GUN);
+    mapButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, World::INPUT_BIND_CYCLE_TARGET);
+    mapButton(SDL_CONTROLLER_BUTTON_DPAD_UP, World::INPUT_BIND_ZOOMIN);
+    mapButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN, World::INPUT_BIND_ZOOMOUT);
+    mapButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT, World::INPUT_BIND_SQ_MANAGE);
+    mapButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, World::INPUT_BIND_ORDER);
+    mapButton(SDL_CONTROLLER_BUTTON_BACK, World::INPUT_BIND_MAP);
+    mapButton(SDL_CONTROLLER_BUTTON_START, World::INPUT_BIND_PAUSE);
+    mapButton(SDL_CONTROLLER_BUTTON_LEFTSTICK, World::INPUT_BIND_SPRINT);
+    mapButton(SDL_CONTROLLER_BUTTON_RIGHTSTICK, World::INPUT_BIND_CONTROL);
+
+    _leftTriggerPressed = ApplyTriggerHysteresis(
+        SDL_GameControllerGetAxis(_controllerHandle, SDL_CONTROLLER_AXIS_TRIGGERLEFT),
+        _leftTriggerPressed);
+    _rightTriggerPressed = ApplyTriggerHysteresis(
+        SDL_GameControllerGetAxis(_controllerHandle, SDL_CONTROLLER_AXIS_TRIGGERRIGHT),
+        _rightTriggerPressed);
+    _mRController = _leftTriggerPressed;
+    _mLController = _rightTriggerPressed;
+    UpdateMouseButton(SDL_BUTTON_LEFT, _mLPhysical, _mLController);
+    UpdateMouseButton(SDL_BUTTON_RIGHT, _mRPhysical, _mRController);
 }
 
 
@@ -751,6 +987,7 @@ void NC_STACK_winp::QueryPointer(TClickBoxInf *arg)
 {
     arg->flag = 0;
 
+    CheckController();
     CheckJoy();
 
     arg->move.ScreenPos = _mPos;
@@ -928,6 +1165,8 @@ void NC_STACK_winp::InitFirst()
     sdlInputResetLog();
     _joyWantGuid = sdlReadJoyGuid();
 
+    FindController();
+
     int numJoy = SDL_NumJoysticks();
 
     if (numJoy)
@@ -941,14 +1180,28 @@ void NC_STACK_winp::InitFirst()
 
             sdlInputLog("Found joystick #%d: %s\n\tGUID:%s\n", i, SDL_JoystickNameForIndex(i), guidBuff);
 
-            if (!_joyHandle && sdlGUIDcmp(jGUID, _joyWantGuid) )
+            if (!SDL_IsGameController(i) && !_joyHandle &&
+                sdlGUIDcmp(jGUID, _joyWantGuid) )
                 _joyHandle = SDL_JoystickOpen(i);
         }
 
         if ( !_joyHandle )
-            _joyHandle = SDL_JoystickOpen(0);
+        {
+            for (int i = 0; i < numJoy; ++i)
+            {
+                if (!SDL_IsGameController(i))
+                {
+                    _joyHandle = SDL_JoystickOpen(i);
+                    break;
+                }
+            }
+        }
 
-        _joyHaptic = SDL_HapticOpenFromJoystick(_joyHandle);
+        if (_joyHandle && !_joyHaptic && !_controllerHandle)
+        {
+            _joyHaptic = SDL_HapticOpenFromJoystick(_joyHandle);
+            _joyHapticFromController = false;
+        }
     }
     else
     {
@@ -968,6 +1221,10 @@ void NC_STACK_winp::InitFirst()
     _mRstate = false;
     _mMstate = false;
     _mDBLstate = false;
+    _mLPhysical = false;
+    _mRPhysical = false;
+    _mLController = false;
+    _mRController = false;
 
     _mLUcnt = 0;
     _mLDcnt = 0;
