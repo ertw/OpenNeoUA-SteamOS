@@ -36,11 +36,13 @@ class DeploySteamDeckTests(unittest.TestCase):
                 deployer.remote_path_expression(value)
 
     def test_remote_install_verifies_before_atomic_rename(self) -> None:
-        script = deployer.remote_script(".local/bin/OpenNeoUA-dev.AppImage", "abc123", True)
+        script = deployer.remote_script("Applications/OpenNeoUA-dev.AppImage", "abc123")
         self.assertLess(script.index("sha256sum"), script.index("mv -f"))
-        self.assertIn("--install-steam-spacewar", script)
-        self.assertIn("--input-debug", script)
-        self.assertIn("$HOME/.local/bin/OpenNeoUA-dev.AppImage.incoming", script)
+        self.assertIn("$HOME/Applications/OpenNeoUA-dev.AppImage.incoming", script)
+        self.assertIn("$HOME/.local/share/applications/openneoua-dev.desktop", script)
+        self.assertIn("Name=OpenNeoUA (Development)", script)
+        self.assertIn("Exec=%s", script)
+        self.assertNotIn("appid", script.lower())
 
     def test_scp_deploy_uses_stable_incoming_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -49,39 +51,24 @@ class DeploySteamDeckTests(unittest.TestCase):
             app.chmod(0o755)
             commands: list[list[str]] = []
             with mock.patch.object(deployer, "run", side_effect=lambda command, **_kw: commands.append(command)):
-                deployer.deploy(app, host="steamdeck", destination=".local/bin/OpenNeoUA-dev.AppImage")
+                deployer.deploy(app, host="steamdeck", destination="Applications/OpenNeoUA-dev.AppImage")
             self.assertEqual(commands[0][0:2], ["ssh", "steamdeck"])
-            self.assertIn("pgrep -x steam", commands[0][2])
-            self.assertEqual(commands[2][0], "scp")
-            self.assertEqual(commands[2][-1], "steamdeck:.local/bin/OpenNeoUA-dev.AppImage.incoming")
+            self.assertIn("mkdir -p", commands[0][2])
+            self.assertEqual(commands[1][0], "scp")
+            self.assertEqual(commands[1][-1], "steamdeck:Applications/OpenNeoUA-dev.AppImage.incoming")
             self.assertEqual(commands[-1][:2], ["ssh", "steamdeck"])
-            self.assertIn("--install-steam-spacewar", commands[-1][2])
+            self.assertIn("openneoua-dev.desktop", commands[-1][2])
 
-    def test_spacewar_configuration_can_be_explicitly_skipped(self) -> None:
+    def test_rsync_deploy_seeds_the_incoming_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory) / "build.AppImage"
             app.write_bytes(b"appimage")
             commands: list[list[str]] = []
-            with mock.patch.object(deployer, "run", side_effect=lambda command, **_kw: commands.append(command)):
-                deployer.deploy(app, configure_spacewar=False)
-            self.assertNotIn("--install-steam-spacewar", commands[-1][2])
-
-    def test_running_steam_failure_happens_before_any_copy(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            app = Path(directory) / "build.AppImage"
-            app.write_bytes(b"appimage")
-            app.chmod(0o755)
-            commands: list[list[str]] = []
-
-            def reject_first(command: list[str], **_kw: object) -> None:
-                commands.append(command)
-                raise deployer.DeployError("Steam is running")
-
-            with mock.patch.object(deployer, "run", side_effect=reject_first):
-                with self.assertRaisesRegex(deployer.DeployError, "Steam is running"):
-                    deployer.deploy(app)
-            self.assertEqual(len(commands), 1)
-            self.assertEqual(commands[0][0], "ssh")
+            with (mock.patch.object(deployer, "run", side_effect=lambda command, **_kw: commands.append(command)),
+                  mock.patch.object(deployer.shutil, "which", return_value="/usr/bin/rsync")):
+                deployer.deploy(app, use_rsync=True)
+            self.assertTrue(any(command[0] == "rsync" for command in commands))
+            self.assertTrue(any("cp -f" in command[-1] for command in commands if command[0] == "ssh"))
 
 
 if __name__ == "__main__":

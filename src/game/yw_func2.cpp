@@ -2,7 +2,6 @@
 // Related areas live in yw_options.cpp (options, atmosphere and graphic profiles), yw_database.cpp (the database screen)
 // and yw_input_config.cpp (key configuration). Shared helpers: yw_shell_menus.h.
 #include <inttypes.h>
-#include <limits.h>
 #include <string.h>
 #include <algorithm>
 #include <cctype>
@@ -14,7 +13,6 @@
 #include "gui/button.h"
 #include "game/yw_net.h"
 #include "platform/windp.h"
-#include "system/action_table.h"
 #include <math.h>
 #include "gui/uamsgbox.h"
 #include "common/env.h"
@@ -26,9 +24,6 @@
 #include "game/ypaflyer.h"
 #include "common/utils.h"
 #include "nucleus/IFFile.h"
-#include "system/menu_focus.h"
-#include "system/action_input.h"
-#include "system/steam_api_loader.h"
 #include "world/gunrotation.h"
 #include "game/yw_shell_menus.h"
 
@@ -2066,8 +2061,6 @@ void UserData::GameShellUiHandleInput()
     if ( EnvMode == ENVMODE_TITLE && Input->HotKeyID == 43 )
         p_YW->_helpURL = Locale::Text::Help(Locale::HELP_MAIN);
 
-    if ( EnvMode == ENVMODE_TITLE )
-        Input::ApplyMenuFocusInput(titel_button, Input);
     r = titel_button->ProcessWidgetsEvents(Input);
 
     if ( r )
@@ -2363,8 +2356,6 @@ void UserData::GameShellUiHandleInput()
         button_input_button->Enable(&v410);
     }
 
-    Input::ApplyMenuFocusInput(button_input_button, Input);
-
     r = button_input_button->ProcessWidgetsEvents(Input);
 
     if ( r )
@@ -2374,7 +2365,6 @@ void UserData::GameShellUiHandleInput()
         {
             confJoystickEnabled = true;
             inputChangedParts |= ICHG_JOYSTICK;
-            Steam::ApiLoader::Instance.OpenBindingPanel();
         }
         else if (r.code == 1051)
         {
@@ -2551,8 +2541,6 @@ void UserData::GameShellUiHandleInput()
             p_YW->_helpURL = Locale::Text::Help(Locale::HELP_SETTINGS);
     }
 
-
-    Input::ApplyMenuFocusInput(video_button, Input);
 
     r = video_button->ProcessWidgetsEvents(Input);
 
@@ -2881,17 +2869,8 @@ void UserData::GameShellUiHandleInput()
 
     if ( EnvMode == ENVMODE_SELPLAYER ) //Load/Save
     {
-        static bool gamepadTextRequested = false;
-        if ( diskScreenMode && !gamepadTextRequested &&
-             Steam::ApiLoader::Instance.Ready() )
-        {
-            gamepadTextRequested = Steam::ApiLoader::Instance.ShowGamepadTextInput(
-                "Enter player name", 32, userNameDir.c_str());
-        }
-
         if ( Input->KbdLastHit != Input::KC_NONE || Input->chr )
         {
-            gamepadTextRequested = false;
             if ( diskScreenMode )
             {
                 if ( Input->KbdLastHit == Input::KC_BACKSPACE )
@@ -3005,7 +2984,6 @@ void UserData::GameShellUiHandleInput()
         v108++;
     }
 
-    Input::ApplyMenuFocusInput(disk_button, Input);
     r = disk_button->ProcessWidgetsEvents(Input);
 
     if ( r )
