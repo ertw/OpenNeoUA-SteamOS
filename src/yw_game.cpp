@@ -208,6 +208,7 @@ int NC_STACK_ypaworld::LevelCommonLoader(TLevelDescription *mapp, int levelID, i
     _makingWaypointsMode = false;
     _gamePaused = false;
     _gamePausedTimeStamp = 0;
+    _gameplayPauseRequested = false;
     _debugGameplayFrozen = false;
     _debugGlobalInvulnerability = false;
     _joyIgnoreX = 1;
@@ -5999,19 +6000,33 @@ void NC_STACK_ypaworld::RefreshUnitPRT(NC_STACK_ypabact *unit, NC_STACK_ypabact 
 int ypaworld_func64__sub4(NC_STACK_ypaworld *yw, base_64arg *arg)
 {
     if ( yw->_isNetGame )
+    {
+        yw->_gameplayPauseRequested = false;
         return 0;
+    }
+
+    const bool pauseRequested = yw->_gameplayPauseRequested;
+    yw->_gameplayPauseRequested = false;
 
     if ( !yw->_gamePaused )
     {
-        if ( arg->field_8->HotKeyID == 32 || arg->field_8->KbdLastHit == Input::KC_PAUSE )
+        if ( pauseRequested )
         {
             yw->_gamePaused = true;
             yw->_gamePausedTimeStamp = arg->TimeStamp;
         }
-        return 0;
+        else
+        {
+            if ( arg->field_8->HotKeyID == 32 || arg->field_8->KbdLastHit == Input::KC_PAUSE )
+            {
+                yw->_gamePaused = true;
+                yw->_gamePausedTimeStamp = arg->TimeStamp;
+            }
+            return 0;
+        }
     }
 
-    if ( arg->field_8->KbdLastHit != Input::KC_NONE )
+    if ( !pauseRequested && arg->field_8->KbdLastHit != Input::KC_NONE )
     {
         yw->_gamePaused = false;
         arg->TimeStamp = yw->_gamePausedTimeStamp;

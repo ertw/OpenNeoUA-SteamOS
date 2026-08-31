@@ -2318,6 +2318,7 @@ public:
     virtual size_t Init(IDVList &stak);
     virtual size_t Deinit();
     virtual size_t Process(base_64arg *arg);
+    void RequestGameplayPause() { _gameplayPauseRequested = true; }
     virtual void ypaworld_func129(yw_arg129 *arg);
     virtual size_t GetSectorInfo(yw_130arg *arg);
     virtual void ypaworld_func131(NC_STACK_ypabact *bact);
@@ -3234,6 +3235,7 @@ public:
 
     bool _gamePaused = false;
     uint32_t _gamePausedTimeStamp = 0;
+    bool _gameplayPauseRequested = false;
     bool _debugGameplayFrozen = false;
     bool _debugGlobalInvulnerability = false;
     // Detailed UFO Spy UI (HP/shield/status bars) is opt-in at runtime.

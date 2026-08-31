@@ -40,6 +40,9 @@ namespace System
     // Events update cycle
     bool ProcessEvents();
 
+    // Consume a system request to prepare for suspend, if supported.
+    bool ConsumePrepareForSleep();
+
     // Draw content of backbuffer
     void Flip();
 

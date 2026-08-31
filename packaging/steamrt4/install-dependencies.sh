@@ -29,6 +29,7 @@ apt-get install --no-install-recommends -y \
     libswresample-dev \
     liblua5.4-dev \
     libgl-dev \
+    libsystemd-dev \
     pax-utils \
     binutils \
     file \
