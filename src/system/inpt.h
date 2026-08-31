@@ -3,6 +3,7 @@
 
 #include <string>
 #include <functional>
+#include <deque>
 #include <vector>
 #include "utils.h"
 #include "common/common.h"
@@ -10,6 +11,7 @@
 #include "inp_ff.h"
 #include "itimer.h"
 #include "idev.h"
+#include "gamepad_util.h"
 
 
 class ButtonBox
@@ -96,6 +98,53 @@ struct TInputState
 
 namespace Input
 {
+    enum { SEMANTIC_ACTION_COUNT = 54 };
+
+    struct ControllerState
+    {
+        bool Connected = false;
+        float LeftX = 0.0f;
+        float LeftY = 0.0f;
+        float RightX = 0.0f;
+        float RightY = 0.0f;
+        std::array<bool, SEMANTIC_ACTION_COUNT> Actions =
+            Common::ArrayInit<bool, SEMANTIC_ACTION_COUNT>(false);
+    };
+
+    struct ActionSample
+    {
+        bool Held = false;
+        bool Pressed = false;
+        bool Released = false;
+        float Analog = 0.0f;
+    };
+
+    // Engine-internal action view. It does not alter TInputConf or profile
+    // serialization; it combines the existing expression slots with a native
+    // controller contribution and derives stable action edges.
+    class SemanticInput
+    {
+    public:
+        void Reset();
+        void Update(TInputState *state, const ControllerState &controller,
+                    bool controllerEnabled);
+        bool Held(int binding) const;
+        bool Pressed(int binding) const;
+        bool Released(int binding) const;
+        float Analog(int binding) const;
+        const ControllerState &Controller() const { return _controller; }
+
+        static float Strongest(float a, float b);
+
+    private:
+        std::array<ActionSample, SEMANTIC_ACTION_COUNT> _samples;
+        GamepadUtil::DigitalActionTracker<SEMANTIC_ACTION_COUNT> _digital;
+        ControllerState _controller;
+    };
+
+    extern SemanticInput Actions;
+    bool MenuBackPressed(const TInputState *state);
+
     enum ITYPE
     {
         ITYPE_UNK       = 0,
@@ -334,6 +383,7 @@ public:
     void Deinit();
 
     void QueryInput(TInputState *state);
+    void RebindForceFeedback(SDL_Haptic *device);
     void SetPointerResolution(const Common::Point &physicalSize,
                               const Common::Point &logicalSize);
 

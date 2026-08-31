@@ -44,6 +44,17 @@ public:
     static void OnMouseUp(Common::Point pos, int btn, int clkNum);
     static void OnMouseMove(Common::Point pos, Common::Point rel);
 
+    static void SetNativeControllerEnabled(bool enabled);
+    static bool IsGameControllerActive() { return _controllerHandle != NULL; }
+    static const Input::ControllerState &GetControllerState() { return _controllerState; }
+
+    // Pure helpers are public for deterministic controller unit tests.
+    static std::pair<float, float> NormalizeStick(int16_t x, int16_t y,
+                                                  float deadzone = 0.20f);
+    static bool ApplyTriggerHysteresis(int16_t value, bool wasPressed,
+                                       float pressAt = 0.55f,
+                                       float releaseAt = 0.45f);
+
     static SDL_Haptic * GetJoyHaptic() { return _joyHaptic; };
 
     static void QueryKeyboard(TInputState *arg);
@@ -55,6 +66,10 @@ public:
 
 protected:
     static void CheckJoy();
+    static void CheckController();
+    static void FindController();
+    static void CloseController();
+    static void UpdateMouseButton(int btn, bool physical, bool controller);
     static void KeyDown(int16_t vk);
     static void KeyUp(int16_t vk);
     static int InputWatch(void *, SDL_Event *event);
@@ -81,6 +96,8 @@ protected:
     static bool _mRstate;
     static bool _mMstate;
     static bool _mDBLstate;
+    static bool _mLPhysical, _mRPhysical;
+    static bool _mLController, _mRController;
 
     static int _mLUcnt, _mLDcnt;
     static int _mRUcnt, _mRDcnt;
@@ -105,6 +122,15 @@ protected:
 
     static SDL_Joystick        *_joyHandle;
     static SDL_Haptic          *_joyHaptic;
+    static bool                 _joyHapticFromController;
+
+    static SDL_GameController  *_controllerHandle;
+    static SDL_JoystickID       _controllerInstance;
+    static bool                 _controllerInputEnabled;
+    static bool                 _leftTriggerPressed;
+    static bool                 _rightTriggerPressed;
+    static bool                 _controllerSuppressFrame;
+    static Input::ControllerState _controllerState;
 
     static std::array<int, MAXJOYMAP>  _joyAxisMap;
     static std::array<bool, MAXJOYMAP> _joyAxisMapInv;

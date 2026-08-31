@@ -587,7 +587,8 @@ int sb_0x411324__sub2__sub0(base_64arg *arg)
         arg165.frame = 10;
         arg165.field_0 = 7;
     }
-    else if ( arg->field_8->KbdLastHit == Input::KC_SPACE || arg->field_8->KbdLastHit == Input::KC_ESCAPE )
+    else if ( arg->field_8->KbdLastHit == Input::KC_SPACE ||
+              Input::MenuBackPressed(arg->field_8) )
     {
         cont_play = 0;
     }
