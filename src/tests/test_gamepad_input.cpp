@@ -55,17 +55,19 @@ void TestContexts()
     Check(Near(ground.DriveDir, 0.7f), "ground left X steering");
     Check(Near(ground.DriveSpeed, 0.4f), "ground left Y drive speed");
     Check(Near(ground.GunHeight, 0.8f), "ground right Y gun elevation");
-    Check(ground.AnalogGround && !ground.ServiceBrake, "moving ground marker/brake state");
+    Check(ground.AnalogGround, "ground analog marker");
 
     left = {0.0f, 0.0f};
     ground = ApplyContext(CONTEXT_GROUND, left, right);
     Check(Near(ground.DriveDir, -0.3f), "ground right X fallback");
-    Check(ground.ServiceBrake, "neutral ground service brake");
+    Check(Near(ground.DriveSpeed, 0.0f) && ground.AnalogGround,
+          "neutral retained command coasts without synthetic brake");
 
     ContextResult keyboardDrive;
     keyboardDrive.DriveSpeed = 0.75f;
     ground = ApplyContext(CONTEXT_GROUND, left, right, keyboardDrive);
-    Check(!ground.ServiceBrake, "neutral stick must not brake stronger keyboard drive");
+    Check(Near(ground.DriveSpeed, 0.75f), "neutral retained command keeps stronger keyboard drive");
+    Check(ground.AnalogGround, "analog marker remains with keyboard arbitration");
 
     ContextResult air = ApplyContext(CONTEXT_AIR, left, right);
     Check(Near(air.FlyDir, -0.3f), "air right X fallback");
@@ -75,6 +77,14 @@ void TestContexts()
     ContextResult host = ApplyContext(CONTEXT_GUN_OR_HOST, left, right);
     Check(Near(host.FlyDir, -0.3f) && Near(host.FlyHeight, 0.8f),
           "gun/host right-stick viewer channels");
+
+    StickyDriveAxis sticky;
+    for (int i = 0; i < 4; ++i)
+        sticky.Update(1.0f, 100);
+    left = {0.2f, sticky.Value()};
+    ground = ApplyContext(CONTEXT_GROUND, left, right);
+    Check(Near(ground.DriveSpeed, 0.4f) && ground.AnalogGround,
+          "retained command feeds DriveSpeed and analog marker");
 
     Check(CombinedMouseButton(true, false), "physical mouse source");
     Check(CombinedMouseButton(false, true), "controller mouse source");
@@ -94,6 +104,102 @@ void TestContexts()
     Check(tracker.PendingHotkeys() == 2, "physical hotkey does not discard controller FIFO");
     Check(tracker.DeliverHotkey(-1) == 9, "controller FIFO delivers oldest edge");
     Check(tracker.DeliverHotkey(-1) == 16, "controller FIFO delivers one edge per frame");
+}
+
+void TestStickyDriveAxis()
+{
+    using namespace Input::GamepadUtil;
+    StickyDriveAxis axis;
+    Check(Near(axis.Value(), 0.0f), "sticky drive starts at zero");
+
+    axis.Update(0.0f, 40);
+    Check(Near(axis.Value(), 0.0f), "neutral holds zero");
+
+    for (int i = 0; i < 10; ++i)
+        axis.Update(1.0f, 100);
+    Check(Near(axis.Value(), 1.0f), "full forward reaches one in one second");
+
+    axis.Update(0.0f, 50);
+    Check(Near(axis.Value(), 1.0f), "neutral holds positive command");
+
+    axis.Update(1.0f, 100);
+    Check(Near(axis.Value(), 1.0f), "clamp at full forward");
+
+    axis.Reset();
+    for (int i = 0; i < 10; ++i)
+        axis.Update(-1.0f, 100);
+    Check(Near(axis.Value(), -1.0f), "full reverse reaches minus one in one second");
+    axis.Update(0.0f, 16);
+    Check(Near(axis.Value(), -1.0f), "neutral holds negative command");
+    axis.Update(-1.0f, 200);
+    Check(Near(axis.Value(), -1.0f), "clamp at full reverse");
+
+    axis.Reset();
+    for (int i = 0; i < 10; ++i)
+        axis.Update(0.5f, 100);
+    Check(Near(axis.Value(), 0.5f), "half deflection scales to half command");
+
+    StickyDriveAxis a;
+    StickyDriveAxis b;
+    for (int i = 0; i < 20; ++i)
+        a.Update(1.0f, 50);
+    for (int i = 0; i < 50; ++i)
+        b.Update(1.0f, 20);
+    Check(Near(a.Value(), 1.0f) && Near(b.Value(), 1.0f),
+          "full deflection is frame-rate independent");
+
+    axis.Reset();
+    axis.Update(1000.0f, 1000);
+    Check(Near(axis.Value(), 0.1f), "period cap prevents stall jumps");
+
+    axis.Reset();
+    axis.Update(1.0f, 100);
+    axis.Update(1.0f, 100);
+    axis.Update(-1.0f, 100);
+    axis.Update(-1.0f, 100);
+    axis.Update(-1.0f, 100);
+    Check(Near(axis.Value(), -0.1f), "command crosses zero into reverse");
+}
+
+void TestStickyDriveSession()
+{
+    using namespace Input::GamepadUtil;
+    StickyDriveSession drive;
+    for (int i = 0; i < 5; ++i)
+        drive.Sync(11, true, true, true, true, false, 1.0f, 100);
+    Check(Near(drive.Value(), 0.5f), "session accumulates for a live ground unit");
+
+    drive.Sync(11, true, true, true, true, false, 0.0f, 16);
+    Check(Near(drive.Value(), 0.5f), "same unit preserves command without grab or map inputs");
+
+    drive.Sync(11, true, true, true, true, true, 1.0f, 40);
+    Check(Near(drive.Value(), 0.0f), "explicit brake clears retained command");
+    drive.Sync(11, true, true, true, true, true, 1.0f, 100);
+    Check(Near(drive.Value(), 0.0f), "held brake blocks accumulation");
+
+    drive.Sync(11, true, true, true, true, false, 1.0f, 100);
+    Check(Near(drive.Value(), 0.1f), "command resumes after brake release");
+
+    drive.Sync(12, true, true, true, true, false, 0.0f, 40);
+    Check(Near(drive.Value(), 0.0f), "unit switch resets");
+
+    drive.Sync(12, true, true, true, true, false, 1.0f, 200);
+    drive.Sync(12, true, false, true, true, false, 1.0f, 40);
+    Check(Near(drive.Value(), 0.0f), "death resets");
+
+    drive.Sync(12, true, true, true, true, false, 1.0f, 200);
+    drive.Sync(12, false, true, true, true, false, 1.0f, 40);
+    Check(Near(drive.Value(), 0.0f), "leaving tank or car control resets");
+
+    drive.Sync(12, true, true, true, true, false, 1.0f, 200);
+    drive.Sync(12, true, true, false, true, false, 1.0f, 40);
+    Check(Near(drive.Value(), 0.0f), "joystick disable resets");
+
+    drive.Sync(12, true, true, true, true, false, 1.0f, 200);
+    drive.Sync(12, true, true, true, false, false, 1.0f, 40);
+    Check(Near(drive.Value(), 0.0f), "controller disconnect resets");
+    drive.Sync(12, true, true, true, true, false, 0.0f, 16);
+    Check(Near(drive.Value(), 0.0f), "controller reconnect starts from zero");
 }
 
 void TestVirtualController()
@@ -145,6 +251,8 @@ int main()
 {
     TestSticksAndTriggers();
     TestContexts();
+    TestStickyDriveAxis();
+    TestStickyDriveSession();
     TestVirtualController();
     if (Failures)
         return 1;

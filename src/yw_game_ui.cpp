@@ -18116,11 +18116,24 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
 
     // SDL_GameController axes are semantic and contextual. They deliberately
     // remain live in cursor mode; only the mouse path is grab-dependent.
+    // Sticky drive is keyed to the controlled ground unit, not mouse-grab.
+    const Input::ControllerState &pad = Input::Actions.Controller();
+    const bool ground = _userUnit &&
+                        (_userUnit->_bact_type == BACT_TYPES_TANK ||
+                         _userUnit->_bact_type == BACT_TYPES_CAR);
+    const bool unitAlive = _userUnit && _userUnit->_status != BACT_STATUS_DEAD;
+    const float stickyDrive = _stickyDrive.Sync(
+        _userUnit ? _userUnit->_gid : 0,
+        ground,
+        unitAlive,
+        nativeControllerEnabled,
+        pad.Connected,
+        inpt->HandBrakePressed,
+        pad.LeftY,
+        inpt->Period);
+
     if (nativeControllerEnabled && NC_STACK_winp::IsGameControllerActive())
     {
-        const Input::ControllerState &pad = Input::Actions.Controller();
-        const bool ground = _userUnit->_bact_type == BACT_TYPES_TANK ||
-                            _userUnit->_bact_type == BACT_TYPES_CAR;
         const bool hostOrGun = _userUnit->_bact_type == BACT_TYPES_ROBO ||
                                _userUnit->_bact_type == BACT_TYPES_GUN;
         Input::GamepadUtil::ContextResult existing;
@@ -18130,7 +18143,9 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
         existing.FlyDir = inpt->Sliders[0];
         existing.FlyHeight = inpt->Sliders[1];
         existing.FlySpeed = inpt->Sliders[2];
-        const Input::GamepadUtil::Stick left = {pad.LeftX, pad.LeftY};
+        Input::GamepadUtil::Stick left = {pad.LeftX, pad.LeftY};
+        if (ground)
+            left.Y = stickyDrive;
         const Input::GamepadUtil::Stick right = {pad.RightX, pad.RightY};
         const Input::GamepadUtil::Context context = ground
             ? Input::GamepadUtil::CONTEXT_GROUND
@@ -18146,9 +18161,6 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
         inpt->Sliders[2] = mapped.FlySpeed;
         if (mapped.AnalogGround)
             inpt->Buttons.Set(31);
-        // Service brake is synthetic; HandBrakePressed captured explicit A above.
-        if (mapped.ServiceBrake)
-            inpt->Buttons.Set(3);
     }
 
     // Recognized controllers bypass the legacy raw joystick bridge. Unknown

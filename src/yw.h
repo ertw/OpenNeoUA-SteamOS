@@ -3559,6 +3559,8 @@ public:
     bool _joyIgnoreY = false;
     bool _joyIgnoreZ = false;
 
+    Input::GamepadUtil::StickyDriveSession _stickyDrive;
+
     float _oldJoyX = 0.0; // input slider 12
     float _oldJoyY = 0.0; // input slider 13
     float _oldJoyZ = 0.0; // input slider 14

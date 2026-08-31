@@ -11499,6 +11499,7 @@ void NC_STACK_ypaworld::setYW_userVehicle(NC_STACK_ypabact *bact)
             _prevUnitId = oldpBact->_gid;
 
         _userUnit = bact;
+        _stickyDrive.Reset();
 
         _vehicleTakenControlTimestamp = _timeStamp;
         _vehicleTakenCommandId = _userUnit->_commandID;
