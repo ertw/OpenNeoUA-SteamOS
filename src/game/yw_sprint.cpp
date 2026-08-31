@@ -1,4 +1,3 @@
-#include "system/action_input.h"
 // Player sprint (accelerator, pitch scale, excess speed clamp) and its configuration.
 #include <inttypes.h>
 #include <string.h>
@@ -168,9 +167,10 @@ bool NC_STACK_ypaworld::IsPlayerSprintInputHeld() const
          config.forceUp.value <= 0.0f )
         return false;
 
-    if ( Input::Actions.Active(World::INPUT_BIND_SPRINT) )
-        return true;
-
+    // This helper owns the configured physical Sprint key even while the player
+    // is inside the Host Station. Actual acceleration remains gated separately
+    // by IsPlayerSprintEnabledFor(), but the same Shift press can no longer leak
+    // into the legacy waypoint system.
     const UserData::TInputConf &bind =
         _GameShell->InputConfig[World::INPUT_BIND_SPRINT];
     return bind.Type == World::INPUT_BIND_TYPE_HOTKEY &&

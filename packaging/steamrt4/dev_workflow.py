@@ -21,18 +21,15 @@ def execute(commands: list[list[str]]) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("workflow", choices=("build-deploy", "steam-input", "tests"))
+    parser.add_argument("workflow", choices=("build-deploy", "tests"))
     args = parser.parse_args()
     py = sys.executable
     workflows = {
         "build-deploy": [[py, "packaging/steamrt4/build_steamdeck.py"],
                          [py, "packaging/steamrt4/deploy_steamdeck.py"]],
-        "steam-input": [[py, "packaging/steamrt4/generate_iga_vdf.py"],
-                        [py, "packaging/steamrt4/generate_deck_iga_config.py"]],
         "tests": [[py, "-m", "unittest",
-                   "packaging.steamrt4.test_steam_input_iga",
-                   "packaging.steamrt4.test_steam_input",
-                   "packaging.steamrt4.test_install_steamdeck_spacewar",
+                   "packaging.steamrt4.test_apprun",
+                   "packaging.steamrt4.test_steamdeck",
                    "packaging.steamrt4.test_deploy_steamdeck"]],
     }
     return execute(workflows[args.workflow])
