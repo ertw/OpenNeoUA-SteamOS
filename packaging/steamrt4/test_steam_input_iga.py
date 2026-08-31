@@ -136,6 +136,15 @@ class SteamInputIgaTests(unittest.TestCase):
             buttons = re.findall(r'"button_([0-7])"', group.split('\t}', 1)[0])
             self.assertEqual(buttons, [str(i) for i in range(8)])
 
+    def test_trigger_bindings_do_not_emit_fake_click_haptics(self) -> None:
+        layout = (REPO_ROOT / "packaging" / "steamrt4" / "steam_input" / "openneoua_deck_iga.vdf").read_text(encoding="utf-8")
+        trigger_groups = layout.split('\t\t"mode"\t\t"trigger"')[1:]
+        self.assertGreater(len(trigger_groups), 0)
+        for group in trigger_groups:
+            body = group.split('\t"group"', 1)[0]
+            self.assertIn('"haptic_intensity"\t\t"0"', body)
+            self.assertNotIn('"haptic_intensity"\t\t"2"', body)
+
     def test_localization_tokens(self) -> None:
         for name in sorted(self.table_names):
             self.assertIn('"Action_{}"'.format(name), self.iga_text, msg=name)

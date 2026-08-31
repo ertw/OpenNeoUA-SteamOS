@@ -228,8 +228,6 @@ void MenuFocusController::Apply(TInputState *state)
     if ( !state || !_screen )
         return;
 
-    ApplyCursorDelta(state);
-
     if ( MenuNavPressed(MENU_NAV_UP) )
         MoveFocus(0, -1);
     if ( MenuNavPressed(MENU_NAV_DOWN) )

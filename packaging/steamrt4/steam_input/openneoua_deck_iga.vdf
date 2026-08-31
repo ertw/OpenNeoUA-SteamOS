@@ -6,7 +6,7 @@
 	"creator"		"0"
 	"controller_type"		"controller_neptune"
 	"controller_capacitor"		"1"
-	"revision"		"5"
+	"revision"		"7"
 	"group"
 	{
 		"id"		"0"
@@ -43,6 +43,19 @@
 	"group"
 	{
 		"id"		"2"
+		"mode"		"trigger"
+		"bindings"
+		{
+			"click"		"game_action Menu MenuConfirm, Confirm"
+		}
+		"settings"
+		{
+			"haptic_intensity"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"3"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -57,7 +70,7 @@
 	}
 	"group"
 	{
-		"id"		"3"
+		"id"		"4"
 		"mode"		"switches"
 		"bindings"
 		{
@@ -71,7 +84,7 @@
 	}
 	"group"
 	{
-		"id"		"4"
+		"id"		"5"
 		"mode"		"four_buttons"
 		"bindings"
 		{
@@ -87,7 +100,7 @@
 	}
 	"group"
 	{
-		"id"		"5"
+		"id"		"6"
 		"mode"		"dpad"
 		"bindings"
 		{
@@ -104,7 +117,7 @@
 	}
 	"group"
 	{
-		"id"		"6"
+		"id"		"7"
 		"mode"		"radial_menu"
 		"bindings"
 		{
@@ -120,7 +133,7 @@
 	}
 	"group"
 	{
-		"id"		"7"
+		"id"		"8"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -136,25 +149,33 @@
 	}
 	"group"
 	{
-		"id"		"8"
+		"id"		"9"
 		"mode"		"trigger"
 		"bindings"
 		{
 			"click"		"game_action Ground Fire, Fire"
 		}
-	}
-	"group"
-	{
-		"id"		"9"
-		"mode"		"trigger"
-		"bindings"
+		"settings"
 		{
-			"click"		"game_action Ground Gun, Gun"
+			"haptic_intensity"		"0"
 		}
 	}
 	"group"
 	{
 		"id"		"10"
+		"mode"		"trigger"
+		"bindings"
+		{
+			"click"		"game_action Ground Gun, Gun"
+		}
+		"settings"
+		{
+			"haptic_intensity"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"11"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -169,7 +190,7 @@
 	}
 	"group"
 	{
-		"id"		"11"
+		"id"		"12"
 		"mode"		"joystick_move"
 		"bindings"
 		{
@@ -186,7 +207,7 @@
 	}
 	"group"
 	{
-		"id"		"12"
+		"id"		"13"
 		"mode"		"switches"
 		"bindings"
 		{
@@ -200,7 +221,7 @@
 	}
 	"group"
 	{
-		"id"		"13"
+		"id"		"14"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -218,7 +239,7 @@
 	}
 	"group"
 	{
-		"id"		"14"
+		"id"		"15"
 		"mode"		"four_buttons"
 		"bindings"
 		{
@@ -234,7 +255,7 @@
 	}
 	"group"
 	{
-		"id"		"15"
+		"id"		"16"
 		"mode"		"dpad"
 		"bindings"
 		{
@@ -251,7 +272,7 @@
 	}
 	"group"
 	{
-		"id"		"16"
+		"id"		"17"
 		"mode"		"radial_menu"
 		"bindings"
 		{
@@ -267,7 +288,7 @@
 	}
 	"group"
 	{
-		"id"		"17"
+		"id"		"18"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -283,25 +304,33 @@
 	}
 	"group"
 	{
-		"id"		"18"
+		"id"		"19"
 		"mode"		"trigger"
 		"bindings"
 		{
 			"click"		"game_action Air Fire, Fire"
 		}
-	}
-	"group"
-	{
-		"id"		"19"
-		"mode"		"trigger"
-		"bindings"
+		"settings"
 		{
-			"click"		"game_action Air Gun, Gun"
+			"haptic_intensity"		"0"
 		}
 	}
 	"group"
 	{
 		"id"		"20"
+		"mode"		"trigger"
+		"bindings"
+		{
+			"click"		"game_action Air Gun, Gun"
+		}
+		"settings"
+		{
+			"haptic_intensity"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"21"
 		"mode"		"joystick_move"
 		"bindings"
 		{
@@ -317,7 +346,7 @@
 	}
 	"group"
 	{
-		"id"		"21"
+		"id"		"22"
 		"mode"		"switches"
 		"bindings"
 		{
@@ -331,7 +360,7 @@
 	}
 	"group"
 	{
-		"id"		"22"
+		"id"		"23"
 		"mode"		"four_buttons"
 		"bindings"
 		{
@@ -347,7 +376,7 @@
 	}
 	"group"
 	{
-		"id"		"23"
+		"id"		"24"
 		"mode"		"dpad"
 		"bindings"
 		{
@@ -364,7 +393,7 @@
 	}
 	"group"
 	{
-		"id"		"24"
+		"id"		"25"
 		"mode"		"radial_menu"
 		"bindings"
 		{
@@ -380,7 +409,7 @@
 	}
 	"group"
 	{
-		"id"		"25"
+		"id"		"26"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -396,25 +425,33 @@
 	}
 	"group"
 	{
-		"id"		"26"
+		"id"		"27"
 		"mode"		"trigger"
 		"bindings"
 		{
 			"click"		"game_action Host Fire, Fire"
 		}
-	}
-	"group"
-	{
-		"id"		"27"
-		"mode"		"trigger"
-		"bindings"
+		"settings"
 		{
-			"click"		"game_action Host Gun, Gun"
+			"haptic_intensity"		"0"
 		}
 	}
 	"group"
 	{
 		"id"		"28"
+		"mode"		"trigger"
+		"bindings"
+		{
+			"click"		"game_action Host Gun, Gun"
+		}
+		"settings"
+		{
+			"haptic_intensity"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"29"
 		"mode"		"joystick_move"
 		"bindings"
 		{
@@ -430,7 +467,7 @@
 	}
 	"group"
 	{
-		"id"		"29"
+		"id"		"30"
 		"mode"		"switches"
 		"bindings"
 		{
@@ -444,7 +481,7 @@
 	}
 	"group"
 	{
-		"id"		"30"
+		"id"		"31"
 		"mode"		"radial_menu"
 		"bindings"
 		{
@@ -460,7 +497,7 @@
 	}
 	"group"
 	{
-		"id"		"31"
+		"id"		"32"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -476,7 +513,7 @@
 	}
 	"group"
 	{
-		"id"		"32"
+		"id"		"33"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -491,25 +528,33 @@
 	}
 	"group"
 	{
-		"id"		"33"
+		"id"		"34"
 		"mode"		"trigger"
 		"bindings"
 		{
 			"click"		"game_action Ground UiPrimary, Select / Drag"
 		}
-	}
-	"group"
-	{
-		"id"		"34"
-		"mode"		"trigger"
-		"bindings"
+		"settings"
 		{
-			"click"		"game_action Ground UiSecondary, Context Action"
+			"haptic_intensity"		"0"
 		}
 	}
 	"group"
 	{
 		"id"		"35"
+		"mode"		"trigger"
+		"bindings"
+		{
+			"click"		"game_action Ground UiSecondary, Context Action"
+		}
+		"settings"
+		{
+			"haptic_intensity"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"36"
 		"mode"		"four_buttons"
 		"bindings"
 		{
@@ -518,7 +563,7 @@
 	}
 	"group"
 	{
-		"id"		"36"
+		"id"		"37"
 		"mode"		"radial_menu"
 		"bindings"
 		{
@@ -534,7 +579,7 @@
 	}
 	"group"
 	{
-		"id"		"37"
+		"id"		"38"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -550,7 +595,7 @@
 	}
 	"group"
 	{
-		"id"		"38"
+		"id"		"39"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -565,25 +610,33 @@
 	}
 	"group"
 	{
-		"id"		"39"
+		"id"		"40"
 		"mode"		"trigger"
 		"bindings"
 		{
 			"click"		"game_action Air UiPrimary, Select / Drag"
 		}
-	}
-	"group"
-	{
-		"id"		"40"
-		"mode"		"trigger"
-		"bindings"
+		"settings"
 		{
-			"click"		"game_action Air UiSecondary, Context Action"
+			"haptic_intensity"		"0"
 		}
 	}
 	"group"
 	{
 		"id"		"41"
+		"mode"		"trigger"
+		"bindings"
+		{
+			"click"		"game_action Air UiSecondary, Context Action"
+		}
+		"settings"
+		{
+			"haptic_intensity"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"42"
 		"mode"		"four_buttons"
 		"bindings"
 		{
@@ -592,7 +645,7 @@
 	}
 	"group"
 	{
-		"id"		"42"
+		"id"		"43"
 		"mode"		"radial_menu"
 		"bindings"
 		{
@@ -608,7 +661,7 @@
 	}
 	"group"
 	{
-		"id"		"43"
+		"id"		"44"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -624,7 +677,7 @@
 	}
 	"group"
 	{
-		"id"		"44"
+		"id"		"45"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -639,25 +692,33 @@
 	}
 	"group"
 	{
-		"id"		"45"
+		"id"		"46"
 		"mode"		"trigger"
 		"bindings"
 		{
 			"click"		"game_action Host UiPrimary, Select / Drag"
 		}
-	}
-	"group"
-	{
-		"id"		"46"
-		"mode"		"trigger"
-		"bindings"
+		"settings"
 		{
-			"click"		"game_action Host UiSecondary, Context Action"
+			"haptic_intensity"		"0"
 		}
 	}
 	"group"
 	{
 		"id"		"47"
+		"mode"		"trigger"
+		"bindings"
+		{
+			"click"		"game_action Host UiSecondary, Context Action"
+		}
+		"settings"
+		{
+			"haptic_intensity"		"0"
+		}
+	}
+	"group"
+	{
+		"id"		"48"
 		"mode"		"four_buttons"
 		"bindings"
 		{
@@ -672,8 +733,9 @@
 		{
 			"0"		"button_diamond active"
 			"1"		"dpad active"
-			"2"		"right_trackpad active"
-			"3"		"switch active"
+			"2"		"right_trigger active"
+			"3"		"right_trackpad active"
+			"4"		"switch active"
 		}
 	}
 	"preset"
@@ -682,16 +744,16 @@
 		"name"		"Ground"
 		"group_source_bindings"
 		{
-			"4"		"button_diamond active"
-			"5"		"dpad active"
-			"6"		"left_trackpad active"
-			"7"		"right_trackpad active"
-			"8"		"right_trigger active"
-			"9"		"left_trigger active"
-			"10"		"right_joystick active"
-			"11"		"joystick active"
-			"12"		"switch active"
-			"13"		"gyro active"
+			"5"		"button_diamond active"
+			"6"		"dpad active"
+			"7"		"left_trackpad active"
+			"8"		"right_trackpad active"
+			"9"		"right_trigger active"
+			"10"		"left_trigger active"
+			"11"		"right_joystick active"
+			"12"		"joystick active"
+			"13"		"switch active"
+			"14"		"gyro active"
 		}
 	}
 	"preset"
@@ -700,14 +762,14 @@
 		"name"		"Air"
 		"group_source_bindings"
 		{
-			"14"		"button_diamond active"
-			"15"		"dpad active"
-			"16"		"left_trackpad active"
-			"17"		"right_trackpad active"
-			"18"		"right_trigger active"
-			"19"		"left_trigger active"
-			"20"		"joystick active"
-			"21"		"switch active"
+			"15"		"button_diamond active"
+			"16"		"dpad active"
+			"17"		"left_trackpad active"
+			"18"		"right_trackpad active"
+			"19"		"right_trigger active"
+			"20"		"left_trigger active"
+			"21"		"joystick active"
+			"22"		"switch active"
 		}
 	}
 	"preset"
@@ -716,14 +778,14 @@
 		"name"		"Host"
 		"group_source_bindings"
 		{
-			"22"		"button_diamond active"
-			"23"		"dpad active"
-			"24"		"left_trackpad active"
-			"25"		"right_trackpad active"
-			"26"		"right_trigger active"
-			"27"		"left_trigger active"
-			"28"		"joystick active"
-			"29"		"switch active"
+			"23"		"button_diamond active"
+			"24"		"dpad active"
+			"25"		"left_trackpad active"
+			"26"		"right_trackpad active"
+			"27"		"right_trigger active"
+			"28"		"left_trigger active"
+			"29"		"joystick active"
+			"30"		"switch active"
 		}
 	}
 	"preset"
@@ -734,12 +796,12 @@
 		"parent_set_name"		"Ground"
 		"group_source_bindings"
 		{
-			"30"		"left_trackpad active"
-			"31"		"right_trackpad active"
-			"32"		"right_joystick active"
-			"33"		"right_trigger active"
-			"34"		"left_trigger active"
-			"35"		"button_diamond active"
+			"31"		"left_trackpad active"
+			"32"		"right_trackpad active"
+			"33"		"right_joystick active"
+			"34"		"right_trigger active"
+			"35"		"left_trigger active"
+			"36"		"button_diamond active"
 		}
 	}
 	"preset"
@@ -750,12 +812,12 @@
 		"parent_set_name"		"Air"
 		"group_source_bindings"
 		{
-			"36"		"left_trackpad active"
-			"37"		"right_trackpad active"
-			"38"		"right_joystick active"
-			"39"		"right_trigger active"
-			"40"		"left_trigger active"
-			"41"		"button_diamond active"
+			"37"		"left_trackpad active"
+			"38"		"right_trackpad active"
+			"39"		"right_joystick active"
+			"40"		"right_trigger active"
+			"41"		"left_trigger active"
+			"42"		"button_diamond active"
 		}
 	}
 	"preset"
@@ -766,12 +828,12 @@
 		"parent_set_name"		"Host"
 		"group_source_bindings"
 		{
-			"42"		"left_trackpad active"
-			"43"		"right_trackpad active"
-			"44"		"right_joystick active"
-			"45"		"right_trigger active"
-			"46"		"left_trigger active"
-			"47"		"button_diamond active"
+			"43"		"left_trackpad active"
+			"44"		"right_trackpad active"
+			"45"		"right_joystick active"
+			"46"		"right_trigger active"
+			"47"		"left_trigger active"
+			"48"		"button_diamond active"
 		}
 	}
 	"settings"

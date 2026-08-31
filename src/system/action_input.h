@@ -55,6 +55,11 @@ public:
     // from the samples; every other slot is carried through verbatim.
     void PopulateLegacyState(TInputState *state);
 
+    // Click-box resolution happens after Steam actions are sampled so virtual
+    // pointers can participate. Refresh only this passthrough field without
+    // running backends or deriving action edges a second time.
+    void SetResolvedClickInfo(const TClickBoxInf &click) { _passthrough.ClickInf = click; }
+
     const ActionSample &Sample(int binding) const;
     bool Active(int binding) const;
     bool Pressed(int binding) const;

@@ -19,6 +19,11 @@ namespace
 {
 
 InputContext Context;
+bool SteamContextApplied = false;
+ACTION_SET AppliedBase = ACTION_SET_MENU;
+ACTION_LAYER AppliedLayer = ACTION_LAYER_NONE;
+int AppliedControllerCount = 0;
+Steam::InputHandle AppliedControllers[Steam::STEAM_INPUT_MAX_COUNT] = {0};
 
 bool Visible(const GuiBase &window)
 {
@@ -51,6 +56,13 @@ void ActivateSteamContext(const InputContext &context)
     const Steam::InputActionSetHandle layer = context.Layer == ACTION_LAYER_NONE ? 0 :
         api.GetActionSetHandle(steam.InputInterface(), ActionLayerName(context.Layer));
 
+    bool sameControllers = AppliedControllerCount == steam.ControllerCount();
+    for ( int i = 0; sameControllers && i < steam.ControllerCount(); ++i )
+        sameControllers = AppliedControllers[i] == steam.Controllers()[i];
+    if ( SteamContextApplied && sameControllers && AppliedBase == context.BaseSet &&
+         AppliedLayer == context.Layer )
+        return;
+
     for ( int i = 0; i < steam.ControllerCount(); i++ )
     {
         const Steam::InputHandle controller = steam.Controllers()[i];
@@ -61,6 +73,12 @@ void ActivateSteamContext(const InputContext &context)
         if ( layer && api.ActivateActionSetLayer )
             api.ActivateActionSetLayer(steam.InputInterface(), controller, layer);
     }
+    SteamContextApplied = true;
+    AppliedBase = context.BaseSet;
+    AppliedLayer = context.Layer;
+    AppliedControllerCount = steam.ControllerCount();
+    for ( int i = 0; i < AppliedControllerCount; ++i )
+        AppliedControllers[i] = steam.Controllers()[i];
 }
 
 }
@@ -91,6 +109,11 @@ InputContext ResolveInputContext(int screenMode, bool hasWorld, bool hasUnit,
     if ( mapVisible || squadVisible )
         result.Layer = StrategicLayerFor(result.BaseSet);
     return result;
+}
+
+int ResolveControlledUnitType(int unitType, int parentUnitType)
+{
+    return unitType == BACT_TYPES_MISSLE && parentUnitType >= 0 ? parentUnitType : unitType;
 }
 
 const InputContext &CurrentInputContext() { return Context; }
@@ -128,12 +151,17 @@ void CloseFrontStrategicWindow()
 void SyncSteamActionSet()
 {
     const int unitType = ypaworld && ypaworld->_userUnit ? ypaworld->_userUnit->_bact_type : -1;
+    const int parentUnitType = ypaworld && ypaworld->_userUnit && ypaworld->_userUnit->_parent
+        ? ypaworld->_userUnit->_parent->_bact_type : -1;
+    const int contextUnitType = ResolveControlledUnitType(unitType, parentUnitType);
     const InputContext target = ResolveInputContext(
         GameScreenMode, ypaworld != nullptr, ypaworld && ypaworld->_userUnit,
-        unitType, ypaworld && ypaworld->_playerInHSGun,
+        contextUnitType, ypaworld && ypaworld->_playerInHSGun,
         Visible(robo_map), Visible(squadron_manager));
+    InputContext diagnosedTarget = target;
+    diagnosedTarget.UnitType = unitType;
     const bool changed = Context.BaseSet != target.BaseSet || Context.Layer != target.Layer;
-    Context = target;
+    Context = diagnosedTarget;
 
     if ( Actions.CurrentActionSet() != target.BaseSet || Actions.ActionSetDepth() == 0 )
     {
@@ -144,8 +172,9 @@ void SyncSteamActionSet()
     if ( changed )
     {
         Actions.ClearPendingHotKeys();
-        ypa_log_out("Steam Input context: base=%s layer=%s unit=%d map=%d squad=%d\n",
-                    ActionSetName(target.BaseSet), ActionLayerName(target.Layer), target.UnitType,
+        ypa_log_out("Steam Input context: base=%s layer=%s unit=%d control_unit=%d map=%d squad=%d\n",
+                    ActionSetName(target.BaseSet), ActionLayerName(target.Layer), unitType,
+                    contextUnitType,
                     target.MapVisible, target.SquadVisible);
     }
 
@@ -181,6 +210,7 @@ void SyncSteamActionSet()
         ypa_log_out("Steam Input context mismatch persisted: expected %s + %s\n",
                     ActionSetName(target.BaseSet), ActionLayerName(target.Layer));
         mismatchReported = true;
+        SteamContextApplied = false;
     }
 }
 
