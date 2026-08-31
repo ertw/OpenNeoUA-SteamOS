@@ -62,11 +62,6 @@
 !/Database/
 !/vendor/
 /vendor/*
-!/vendor/steamworks-sdk/
-!/vendor/steamworks-sdk/**
-!/vendor/README.md
-/vendor/ua.iso
-/vendor/*.iso
 !/3ds/
 
 # ============================================================
@@ -95,10 +90,3 @@ build/steamdeck-private/
 !/.github/workflows/linux-steamrt4.yml
 !/Progressi OpenNeoUA/
 !/Progressi OpenNeoUA/Linux SteamOS Steam Deck e Bazzite.md
-
-# ============================================================
-# CLOUD AGENT ENVIRONMENT
-# ============================================================
-
-!/.cursor/
-!/.cursor/**
