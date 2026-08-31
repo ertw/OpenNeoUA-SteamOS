@@ -69,10 +69,17 @@ void TestContexts()
     Check(Near(ground.DriveSpeed, 0.75f), "neutral retained command keeps stronger keyboard drive");
     Check(ground.AnalogGround, "analog marker remains with keyboard arbitration");
 
+    left.Y = 0.4f;
     ContextResult air = ApplyContext(CONTEXT_AIR, left, right);
     Check(Near(air.FlyDir, -0.3f), "air right X fallback");
-    Check(Near(air.FlyHeight, 0.0f), "air left Y height");
+    Check(Near(air.FlyHeight, -0.4f), "air left-stick up reverses height axis");
     Check(Near(air.FlySpeed, 0.8f), "air right Y speed");
+    Check(air.FlySpeed > 0.001f,
+          "air right-stick acceleration can request parked takeoff");
+
+    left.Y = -0.6f;
+    air = ApplyContext(CONTEXT_AIR, left, right);
+    Check(Near(air.FlyHeight, 0.6f), "air left-stick down reverses height axis");
 
     ContextResult host = ApplyContext(CONTEXT_GUN_OR_HOST, left, right);
     Check(Near(host.FlyDir, -0.3f) && Near(host.FlyHeight, 0.8f),

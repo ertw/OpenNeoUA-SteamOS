@@ -204,7 +204,7 @@ inline ContextResult ApplyContext(Context context, const Stick &left,
     {
         result.FlyDir = Strongest(result.FlyDir,
                                   left.X == 0.0f ? right.X : left.X);
-        result.FlyHeight = Strongest(result.FlyHeight, left.Y);
+        result.FlyHeight = Strongest(result.FlyHeight, -left.Y);
         result.FlySpeed = Strongest(result.FlySpeed, right.Y);
     }
     else
