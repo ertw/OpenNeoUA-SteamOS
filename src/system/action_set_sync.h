@@ -26,6 +26,7 @@ struct InputContext
 InputContext ResolveInputContext(int screenMode, bool hasWorld, bool hasUnit,
                                  int unitType, bool playerInHostGun,
                                  bool mapVisible, bool squadVisible);
+int ResolveControlledUnitType(int unitType, int parentUnitType);
 const InputContext &CurrentInputContext();
 const char *ActionLayerName(ACTION_LAYER layer);
 bool StrategicLayerActive();

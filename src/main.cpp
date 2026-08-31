@@ -52,6 +52,7 @@
 #include "common/crashdiag.h"
 
 #include <sstream>
+#include <csignal>
 #include <sys/stat.h>
 #include <cerrno>
 #include <cstring>
@@ -64,6 +65,16 @@ namespace
 {
 int ProcessNextFrame();
 extern UserData userdata;
+
+namespace
+{
+volatile std::sig_atomic_t QuitSignalReceived = 0;
+
+void HandleQuitSignal(int)
+{
+    QuitSignalReceived = 1;
+}
+}
 
 static bool MenuSmokeEnabled()
 {
@@ -980,11 +991,13 @@ namespace
 
 void DeinitEngines()
 {
-    Steam::ApiLoader::Instance.Shutdown();
     if ( tformInited )
         TF::Engine.Deinit();
     if ( inputInited )
         Input::Engine.Deinit();
+    // Input deinit sends a final zero-vibration command. Keep Steam Input
+    // alive until that controller state has been cleared.
+    Steam::ApiLoader::Instance.Shutdown();
     if ( audioInited )
         SFXEngine::SFXe.deinit();
 
@@ -1215,6 +1228,11 @@ int main(int argc, char *argv[])
     const int dumpWriter = CrashDiag::RunDumpWriter(argc, argv);
     if (dumpWriter >= 0)
         return dumpWriter;
+    // Steam's Stop command may terminate the AppImage through SIGTERM rather
+    // than an SDL_QUIT event. Keep the handler async-signal-safe and let the
+    // normal loop perform engine/Steam shutdown.
+    std::signal(SIGTERM, HandleQuitSignal);
+    std::signal(SIGINT, HandleQuitSignal);
 
     System::AddCmdLine(argv[0] ? argv[0] : "");
     int argi = 1;
@@ -1352,7 +1370,7 @@ int main(int argc, char *argv[])
     }
 
 
-    while ( ProcessNextFrame() && !System::ProcessEvents() )
+    while ( !QuitSignalReceived && ProcessNextFrame() && !System::ProcessEvents() )
         System::Frames.EndFrame();
 
     CrashDiag::DisarmWatchdog();

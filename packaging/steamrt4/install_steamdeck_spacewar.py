@@ -44,8 +44,9 @@ def quote_shell_path(path: Path) -> str:
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def build_launch_options(payload: Path) -> str:
-    return quote_shell_path(payload.resolve()) + LAUNCH_OPTIONS_SUFFIX
+def build_launch_options(payload: Path, *, input_debug: bool = False) -> str:
+    debug_option = " --input-debug" if input_debug else ""
+    return quote_shell_path(payload.resolve()) + debug_option + LAUNCH_OPTIONS_SUFFIX
 
 
 def resolve_payload(argument: Optional[str]) -> Path:
@@ -347,6 +348,7 @@ def install(
     *,
     home: Optional[Path] = None,
     force_steam_running: Optional[bool] = None,
+    input_debug: bool = False,
 ) -> Tuple[Path, Path, str]:
     home_path = home if home is not None else Path.home()
     if not payload.is_file() or not os.access(payload, os.X_OK):
@@ -377,7 +379,7 @@ def install(
     configs.sort(key=lambda item: item[1].stat().st_mtime, reverse=True)
     steam_root, config_path = configs[0]
     account_id = config_path.parent.parent.name
-    launch_options = build_launch_options(payload)
+    launch_options = build_launch_options(payload, input_debug=input_debug)
     patch_localconfig(config_path, launch_options)
     return steam_root, config_path, account_id
 
@@ -399,6 +401,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="print the Launch Options string and exit without writing",
     )
+    parser.add_argument(
+        "--input-debug",
+        action="store_true",
+        help="add the compact Steam Input mode overlay to the game launch",
+    )
     return parser
 
 
@@ -408,9 +415,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         payload = resolve_payload(args.payload)
         if args.print_launch_options:
-            sys.stdout.write(build_launch_options(payload) + "\n")
+            sys.stdout.write(build_launch_options(payload, input_debug=args.input_debug) + "\n")
             return 0
-        steam_root, _config_path, account_id = install(payload)
+        steam_root, _config_path, account_id = install(payload, input_debug=args.input_debug)
         sys.stdout.write(format_next_steps(payload, account_id, steam_root) + "\n")
         return 0
     except InstallError as exc:
