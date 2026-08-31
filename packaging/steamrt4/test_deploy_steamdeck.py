@@ -40,7 +40,11 @@ class DeploySteamDeckTests(unittest.TestCase):
         self.assertLess(script.index("sha256sum"), script.index("mv -f"))
         self.assertIn("$HOME/Applications/OpenNeoUA-dev.AppImage.incoming", script)
         self.assertIn("$HOME/.local/share/applications/openneoua-dev.desktop", script)
+        self.assertIn("--appimage-extract OpenNeoUA.png", script)
+        self.assertIn("$HOME/.local/share/icons/hicolor/256x256/apps/openneoua.png", script)
         self.assertIn("Name=OpenNeoUA (Development)", script)
+        self.assertIn("Icon=openneoua", script)
+        self.assertNotIn("Icon=applications-games", script)
         self.assertIn("Exec=%s", script)
         self.assertNotIn("appid", script.lower())
 
