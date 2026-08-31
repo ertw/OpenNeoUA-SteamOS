@@ -25,17 +25,20 @@ class MapMenuFocusRegressionTests(unittest.TestCase):
             "titel_button menu focus must run only on ENVMODE_TITLE so map mask picking keeps real mouse coords",
         )
 
-    def test_menu_cursor_delta_preserves_mouse_when_idle(self) -> None:
-        source = MENU_FOCUS.read_text(encoding="utf-8")
+    def test_resolved_pointer_reaches_action_passthrough(self) -> None:
+        source = (REPO_ROOT / "src" / "system" / "inpt.cpp").read_text(encoding="utf-8")
         self.assertIn(
-            "if ( deltaX == 0.0f && deltaY == 0.0f )",
+            "ClickCheck.CheckClick(&primitives.ClickInf);\n    Actions.SetResolvedClickInfo(primitives.ClickInf);",
             source,
-            "ApplyCursorDelta must not overwrite ClickInf.move when MenuCursor is idle",
+            "physical, touch, and Steam pointer hit-test results must reach TInputState",
         )
+
+    def test_menu_virtual_pointer_is_resolved_before_widgets(self) -> None:
+        source = (REPO_ROOT / "src" / "system" / "inpt.cpp").read_text(encoding="utf-8")
         self.assertIn(
-            "if ( !_cursorInitialized )",
+            "const bool steamMenuPointer = CurrentInputContext().BaseSet == ACTION_SET_MENU;",
             source,
-            "virtual menu cursor must seed from the current mouse position on first analog input",
+            "menu cursor must use the shared virtual-pointer hit-test path",
         )
 
 
