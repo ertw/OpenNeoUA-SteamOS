@@ -62,6 +62,10 @@ void SteamInputBackend::ResetHandles()
     _menuCursorDelY = 0.0f;
     _aimDelX = 0.0f;
     _aimDelY = 0.0f;
+    _moveHandleResolved = false;
+    _moveActive = false;
+    _moveMode = 0;
+    _moveX = _moveY = 0.0f;
     _aimHandle = 0;
     _groundMoveHandle = _airMoveHandle = _hostViewHandle = _strategicCursorHandle = 0;
     _uiResolved.fill(0);
@@ -170,6 +174,10 @@ void SteamInputBackend::ContributeSmoke(ActionFrame *frame)
     _menuCursorDelY = 0.0f;
     _aimDelX = 0.0f;
     _aimDelY = 0.0f;
+    _moveHandleResolved = false;
+    _moveActive = false;
+    _moveMode = 0;
+    _moveX = _moveY = 0.0f;
     _uiPressed.fill(false);
     _uiReleased.fill(false);
 
@@ -202,6 +210,10 @@ void SteamInputBackend::Contribute(ActionFrame *frame)
     _menuCursorDelY = 0.0f;
     _aimDelX = 0.0f;
     _aimDelY = 0.0f;
+    _moveHandleResolved = false;
+    _moveActive = false;
+    _moveMode = 0;
+    _moveX = _moveY = 0.0f;
 
     Steam::ApiLoader &steam = Steam::ApiLoader::Instance;
     const Steam::ApiTable &api = steam.Api();
@@ -284,9 +296,14 @@ void SteamInputBackend::Contribute(ActionFrame *frame)
     Steam::InputAnalogActionHandle moveHandle = context.BaseSet == ACTION_SET_GROUND ? _groundMoveHandle :
         context.BaseSet == ACTION_SET_AIR ? _airMoveHandle :
         context.BaseSet == ACTION_SET_HOST ? _hostViewHandle : 0;
+    _moveHandleResolved = moveHandle != 0;
     if ( moveHandle )
     {
         const Steam::AnalogActionData move = api.GetAnalogActionData(iface, controller, moveHandle);
+        _moveActive = move.Active;
+        _moveMode = move.Mode;
+        _moveX = move.X;
+        _moveY = move.Y;
         if ( move.Active )
         {
             const int xBinding = context.BaseSet == ACTION_SET_GROUND ? World::INPUT_BIND_DRIVE_DIR : World::INPUT_BIND_FLY_DIR;

@@ -6,7 +6,7 @@
 	"creator"		"0"
 	"controller_type"		"controller_neptune"
 	"controller_capacitor"		"1"
-	"revision"		"7"
+	"revision"		"8"
 	"group"
 	{
 		"id"		"0"
@@ -59,13 +59,16 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Menu MenuCursor, Menu Cursor"
 		}
 		"settings"
 		{
 			"sensitivity"		"100"
 			"trackball"		"0"
 			"rotation_offset"		"0"
+		}
+		"gameactions"
+		{
+			"Menu"		"MenuCursor"
 		}
 	}
 	"group"
@@ -137,7 +140,6 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Ground Aim, Aim"
 			"click"		"game_action Ground CamFire, Mouse Grab"
 		}
 		"settings"
@@ -145,6 +147,10 @@
 			"sensitivity"		"100"
 			"trackball"		"0"
 			"rotation_offset"		"0"
+		}
+		"gameactions"
+		{
+			"Ground"		"Aim"
 		}
 	}
 	"group"
@@ -179,13 +185,16 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Ground Aim, Aim"
 		}
 		"settings"
 		{
 			"sensitivity"		"120"
 			"trackball"		"0"
 			"rotation_offset"		"0"
+		}
+		"gameactions"
+		{
+			"Ground"		"Aim"
 		}
 	}
 	"group"
@@ -195,14 +204,18 @@
 		"bindings"
 		{
 			"click"		"game_action Ground Sprint, Sprint"
-			"output"		"game_action Ground GroundMove, Drive / Reverse"
 		}
 		"settings"
 		{
+			"virtual_mode"		"1"
 			"deadzone_inner_radius"		"0.100000"
 			"deadzone_outer_radius"		"0.990000"
 			"deadzone_shape"		"1"
 			"edge_binding_radius"		"0.970000"
+		}
+		"gameactions"
+		{
+			"Ground"		"GroundMove"
 		}
 	}
 	"group"
@@ -225,7 +238,6 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Ground Aim, Aim Gyro"
 		}
 		"settings"
 		{
@@ -235,6 +247,10 @@
 			"gyro_enable_mode"		"1"
 			"acceleration"		"1"
 			"natural_sensitivity"		"1"
+		}
+		"gameactions"
+		{
+			"Ground"		"Aim"
 		}
 	}
 	"group"
@@ -292,7 +308,6 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Air Aim, Aim"
 			"click"		"game_action Air CamFire, Mouse Grab"
 		}
 		"settings"
@@ -300,6 +315,10 @@
 			"sensitivity"		"100"
 			"trackball"		"0"
 			"rotation_offset"		"0"
+		}
+		"gameactions"
+		{
+			"Air"		"Aim"
 		}
 	}
 	"group"
@@ -334,14 +353,18 @@
 		"mode"		"joystick_move"
 		"bindings"
 		{
-			"output"		"game_action Air AirMove, Air Movement"
 		}
 		"settings"
 		{
+			"virtual_mode"		"1"
 			"deadzone_inner_radius"		"0.100000"
 			"deadzone_outer_radius"		"0.990000"
 			"deadzone_shape"		"1"
 			"edge_binding_radius"		"0.970000"
+		}
+		"gameactions"
+		{
+			"Air"		"AirMove"
 		}
 	}
 	"group"
@@ -413,7 +436,6 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Host Aim, Aim"
 			"click"		"game_action Host CamFire, Mouse Grab"
 		}
 		"settings"
@@ -421,6 +443,10 @@
 			"sensitivity"		"100"
 			"trackball"		"0"
 			"rotation_offset"		"0"
+		}
+		"gameactions"
+		{
+			"Host"		"Aim"
 		}
 	}
 	"group"
@@ -455,14 +481,18 @@
 		"mode"		"joystick_move"
 		"bindings"
 		{
-			"output"		"game_action Host HostView, Host View"
 		}
 		"settings"
 		{
+			"virtual_mode"		"1"
 			"deadzone_inner_radius"		"0.100000"
 			"deadzone_outer_radius"		"0.990000"
 			"deadzone_shape"		"1"
 			"edge_binding_radius"		"0.970000"
+		}
+		"gameactions"
+		{
+			"Host"		"HostView"
 		}
 	}
 	"group"
@@ -501,7 +531,6 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Ground StrategicCursor, Strategic Cursor"
 			"click"		"game_action Ground UiMiddle, Pan"
 		}
 		"settings"
@@ -510,6 +539,10 @@
 			"trackball"		"0"
 			"rotation_offset"		"0"
 		}
+		"gameactions"
+		{
+			"Ground"		"StrategicCursor"
+		}
 	}
 	"group"
 	{
@@ -517,13 +550,16 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Ground StrategicCursor, Strategic Cursor"
 		}
 		"settings"
 		{
 			"sensitivity"		"100"
 			"trackball"		"0"
 			"rotation_offset"		"0"
+		}
+		"gameactions"
+		{
+			"Ground"		"StrategicCursor"
 		}
 	}
 	"group"
@@ -583,7 +619,6 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Air StrategicCursor, Strategic Cursor"
 			"click"		"game_action Air UiMiddle, Pan"
 		}
 		"settings"
@@ -592,6 +627,10 @@
 			"trackball"		"0"
 			"rotation_offset"		"0"
 		}
+		"gameactions"
+		{
+			"Air"		"StrategicCursor"
+		}
 	}
 	"group"
 	{
@@ -599,13 +638,16 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Air StrategicCursor, Strategic Cursor"
 		}
 		"settings"
 		{
 			"sensitivity"		"100"
 			"trackball"		"0"
 			"rotation_offset"		"0"
+		}
+		"gameactions"
+		{
+			"Air"		"StrategicCursor"
 		}
 	}
 	"group"
@@ -665,7 +707,6 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Host StrategicCursor, Strategic Cursor"
 			"click"		"game_action Host UiMiddle, Pan"
 		}
 		"settings"
@@ -674,6 +715,10 @@
 			"trackball"		"0"
 			"rotation_offset"		"0"
 		}
+		"gameactions"
+		{
+			"Host"		"StrategicCursor"
+		}
 	}
 	"group"
 	{
@@ -681,13 +726,16 @@
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
-			"output"		"game_action Host StrategicCursor, Strategic Cursor"
 		}
 		"settings"
 		{
 			"sensitivity"		"100"
 			"trackball"		"0"
 			"rotation_offset"		"0"
+		}
+		"gameactions"
+		{
+			"Host"		"StrategicCursor"
 		}
 	}
 	"group"
