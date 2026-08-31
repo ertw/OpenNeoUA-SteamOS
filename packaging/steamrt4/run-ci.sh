@@ -72,7 +72,7 @@ phase="record dependency versions"
         libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-net-dev \
         libopenal-dev libvorbis-dev libavformat-dev libavcodec-dev \
         libavutil-dev libswscale-dev libswresample-dev liblua5.4-dev \
-        libgl-dev pax-utils; do
+        libgl-dev libsystemd-dev pax-utils; do
         dpkg-query -W -f='${binary:Package}\t${Version}\n' "${package}"
     done
 } | tee "${dependency_report}"
@@ -121,6 +121,9 @@ if [[ "${CI_CLEAR_CACHE:-0}" == "1" ]]; then
 fi
 cmake --build "${build_dir}"
 ccache --show-stats
+
+phase="run C++ tests"
+ctest --test-dir "${build_dir}" --output-on-failure
 
 phase="verify resolver write destinations"
 python3 "${source_root}/packaging/steamrt4/test_resolver_write_paths.py"
