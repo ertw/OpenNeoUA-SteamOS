@@ -6348,7 +6348,10 @@ void NC_STACK_ypabact::User_layer(update_msg *arg)
         (_status_flg & BACT_STFLAG_LAND) &&
         (_status == BACT_STATUS_NORMAL || _status == BACT_STATUS_IDLE) &&
         (_bact_type == BACT_TYPES_BACT || _bact_type == BACT_TYPES_ZEPP);
-    const bool takeoffRequested = landedAirControl && Input::Engine.GetKeyState(Input::KC_Q);
+    // Use the combined Fly Speed input instead of the physical default key.
+    // This preserves Q/remapped keyboard takeoff and also lets the native
+    // controller's right stick leave the parked state.
+    const bool takeoffRequested = landedAirControl && arg->inpt->Sliders[2] > 0.001f;
     const bool landedMovementLocked = landedAirControl && !takeoffRequested;
 
     if ( landedAirControl )
