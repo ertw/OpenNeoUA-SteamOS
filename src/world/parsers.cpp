@@ -9,6 +9,7 @@
 #include "common/log.h"
 #include "common/utils.h"
 #include "../system/inivals.h"
+#include "../winp.h"
 #include "spin.h"
 #include "tools.h"
 
@@ -637,6 +638,8 @@ int InputParser::Handle(ScriptParser::Parser &parser, const std::string &p1, con
             _o._GameShell->joystickEnabled = false;
             _o._preferences |= World::PREF_JOYDISABLE;
         }
+        NC_STACK_winp::SetNativeControllerEnabled(
+            (_o._preferences & World::PREF_JOYDISABLE) == 0);
     }
     else if ( !StriCmp(p1, "altjoystick") )
     {

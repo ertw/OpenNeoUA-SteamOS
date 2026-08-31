@@ -970,7 +970,8 @@ size_t NC_STACK_ypaworld::Process(base_64arg *arg)
     extern bool SPEED_DOWN_NET; //In yw_net.cpp
 
     if ( (gui_lstvw.IsClosed() && lstvw2.IsClosed())
-            || (arg->field_8->KbdLastHit != Input::KC_RETURN && arg->field_8->KbdLastHit != Input::KC_ESCAPE) )
+            || (arg->field_8->KbdLastHit != Input::KC_RETURN &&
+                !Input::MenuBackPressed(arg->field_8)) )
     {
         _kbdLastKeyHit = Input::KC_NONE;
     }
@@ -1073,7 +1074,7 @@ size_t NC_STACK_ypaworld::Process(base_64arg *arg)
             {
                 const bool escRequested =
                     _kbdLastKeyHit == Input::KC_ESCAPE ||
-                    arg->field_8->KbdLastHit == Input::KC_ESCAPE;
+                    Input::MenuBackPressed(arg->field_8);
                 const bool fireRequested =
                     arg->field_8->Buttons.IsAny({0, 2, 5});
 
