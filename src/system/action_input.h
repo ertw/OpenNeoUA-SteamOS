@@ -78,6 +78,9 @@ public:
     std::size_t PendingHotKeyCount() const { return _pendingHotKeys.size(); }
     void ClearPendingHotKeys();
 
+    // Merges grabbed mouse-look deltas into analog action samples for this frame.
+    void ApplyGrabbedAimLook(float aimX, float aimY);
+
     static ActionInput Instance;
 
 private:

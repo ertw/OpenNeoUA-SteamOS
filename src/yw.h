@@ -365,8 +365,9 @@ enum INPUT_BIND
     INPUT_BIND_ALTERNATIVE_VIEW = 51,
     // OpenNeoUA: remappable runtime toggle for the player-only UFO Spy UI.
     INPUT_BIND_TOGGLE_UFO_SPY_UI = 52,
+    INPUT_BIND_COMMAND_MODE = 53,
 
-    INPUT_BIND_MAX        = 53,
+    INPUT_BIND_MAX        = 54,
 };
 
 // OpenNeoUA: fixed secondary shortcuts that intentionally coexist with the
@@ -2682,6 +2683,7 @@ public:
 
     void yw_MAP_MouseSelect(TClickBoxInf *winp);
     bool IsRoboMapOpen() const;
+    bool IsCommandModeActive() const { return _commandModeActive; }
 
     void ypaworld_func64__sub21__sub1__sub3__sub0(TClickBoxInf *winp);
     void yw_3D_MouseSelect(TClickBoxInf *winp);
@@ -3222,6 +3224,7 @@ public:
     bool _guiDragDefaultMouse = false;
 
     bool _mouseGrabbed = false; // Grab mouse for unit steer-turn
+    bool _commandModeActive = false; // Steam Deck: cursor for map/squad without leaving vehicle
 
     int32_t _toolTipId = 0;
     int32_t _toolTipHotKeyId = -1; // Used to display hotkey name

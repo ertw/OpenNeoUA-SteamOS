@@ -277,7 +277,7 @@ void SteamInputBackend::Contribute(ActionFrame *frame)
         if ( aim.Active )
         {
             _aimDelX = aim.X;
-            _aimDelY = aim.Y;
+            _aimDelY = -aim.Y;
         }
     }
 

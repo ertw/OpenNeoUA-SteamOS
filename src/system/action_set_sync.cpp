@@ -4,9 +4,6 @@
 #include "action_input.h"
 #include "steam_api_loader.h"
 #include "../global.h"
-#include "../yw_internal.h"
-
-extern tehMap robo_map;
 
 namespace Input
 {
@@ -22,9 +19,6 @@ ACTION_SET ActionSetForGameState()
 
     if ( !ypaworld || !ypaworld->_userUnit )
         return ACTION_SET_MENU;
-
-    if ( !robo_map.IsClosed() )
-        return ACTION_SET_MAP;
 
     switch ( ypaworld->_userUnit->_bact_type )
     {

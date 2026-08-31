@@ -70,6 +70,7 @@ set(SOURCES
     system/action_input.cpp
     system/action_set_sync.cpp
     system/menu_focus.cpp
+    system/virtual_pointer.cpp
     system/fsmgr.cpp
     system/gfx.cpp
     system/glfuncs.cpp

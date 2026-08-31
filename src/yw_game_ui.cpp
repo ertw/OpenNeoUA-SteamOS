@@ -22,6 +22,8 @@
 #include "system/inivals.h"
 #include "system/action_set_sync.h"
 #include "system/action_input.h"
+#include "system/action_query.h"
+#include "system/virtual_pointer.h"
 
 
 extern uint32_t bact_id;
@@ -17451,7 +17453,10 @@ void NC_STACK_ypaworld::ypaworld_func64__sub21(TInputState *arg)
         if ( squadron_manager.field_2A8 & 1 )
             v19.pointer_id = 1;
 
-        GFX::Engine.SetCursor(v19.pointer_id, 0);
+        if ( _commandModeActive && Input::VirtualPointerVisible() )
+            Input::DrawVirtualPointer(this, 0);
+        else
+            GFX::Engine.SetCursor(v19.pointer_id, 0);
 
         if ( tooltip )
             SetShowingTooltip(tooltip);
@@ -17464,6 +17469,16 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
 {
     //Precompute input
     TClickBoxInf *winp = &inpt->ClickInf;
+
+    if ( Input::ActionPressed(World::INPUT_BIND_COMMAND_MODE) )
+    {
+        _commandModeActive = !_commandModeActive;
+        if ( _commandModeActive )
+            _mouseGrabbed = false;
+    }
+
+    if ( _commandModeActive )
+        Input::ApplyCommandModePointer(inpt);
 
     inpt->Buttons.UnSet(31);
     inpt->HandBrakePressed = inpt->Buttons.Is(3);
@@ -17555,8 +17570,9 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
     if ( _userUnit->_status == BACT_STATUS_DEAD )
     {
         _mouseGrabbed = false;
+        _commandModeActive = false;
     }
-    else if ( winp->flag & TClickBoxInf::FLAG_RM_DOWN )
+    else if ( !_commandModeActive && winp->flag & TClickBoxInf::FLAG_RM_DOWN )
     {
         if ( _mouseGrabbed
                 || winp->selected_btn == &robo_map
@@ -17586,7 +17602,7 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
     if ( gui_lstvw.IsOpen() )
         inpt->Sliders[1] = 0;
 
-    if ( _mouseGrabbed ) // If grabbed mouse
+    if ( _mouseGrabbed && !_commandModeActive ) // If grabbed mouse
     {
         // Piu-piu mazafaka
         winp->selected_btnID = -1;
@@ -17596,6 +17612,8 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
         inpt->Sliders[1] += inpt->Sliders[11];
         inpt->Sliders[3] += inpt->Sliders[10];
         inpt->Sliders[5] -= inpt->Sliders[11] * 1.5;
+
+        Input::Actions.ApplyGrabbedAimLook(inpt->Sliders[10], inpt->Sliders[11]);
 
         if ( World::IsFixedInputShortcutHeld(World::INPUT_BIND_FIRE) )
             inpt->Buttons.Set(0);

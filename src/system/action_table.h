@@ -53,10 +53,10 @@ constexpr int HOTKEY_SLOTS = 53;
 // Hotkey slots with no OpenNeoUA action.  Slots 5, 6, 13, 15, 19, 26, 28, 29
 // and 30 are original-engine controls that were never reimplemented (build
 // mode, the map lock/maximize variants, window cycling, the submenu item
-// stepper and the energy window).  Slots 33-36 were never populated.  Slots 50
-// and 51 held the short-lived split Camera Zoom bindings.
+// stepper and the energy window).  Slot 33 carries CommandMode; 34-36 remain holes.
+// Slots 50 and 51 held the short-lived split Camera Zoom bindings.
 constexpr int HOTKEY_HOLES[] = {
-    5, 6, 13, 15, 19, 26, 28, 29, 30, 33, 34, 35, 36, 50, 51
+    5, 6, 13, 15, 19, 26, 28, 29, 30, 34, 35, 36, 50, 51
 };
 
 constexpr Entry Entries[] = {
@@ -117,6 +117,7 @@ constexpr Entry Entries[] = {
     { INPUT_BIND_SPRINT,           ACTION_KIND_DIGITAL, INPUT_BIND_TYPE_HOTKEY, 48, "Sprint",          false },
     { INPUT_BIND_PLACE_MAP_MARKER, ACTION_KIND_DIGITAL, INPUT_BIND_TYPE_HOTKEY, 49, "PlaceMapMarker",  false },
     { INPUT_BIND_TOGGLE_UFO_SPY_UI,ACTION_KIND_DIGITAL, INPUT_BIND_TYPE_HOTKEY, 52, "ToggleUfoSpyUi",  false },
+    { INPUT_BIND_COMMAND_MODE,     ACTION_KIND_DIGITAL, INPUT_BIND_TYPE_HOTKEY, 33, "CommandMode",     false },
 };
 
 constexpr std::size_t ENTRY_COUNT = sizeof(Entries) / sizeof(Entries[0]);

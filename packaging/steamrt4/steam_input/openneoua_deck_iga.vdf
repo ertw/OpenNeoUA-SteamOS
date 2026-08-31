@@ -6,7 +6,7 @@
 	"creator"		"0"
 	"controller_type"		"controller_neptune"
 	"controller_capacitor"		"1"
-	"revision"		"4"
+	"revision"		"5"
 	"group"
 	{
 		"id"		"0"
@@ -58,6 +58,15 @@
 	"group"
 	{
 		"id"		"3"
+		"mode"		"trigger"
+		"bindings"
+		{
+			"click"		"game_action Menu Fire, Fire"
+		}
+	}
+	"group"
+	{
+		"id"		"4"
 		"mode"		"switches"
 		"bindings"
 		{
@@ -71,11 +80,10 @@
 	}
 	"group"
 	{
-		"id"		"4"
+		"id"		"5"
 		"mode"		"four_buttons"
 		"bindings"
 		{
-			"button_a"		"game_action Ground Brake, Brake"
 			"button_b"		"game_action Ground Quit, Quit"
 			"button_x"		"game_action Ground SwitchWeapon, Switch Weapon"
 			"button_y"		"game_action Ground AlternativeView, Alternative View"
@@ -87,7 +95,7 @@
 	}
 	"group"
 	{
-		"id"		"5"
+		"id"		"6"
 		"mode"		"dpad"
 		"bindings"
 		{
@@ -104,7 +112,7 @@
 	}
 	"group"
 	{
-		"id"		"6"
+		"id"		"7"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -120,7 +128,7 @@
 	}
 	"group"
 	{
-		"id"		"7"
+		"id"		"8"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -129,7 +137,7 @@
 	}
 	"group"
 	{
-		"id"		"8"
+		"id"		"9"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -138,26 +146,44 @@
 	}
 	"group"
 	{
-		"id"		"9"
-		"mode"		"absolute_mouse"
+		"id"		"10"
+		"mode"		"radial_menu"
 		"bindings"
 		{
-			"output"		"game_action Ground Aim, Aim"
+			"Touch_Menu_Button_0"		"game_action Ground SquadManager, Squad Manager"
+			"Touch_Menu_Button_1"		"game_action Ground CommandMode, Command Mode"
+			"Touch_Menu_Button_2"		"game_action Ground Map, Map"
 		}
 		"settings"
 		{
-			"sensitivity"		"120"
-			"trackball"		"0"
-			"rotation_offset"		"0"
+			"touch_menu_button_count"		"4"
+			"touch_menu_opacity"		"100"
+			"touch_menu_inner_radius"		"0.300000"
 		}
 	}
 	"group"
 	{
-		"id"		"10"
+		"id"		"11"
 		"mode"		"joystick_move"
 		"bindings"
 		{
-			"click"		"game_action Ground Sprint, Sprint"
+			"output"		"game_action Ground GunHeight, Gun Height"
+		}
+		"settings"
+		{
+			"deadzone_inner_radius"		"0.100000"
+			"deadzone_outer_radius"		"0.990000"
+			"deadzone_shape"		"1"
+			"edge_binding_radius"		"0.970000"
+		}
+	}
+	"group"
+	{
+		"id"		"12"
+		"mode"		"joystick_move"
+		"bindings"
+		{
+			"click"		"game_action Ground Brake, Brake"
 			"output"		"game_action Ground DriveDir, Drive"
 		}
 		"settings"
@@ -170,7 +196,7 @@
 	}
 	"group"
 	{
-		"id"		"11"
+		"id"		"13"
 		"mode"		"switches"
 		"bindings"
 		{
@@ -184,7 +210,7 @@
 	}
 	"group"
 	{
-		"id"		"12"
+		"id"		"14"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -202,7 +228,7 @@
 	}
 	"group"
 	{
-		"id"		"13"
+		"id"		"15"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -215,11 +241,10 @@
 	}
 	"group"
 	{
-		"id"		"14"
+		"id"		"16"
 		"mode"		"four_buttons"
 		"bindings"
 		{
-			"button_a"		"game_action Air Brake, Brake"
 			"button_b"		"game_action Air Quit, Quit"
 			"button_x"		"game_action Air SwitchWeapon, Switch Weapon"
 			"button_y"		"game_action Air AlternativeView, Alternative View"
@@ -231,7 +256,7 @@
 	}
 	"group"
 	{
-		"id"		"15"
+		"id"		"17"
 		"mode"		"dpad"
 		"bindings"
 		{
@@ -248,7 +273,7 @@
 	}
 	"group"
 	{
-		"id"		"16"
+		"id"		"18"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -264,7 +289,7 @@
 	}
 	"group"
 	{
-		"id"		"17"
+		"id"		"19"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -273,7 +298,7 @@
 	}
 	"group"
 	{
-		"id"		"18"
+		"id"		"20"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -282,10 +307,28 @@
 	}
 	"group"
 	{
-		"id"		"19"
+		"id"		"21"
+		"mode"		"radial_menu"
+		"bindings"
+		{
+			"Touch_Menu_Button_0"		"game_action Air SquadManager, Squad Manager"
+			"Touch_Menu_Button_1"		"game_action Air CommandMode, Command Mode"
+			"Touch_Menu_Button_2"		"game_action Air Map, Map"
+		}
+		"settings"
+		{
+			"touch_menu_button_count"		"4"
+			"touch_menu_opacity"		"100"
+			"touch_menu_inner_radius"		"0.300000"
+		}
+	}
+	"group"
+	{
+		"id"		"22"
 		"mode"		"joystick_move"
 		"bindings"
 		{
+			"click"		"game_action Air Brake, Brake"
 			"output"		"game_action Air FlyDir, Fly Direction"
 		}
 		"settings"
@@ -298,7 +341,7 @@
 	}
 	"group"
 	{
-		"id"		"20"
+		"id"		"23"
 		"mode"		"joystick_move"
 		"bindings"
 		{
@@ -314,7 +357,7 @@
 	}
 	"group"
 	{
-		"id"		"21"
+		"id"		"24"
 		"mode"		"switches"
 		"bindings"
 		{
@@ -328,7 +371,7 @@
 	}
 	"group"
 	{
-		"id"		"22"
+		"id"		"25"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -341,11 +384,10 @@
 	}
 	"group"
 	{
-		"id"		"23"
+		"id"		"26"
 		"mode"		"four_buttons"
 		"bindings"
 		{
-			"button_a"		"game_action Host Brake, Brake"
 			"button_b"		"game_action Host Quit, Quit"
 			"button_x"		"game_action Host SwitchWeapon, Switch Weapon"
 			"button_y"		"game_action Host AlternativeView, Alternative View"
@@ -357,7 +399,7 @@
 	}
 	"group"
 	{
-		"id"		"24"
+		"id"		"27"
 		"mode"		"dpad"
 		"bindings"
 		{
@@ -374,7 +416,7 @@
 	}
 	"group"
 	{
-		"id"		"25"
+		"id"		"28"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -390,7 +432,7 @@
 	}
 	"group"
 	{
-		"id"		"26"
+		"id"		"29"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -399,7 +441,7 @@
 	}
 	"group"
 	{
-		"id"		"27"
+		"id"		"30"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -408,10 +450,28 @@
 	}
 	"group"
 	{
-		"id"		"28"
+		"id"		"31"
+		"mode"		"radial_menu"
+		"bindings"
+		{
+			"Touch_Menu_Button_0"		"game_action Host SquadManager, Squad Manager"
+			"Touch_Menu_Button_1"		"game_action Host CommandMode, Command Mode"
+			"Touch_Menu_Button_2"		"game_action Host Map, Map"
+		}
+		"settings"
+		{
+			"touch_menu_button_count"		"4"
+			"touch_menu_opacity"		"100"
+			"touch_menu_inner_radius"		"0.300000"
+		}
+	}
+	"group"
+	{
+		"id"		"32"
 		"mode"		"joystick_move"
 		"bindings"
 		{
+			"click"		"game_action Host Brake, Brake"
 			"output"		"game_action Host FlyDir, Fly Direction"
 		}
 		"settings"
@@ -424,7 +484,7 @@
 	}
 	"group"
 	{
-		"id"		"29"
+		"id"		"33"
 		"mode"		"joystick_move"
 		"bindings"
 		{
@@ -440,7 +500,7 @@
 	}
 	"group"
 	{
-		"id"		"30"
+		"id"		"34"
 		"mode"		"switches"
 		"bindings"
 		{
@@ -454,7 +514,7 @@
 	}
 	"group"
 	{
-		"id"		"31"
+		"id"		"35"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -467,11 +527,10 @@
 	}
 	"group"
 	{
-		"id"		"32"
+		"id"		"36"
 		"mode"		"four_buttons"
 		"bindings"
 		{
-			"button_a"		"game_action Map Brake, Brake"
 			"button_b"		"game_action Map Quit, Quit"
 			"button_x"		"game_action Map SwitchWeapon, Switch Weapon"
 			"button_y"		"game_action Map AlternativeView, Alternative View"
@@ -483,7 +542,7 @@
 	}
 	"group"
 	{
-		"id"		"33"
+		"id"		"37"
 		"mode"		"dpad"
 		"bindings"
 		{
@@ -500,7 +559,7 @@
 	}
 	"group"
 	{
-		"id"		"34"
+		"id"		"38"
 		"mode"		"absolute_mouse"
 		"bindings"
 		{
@@ -516,7 +575,7 @@
 	}
 	"group"
 	{
-		"id"		"35"
+		"id"		"39"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -525,7 +584,7 @@
 	}
 	"group"
 	{
-		"id"		"36"
+		"id"		"40"
 		"mode"		"trigger"
 		"bindings"
 		{
@@ -534,7 +593,7 @@
 	}
 	"group"
 	{
-		"id"		"37"
+		"id"		"41"
 		"mode"		"switches"
 		"bindings"
 		{
@@ -555,7 +614,8 @@
 			"0"		"button_diamond active"
 			"1"		"dpad active"
 			"2"		"right_trackpad active"
-			"3"		"switch active"
+			"3"		"right_trigger active"
+			"4"		"switch active"
 		}
 	}
 	"preset"
@@ -564,16 +624,17 @@
 		"name"		"Ground"
 		"group_source_bindings"
 		{
-			"4"		"button_diamond active"
-			"5"		"dpad active"
-			"6"		"right_trackpad active"
-			"7"		"right_trigger active"
-			"8"		"left_trigger active"
-			"9"		"right_joystick active"
-			"10"		"joystick active"
-			"11"		"switch active"
-			"12"		"gyro active"
-			"13"		"left_trigger active"
+			"5"		"button_diamond active"
+			"6"		"dpad active"
+			"7"		"right_trackpad active"
+			"8"		"right_trigger active"
+			"9"		"left_trigger active"
+			"10"		"left_trackpad active"
+			"11"		"right_joystick active"
+			"12"		"joystick active"
+			"13"		"switch active"
+			"14"		"gyro active"
+			"15"		"left_trigger active"
 		}
 	}
 	"preset"
@@ -582,15 +643,16 @@
 		"name"		"Air"
 		"group_source_bindings"
 		{
-			"14"		"button_diamond active"
-			"15"		"dpad active"
-			"16"		"right_trackpad active"
-			"17"		"right_trigger active"
-			"18"		"left_trigger active"
-			"19"		"joystick active"
-			"20"		"right_joystick active"
-			"21"		"switch active"
-			"22"		"left_trigger active"
+			"16"		"button_diamond active"
+			"17"		"dpad active"
+			"18"		"right_trackpad active"
+			"19"		"right_trigger active"
+			"20"		"left_trigger active"
+			"21"		"left_trackpad active"
+			"22"		"joystick active"
+			"23"		"right_joystick active"
+			"24"		"switch active"
+			"25"		"left_trigger active"
 		}
 	}
 	"preset"
@@ -599,15 +661,16 @@
 		"name"		"Host"
 		"group_source_bindings"
 		{
-			"23"		"button_diamond active"
-			"24"		"dpad active"
-			"25"		"right_trackpad active"
-			"26"		"right_trigger active"
-			"27"		"left_trigger active"
-			"28"		"joystick active"
-			"29"		"right_joystick active"
-			"30"		"switch active"
-			"31"		"left_trigger active"
+			"26"		"button_diamond active"
+			"27"		"dpad active"
+			"28"		"right_trackpad active"
+			"29"		"right_trigger active"
+			"30"		"left_trigger active"
+			"31"		"left_trackpad active"
+			"32"		"joystick active"
+			"33"		"right_joystick active"
+			"34"		"switch active"
+			"35"		"left_trigger active"
 		}
 	}
 	"preset"
@@ -616,12 +679,12 @@
 		"name"		"Map"
 		"group_source_bindings"
 		{
-			"32"		"button_diamond active"
-			"33"		"dpad active"
-			"34"		"right_trackpad active"
-			"35"		"right_trigger active"
-			"36"		"left_trigger active"
-			"37"		"switch active"
+			"36"		"button_diamond active"
+			"37"		"dpad active"
+			"38"		"right_trackpad active"
+			"39"		"right_trigger active"
+			"40"		"left_trigger active"
+			"41"		"switch active"
 		}
 	}
 	"settings"

@@ -53,6 +53,7 @@
 				"Sprint"		"#Action_Sprint"
 				"PlaceMapMarker"		"#Action_PlaceMapMarker"
 				"ToggleUfoSpyUi"		"#Action_ToggleUfoSpyUi"
+				"CommandMode"		"#Action_CommandMode"
 				"MenuUp"		"#Action_MenuUp"
 				"MenuDown"		"#Action_MenuDown"
 				"MenuLeft"		"#Action_MenuLeft"
@@ -145,6 +146,7 @@
 				"Sprint"		"#Action_Sprint"
 				"PlaceMapMarker"		"#Action_PlaceMapMarker"
 				"ToggleUfoSpyUi"		"#Action_ToggleUfoSpyUi"
+				"CommandMode"		"#Action_CommandMode"
 			}
 			"AnalogTrigger"
 			{
@@ -231,6 +233,7 @@
 				"Sprint"		"#Action_Sprint"
 				"PlaceMapMarker"		"#Action_PlaceMapMarker"
 				"ToggleUfoSpyUi"		"#Action_ToggleUfoSpyUi"
+				"CommandMode"		"#Action_CommandMode"
 			}
 			"AnalogTrigger"
 			{
@@ -317,6 +320,7 @@
 				"Sprint"		"#Action_Sprint"
 				"PlaceMapMarker"		"#Action_PlaceMapMarker"
 				"ToggleUfoSpyUi"		"#Action_ToggleUfoSpyUi"
+				"CommandMode"		"#Action_CommandMode"
 			}
 			"AnalogTrigger"
 			{
@@ -403,6 +407,7 @@
 				"Sprint"		"#Action_Sprint"
 				"PlaceMapMarker"		"#Action_PlaceMapMarker"
 				"ToggleUfoSpyUi"		"#Action_ToggleUfoSpyUi"
+				"CommandMode"		"#Action_CommandMode"
 			}
 			"AnalogTrigger"
 			{
@@ -471,6 +476,7 @@
 			"Action_Brake"		"Brake"
 			"Action_CamFire"		"Cam Fire"
 			"Action_CockpitCamera"		"Cockpit Camera"
+			"Action_CommandMode"		"Command Mode"
 			"Action_ControlToComm"		"Control To Comm"
 			"Action_ControlToHost"		"Control To Host"
 			"Action_ControlUnit"		"Control Unit"

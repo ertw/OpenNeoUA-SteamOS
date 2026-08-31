@@ -131,6 +131,8 @@ class SteamInputIgaTests(unittest.TestCase):
             REPO_ROOT / "packaging" / "steamrt4" / "steam_input" / "openneoua_deck_iga.vdf"
         ).read_text(encoding="utf-8")
         self.assertIn('\t"group"', layout)
+        self.assertIn("CommandMode", layout)
+        self.assertIn('"revision"\t\t"5"', layout)
         self.assertNotRegex(
             layout,
             r'"preset"\s*\n\t\{\s*\n(?:\t\t"[^"]+"\t+"[^"]+"\s*\n)+\t\tgroup',

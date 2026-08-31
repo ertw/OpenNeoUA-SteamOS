@@ -324,6 +324,23 @@ void ActionInput::ClearPendingHotKeys()
     _pendingHotKeys.clear();
 }
 
+void ActionInput::ApplyGrabbedAimLook(float aimX, float aimY)
+{
+    if ( aimX == 0.0f && aimY == 0.0f )
+        return;
+
+    _samples[World::INPUT_BIND_FLY_DIR].posX =
+        CombinePosition(_samples[World::INPUT_BIND_FLY_DIR].posX, aimX);
+    _samples[World::INPUT_BIND_DRIVE_DIR].posX =
+        CombinePosition(_samples[World::INPUT_BIND_DRIVE_DIR].posX, aimX);
+    _samples[World::INPUT_BIND_FLY_HEIGHT].posX =
+        CombinePosition(_samples[World::INPUT_BIND_FLY_HEIGHT].posX, aimY);
+
+    const float gunHeight = -aimY * 1.5f;
+    _samples[World::INPUT_BIND_GUN_HEIGHT].posX =
+        CombinePosition(_samples[World::INPUT_BIND_GUN_HEIGHT].posX, gunHeight);
+}
+
 
 namespace ActionParity
 {

@@ -84,7 +84,7 @@ const int LEGACY_HOTKEY[53] = {
     -1,                           -1,
 
     -1,                           World::INPUT_BIND_LAST_MSG,
-    World::INPUT_BIND_PAUSE,      -1,
+    World::INPUT_BIND_PAUSE,      World::INPUT_BIND_COMMAND_MODE,
     -1,                           -1,
     -1,                           World::INPUT_BIND_TO_ALL,
     World::INPUT_BIND_AGGR_1,     World::INPUT_BIND_AGGR_2,
@@ -113,8 +113,8 @@ int TestActionTable()
     using namespace World::ActionTable;
 
     Check(ENTRY_COUNT == (std::size_t)(World::INPUT_BIND_MAX - 1),
-          "action table must carry 52 live bindings");
-    Check(HOLE_COUNT == 15, "hotkey channel must have 15 explicit holes");
+          "action table must carry 53 live bindings");
+    Check(HOLE_COUNT == 14, "hotkey channel must have 14 explicit holes");
 
     // Every live binding appears exactly once.
     for ( int binding = 1; binding < World::INPUT_BIND_MAX; binding++ )

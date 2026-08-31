@@ -13,6 +13,9 @@
 #include "env.h"
 #include "loaders.h"
 #include "system/inivals.h"
+#include "system/action_set_sync.h"
+#include "system/menu_focus.h"
+#include "system/virtual_pointer.h"
 #include "utils.h"
 
 extern GuiList stru_5C91D0;
@@ -2601,6 +2604,7 @@ void NC_STACK_ypaworld::ypaworld_func158__sub4__sub1()
         }
         else
         {
+            Input::ApplyCampaignMapVirtualPointer(_GameShell->Input);
             ypaworld_func158__sub4__sub1__sub0(this, _GameShell->Input);
 
             if ( _GameShell->EnvMode == ENVMODE_TUTORIAL )
@@ -3470,6 +3474,21 @@ void ypaworld_func158__sub3(NC_STACK_ypaworld *yw, UserData *usr)
         break;
     }
     ypaworld_func158__confirm_draw(usr);
+
+    if ( Input::SteamInputControlsJoystick() &&
+         (usr->EnvMode == ENVMODE_TITLE ||
+          usr->EnvMode == ENVMODE_SINGLEPLAY ||
+          usr->EnvMode == ENVMODE_TUTORIAL ||
+          usr->EnvMode == ENVMODE_INPUT ||
+          usr->EnvMode == ENVMODE_SETTINGS ||
+          usr->EnvMode == ENVMODE_NETPLAY ||
+          usr->EnvMode == ENVMODE_SELLOCALE ||
+          usr->EnvMode == ENVMODE_ABOUT ||
+          usr->EnvMode == ENVMODE_DATABASE ||
+          usr->EnvMode == ENVMODE_SELPLAYER) )
+    {
+        Input::DrawVirtualPointer(yw, 0);
+    }
 }
 
 void yw_freeTileSets(NC_STACK_ypaworld *yw)

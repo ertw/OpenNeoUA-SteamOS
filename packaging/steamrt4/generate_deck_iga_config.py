@@ -15,9 +15,8 @@ except ImportError:  # pragma: no cover
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = REPO_ROOT / "packaging" / "steamrt4" / "steam_input" / "openneoua_deck_iga.vdf"
 
-# Shared face / shoulder / d-pad bindings per action set (same physical layout).
-FACE_BINDINGS = (
-    ("button_a", "Brake", "Brake"),
+# Gameplay face buttons: A is intentionally unbound (Brake moved to stick click).
+GAMEPLAY_FACE_BINDINGS = (
     ("button_b", "Quit", "Quit"),
     ("button_x", "SwitchWeapon", "Switch Weapon"),
     ("button_y", "AlternativeView", "Alternative View"),
@@ -37,6 +36,13 @@ SWITCH_BINDINGS = (
     ("right_bumper", "CycleTarget", "Cycle Target"),
     ("button_back_left_upper", "NextUnit", "Next Unit"),
     ("button_back_right_upper", "ControlUnit", "Control Unit"),
+)
+
+# Steam Deck 4-way radial order: E, N, W, S.
+VEHICLE_RADIAL_BINDINGS = (
+    ("Touch_Menu_Button_0", "SquadManager", "Squad Manager"),
+    ("Touch_Menu_Button_1", "CommandMode", "Command Mode"),
+    ("Touch_Menu_Button_2", "Map", "Map"),
 )
 
 
@@ -75,9 +81,9 @@ def emit_binding(lines: list[str], control: str, value: str) -> None:
     lines.append('\t\t\t"{}"\t\t"{}"'.format(control, value))
 
 
-def emit_face_group(lines: list[str], gid: str, action_set: str) -> None:
+def emit_gameplay_face_group(lines: list[str], gid: str, action_set: str) -> None:
     emit_group_open(lines, gid, "four_buttons")
-    for control, action, label in FACE_BINDINGS:
+    for control, action, label in GAMEPLAY_FACE_BINDINGS:
         emit_binding(lines, control, game_action(action_set, action, label))
     lines.append("\t\t}")
     lines.append('\t\t"settings"')
@@ -158,11 +164,12 @@ def emit_joystick_group(
     action: str,
     label: str,
     *,
-    sprint_action: str | None = None,
+    click_action: str | None = None,
+    click_label: str = "Brake",
 ) -> None:
     emit_group_open(lines, gid, "joystick_move")
-    if sprint_action:
-        emit_binding(lines, "click", game_action(action_set, sprint_action, "Sprint"))
+    if click_action:
+        emit_binding(lines, "click", game_action(action_set, click_action, click_label))
     emit_binding(lines, "output", game_action(action_set, action, label))
     lines.append("\t\t}")
     lines.append('\t\t"settings"')
@@ -213,6 +220,24 @@ def emit_switch_group(lines: list[str], gid: str, action_set: str) -> None:
     emit_group_close(lines)
 
 
+def emit_vehicle_radial_menu(lines: list[str], gid: str, action_set: str) -> None:
+    emit_group_open(lines, gid, "radial_menu")
+    for control, action, label in VEHICLE_RADIAL_BINDINGS:
+        emit_binding(lines, control, game_action(action_set, action, label))
+    lines.append("\t\t}")
+    lines.append('\t\t"settings"')
+    lines.append("\t\t{")
+    lines.append('\t\t\t"touch_menu_button_count"\t\t"4"')
+    lines.append('\t\t\t"touch_menu_opacity"\t\t"100"')
+    lines.append('\t\t\t"touch_menu_inner_radius"\t\t"0.300000"')
+    lines.append("\t\t}")
+    emit_group_close(lines)
+
+
+def emit_vehicle_radial_sources(lines: list[str], sources: SourceMap, action_set: str) -> None:
+    emit_vehicle_radial_menu(lines, sources.add(action_set, "left_trackpad active"), action_set)
+
+
 def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -> None:
     if action_set == "Menu":
         emit_menu_face(lines, sources.add(action_set, "button_diamond active"))
@@ -225,11 +250,14 @@ def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -
             "Menu Cursor",
             sensitivity="100",
         )
+        emit_trigger_group(
+            lines, sources.add(action_set, "right_trigger active"), "click", "Menu", "Fire", "Fire"
+        )
         emit_switch_group(lines, sources.add(action_set, "switch active"), action_set)
         return
 
     if action_set == "Map":
-        emit_face_group(lines, sources.add(action_set, "button_diamond active"), action_set)
+        emit_gameplay_face_group(lines, sources.add(action_set, "button_diamond active"), action_set)
         emit_dpad_group(lines, sources.add(action_set, "dpad active"), action_set)
         emit_absolute_mouse_group(
             lines,
@@ -250,7 +278,7 @@ def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -
         emit_switch_group(lines, sources.add(action_set, "switch active"), action_set)
         return
 
-    emit_face_group(lines, sources.add(action_set, "button_diamond active"), action_set)
+    emit_gameplay_face_group(lines, sources.add(action_set, "button_diamond active"), action_set)
     emit_dpad_group(lines, sources.add(action_set, "dpad active"), action_set)
     emit_absolute_mouse_group(
         lines,
@@ -268,14 +296,14 @@ def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -
     emit_trigger_group(
         lines, sources.add(action_set, "left_trigger active"), "click", action_set, "Gun", "Gun"
     )
+    emit_vehicle_radial_sources(lines, sources, action_set)
     if action_set == "Ground":
-        emit_absolute_mouse_group(
+        emit_joystick_group(
             lines,
             sources.add(action_set, "right_joystick active"),
             action_set,
-            "Aim",
-            "Aim",
-            sensitivity="120",
+            "GunHeight",
+            "Gun Height",
         )
         emit_joystick_group(
             lines,
@@ -283,7 +311,7 @@ def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -
             action_set,
             "DriveDir",
             "Drive",
-            sprint_action="Sprint",
+            click_action="Brake",
         )
         emit_switch_group(lines, sources.add(action_set, "switch active"), action_set)
         emit_absolute_mouse_group(
@@ -305,7 +333,12 @@ def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -
         return
 
     emit_joystick_group(
-        lines, sources.add(action_set, "joystick active"), action_set, "FlyDir", "Fly Direction"
+        lines,
+        sources.add(action_set, "joystick active"),
+        action_set,
+        "FlyDir",
+        "Fly Direction",
+        click_action="Brake",
     )
     emit_joystick_group(
         lines, sources.add(action_set, "right_joystick active"), action_set, "FlyHeight", "Fly Height"
@@ -340,7 +373,7 @@ def build_vdf() -> str:
         '\t"creator"\t\t"0"',
         '\t"controller_type"\t\t"controller_neptune"',
         '\t"controller_capacitor"\t\t"1"',
-        '\t"revision"\t\t"4"',
+        '\t"revision"\t\t"5"',
     ]
     for action_set in ACTION_SETS:
         emit_groups_for_set(lines, sources, action_set)
