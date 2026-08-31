@@ -29,7 +29,6 @@ enum ACTION_SET
     ACTION_SET_GROUND,
     ACTION_SET_AIR,
     ACTION_SET_HOST,
-    ACTION_SET_MAP,
 
     ACTION_SET_COUNT
 };
@@ -54,7 +53,7 @@ public:
 
     // Writes a TInputState from the facade.  Action-mapped engine slots come
     // from the samples; every other slot is carried through verbatim.
-    void PopulateLegacyState(TInputState *state) const;
+    void PopulateLegacyState(TInputState *state);
 
     const ActionSample &Sample(int binding) const;
     bool Active(int binding) const;

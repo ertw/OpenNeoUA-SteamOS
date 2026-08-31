@@ -27,6 +27,7 @@
 #include "common/env.h"
 #include "system/inivals.h"
 #include "system/gametime.h"
+#include "system/action_input.h"
 #include "system/system.h"
 #include "locale/locale.h"
 #include "common/utils.h"

@@ -347,7 +347,7 @@ public:
     // OpenNeoUA: evaluates this frame's input expressions into the raw
     // primitive layer the action facade consumes.  Exposed so the facade and
     // its parity harness can be driven without going through QueryInput.
-    void EvaluateLegacyPrimitives(LegacyInputPrimitives *out);
+    void EvaluateLegacyPrimitives(LegacyInputPrimitives *out, bool resolveClicks = true);
     void SetPointerResolution(const Common::Point &physicalSize,
                               const Common::Point &logicalSize);
 
@@ -409,6 +409,9 @@ protected:
     std::vector<TQueryState> Interfaces;
     Common::Point _pointerPhysicalResolution;
     Common::Point _pointerLogicalResolution;
+    Common::Point _steamVirtualPointer;
+    Common::Point _lastPhysicalPointer;
+    bool _steamVirtualPointerReady = false;
 
 public:
     NC_STACK_itimer *_timer    = nullptr;
