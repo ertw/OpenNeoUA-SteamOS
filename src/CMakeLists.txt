@@ -87,6 +87,7 @@ set(SOURCES
     system/inpt.cpp
     system/luascript.cpp
     system/movie.cpp
+    system/sleepnotify.cpp
     system/sound.cpp
     system/stdshdr.cpp
     system/system.cpp
@@ -200,6 +201,10 @@ find_package(PkgConfig REQUIRED)
 find_package(Threads REQUIRED)
 add_subdirectory(third_party/bullet)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    pkg_check_modules(LIBSYSTEMD QUIET IMPORTED_TARGET libsystemd)
+endif()
+
 pkg_search_module(SDL2 REQUIRED sdl2)
 link_directories(${SDL2_LIBRARY_DIRS})
 
@@ -272,6 +277,11 @@ target_link_libraries(
     OpenNeoUACollision
 )
 
+if(LIBSYSTEMD_FOUND)
+    target_compile_definitions(OpenNeoUA PRIVATE OPENNEOUA_HAVE_SYSTEMD=1)
+    target_link_libraries(OpenNeoUA PkgConfig::LIBSYSTEMD)
+endif()
+
 if(WIN32)
     target_link_libraries(OpenNeoUA dbghelp psapi)
 endif()
@@ -341,3 +351,11 @@ target_include_directories(
 )
 target_link_libraries(test_gamepad_input ${SDL2_LIBRARIES})
 add_test(NAME gamepad_input COMMAND test_gamepad_input)
+
+add_executable(
+    test_sleep_notifications
+    tests/test_sleep_notifications.cpp
+    system/sleepnotify.cpp
+)
+target_include_directories(test_sleep_notifications PRIVATE ${PROJECT_SOURCE_DIR})
+add_test(NAME sleep_notifications COMMAND test_sleep_notifications)

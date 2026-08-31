@@ -763,6 +763,13 @@ int32_t FrameClockDelta(int32_t measured)
 
 int ProcessNextFrame()
 {
+    if ( System::ConsumePrepareForSleep() &&
+         GameScreenMode == GAME_SCREEN_MODE_GAME &&
+         ypaworld && !ypaworld->_isNetGame )
+    {
+        ypaworld->RequestGameplayPause();
+    }
+
     CrashDiag::FrameBegin(world_update_arg.TimeStamp, GameScreenMode, DiagnosticLevelId());
     CrashDiag::SetPhase("InputQuery");
 

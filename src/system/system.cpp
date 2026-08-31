@@ -9,6 +9,7 @@
 #include "../fmtlib/printf.h"
 
 #include "system.h"
+#include "sleepnotify.h"
 #include "fsmgr.h"
 #include "inivals.h"
 #include "common/utils.h"
@@ -384,6 +385,7 @@ TTF_Font *LoadFont(const std::string &fontname, int height)
 void Init(bool oldGL)
 {
     EventHandlers.clear();
+    SleepNotifications::Init();
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_JOYSTICK |
                  SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) < 0)
@@ -427,6 +429,8 @@ void Init(bool oldGL)
 
 void Deinit()
 {
+    SleepNotifications::Deinit();
+
     IMG_Quit();
 
     FontsList.clear();
