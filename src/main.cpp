@@ -6,9 +6,6 @@
 #include "includes.h"
 #include "system/gfx.h"
 #include "system/inpt.h"
-#include "system/action_input.h"
-#include "system/action_backend.h"
-#include "system/steam_api_loader.h"
 #include "winp.h"
 #include "wintimer.h"
 
@@ -46,7 +43,6 @@
 #include "gui/uaempty.h"
 #include "system/movie.h"
 #include "system/inivals.h"
-#include "system/steam_api_loader.h"
 #include "world/blacksecttint.h"
 #include "world/energyfx.h"
 #include "obj3d.h"
@@ -54,27 +50,11 @@
 
 #include <fstream>
 #include <sstream>
-#include <csignal>
 #include <sys/stat.h>
 #include <cerrno>
-#include <cstring>
-#ifndef _WIN32
-#include <limits.h>
-#include <unistd.h>
-#endif
 
 int ProcessNextFrame();
 extern UserData userdata;
-
-namespace
-{
-volatile std::sig_atomic_t QuitSignalReceived = 0;
-
-void HandleQuitSignal(int)
-{
-    QuitSignalReceived = 1;
-}
-}
 
 static bool MenuSmokeEnabled()
 {
@@ -279,100 +259,6 @@ static bool MenuSmokeWriteReportAfterShutdown()
     return true;
 }
 
-static bool MenuSmokeFindEnabledRegionPoint(int *outX, int *outY)
-{
-    if ( !ypaworld || !outX || !outY )
-        return false;
-
-    TMapRegionsNet &regions = ypaworld->_globalMapRegions;
-    const Common::Point screenSize = ypaworld->_screenSize;
-
-    int bestIndex = 0;
-    float bestArea = 0.0f;
-    for ( int i = 1; i < 256; ++i )
-    {
-        const TMapRegionInfo &info = regions.MapRegions[i];
-        if ( info.Status != TMapRegionInfo::STATUS_ENABLED &&
-             info.Status != TMapRegionInfo::STATUS_COMPLETED )
-            continue;
-
-        const Common::FRect &rect = info.Rect;
-        if ( rect.right <= rect.left || rect.bottom <= rect.top )
-            continue;
-
-        const float area = (rect.right - rect.left) * (rect.bottom - rect.top);
-        if ( area > bestArea )
-        {
-            bestArea = area;
-            bestIndex = i;
-        }
-    }
-
-    if ( bestIndex > 0 )
-    {
-        const Common::FRect &rect = regions.MapRegions[bestIndex].Rect;
-        const float centerX = (rect.left + rect.right) * 0.5f;
-        const float centerY = (rect.top + rect.bottom) * 0.5f;
-        *outX = (int)((centerX + 1.0f) * 0.5f * screenSize.x);
-        *outY = (int)((centerY + 1.0f) * 0.5f * screenSize.y);
-        return true;
-    }
-
-    if ( !regions.MaskImage )
-        return false;
-
-    ResBitmap *bitmap = regions.MaskImage->GetBitmap();
-    if ( !bitmap || !bitmap->swTex )
-        return false;
-
-    SDL_LockSurface(bitmap->swTex);
-    const int width = bitmap->swTex->w;
-    const int height = bitmap->swTex->h;
-    const int pitch = bitmap->swTex->pitch;
-    const uint8_t *pixels = (const uint8_t *)bitmap->swTex->pixels;
-
-    bool found = false;
-    for ( int y = 0; y < height && !found; ++y )
-    {
-        for ( int x = 0; x < width; ++x )
-        {
-            const uint8_t regionIndex = pixels[y * pitch + x];
-            if ( regionIndex == 0 || regionIndex >= 256 )
-                continue;
-
-            const int status = regions.MapRegions[regionIndex].Status;
-            if ( status != TMapRegionInfo::STATUS_ENABLED &&
-                 status != TMapRegionInfo::STATUS_COMPLETED )
-                continue;
-
-            *outX = x * screenSize.x / width;
-            *outY = y * screenSize.y / height;
-            found = true;
-            break;
-        }
-    }
-
-    SDL_UnlockSurface(bitmap->swTex);
-    return found;
-}
-
-static void MenuSmokeSetPointerPhysical(int x, int y)
-{
-    NC_STACK_winp::SmokeSetPointerPhysical(Common::Point(x, y));
-}
-
-static bool MenuSmokePushSteamMenuNav(Input::MENU_NAV_ACTION action)
-{
-    Input::SteamBackend().PulseMenuNav(action);
-    return true;
-}
-
-static bool MenuSmokePushSteamMenuConfirmRelease()
-{
-    Input::SteamBackend().PulseMenuConfirmRelease();
-    return true;
-}
-
 static bool RunMenuSmoke()
 {
     g_menuSmokeReport.clear();
@@ -394,7 +280,20 @@ static bool RunMenuSmoke()
         return false;
     }
 
-    Input::SteamBackend().EnableSmokeMode();
+    const int optionsIndex = userdata.titel_button->GetIndexByID(UIWidgets::MAIN_MENU_WIDGET_IDS::BTN_OPTIONS);
+    if (optionsIndex < 0 || optionsIndex >= (int)userdata.titel_button->field_d8.size() ||
+        optionsIndex >= (int)userdata.titel_button->buttons.size())
+    {
+        ypa_log_out("menu smoke: Options widget was not created\n");
+        return false;
+    }
+    const NC_STACK_button::button_str2 &options = userdata.titel_button->field_d8[optionsIndex];
+    const ButtonBox &bounds = userdata.titel_button->buttons[optionsIndex];
+    if (bounds.w <= 0 || bounds.h <= 0 || options.width <= 0)
+    {
+        ypa_log_out("menu smoke: Options widget has empty bounds\n");
+        return false;
+    }
 
     int frameCount = 0;
     if (!MenuSmokeRenderFrames(3, &frameCount))
@@ -408,68 +307,35 @@ static bool RunMenuSmoke()
         ypa_log_out("menu smoke: renderer did not select 1280x800\n");
         return false;
     }
-
-    // Single Player is the first focusable title widget; confirm via Steam Input.
-    if (!MenuSmokePushSteamMenuNav(Input::MENU_NAV_CONFIRM))
+    const int clickX = (bounds.x + bounds.w / 2) * physical.x / logical.x;
+    const int clickY = (bounds.y + bounds.h / 2) * physical.y / logical.y;
+    if (!MenuSmokePushMouse(SDL_MOUSEMOTION, clickX, clickY) || System::ProcessEvents())
         return false;
-    if (!MenuSmokeRenderFrames(1, &frameCount) || System::ProcessEvents())
+    if (!MenuSmokePushMouse(SDL_MOUSEBUTTONDOWN, clickX, clickY, SDL_BUTTON_LEFT) || System::ProcessEvents())
         return false;
-    if (!MenuSmokePushSteamMenuConfirmRelease())
+    if (!MenuSmokeRenderFrames(1, &frameCount))
         return false;
-    if (!MenuSmokeRenderFrames(2, &frameCount) || userdata.EnvMode != ENVMODE_SINGLEPLAY)
+    if (!MenuSmokePushMouse(SDL_MOUSEBUTTONUP, clickX, clickY, SDL_BUTTON_LEFT) || System::ProcessEvents())
+        return false;
+    if (!MenuSmokeRenderFrames(1, &frameCount) || userdata.EnvMode != ENVMODE_SETTINGS)
     {
-        ypa_log_out("menu smoke: Steam MenuConfirm did not enter campaign map select\n");
+        ypa_log_out("menu smoke: normal Options click did not enter settings\n");
         return false;
     }
-
-    if (!MenuSmokeRenderFrames(15, &frameCount))
+    if (!MenuSmokeRenderFrames(2, &frameCount))
         return false;
+    GFX::Engine.SaveScreenshot("env:snaps/menu-options");
 
-    if (!ypaworld->_globalMapRegions.MaskImage)
-    {
-        ypa_log_out("menu smoke: campaign map mask image is not loaded\n");
+    if (!MenuSmokePushEscape() || System::ProcessEvents())
         return false;
-    }
-
-    int mapClickX = 0;
-    int mapClickY = 0;
-    if (!MenuSmokeFindEnabledRegionPoint(&mapClickX, &mapClickY))
+    if (!MenuSmokeRenderFrames(1, &frameCount) || userdata.EnvMode != ENVMODE_TITLE)
     {
-        ypa_log_out("menu smoke: no enabled campaign map region found on mask bitmap\n");
+        ypa_log_out("menu smoke: normal Escape did not return to title\n");
         return false;
     }
-
-    const int physicalClickX = mapClickX * physical.x / logical.x;
-    const int physicalClickY = mapClickY * physical.y / logical.y;
-    int selectedRegion = 0;
-
-    for (int attempt = 0; attempt < 3; ++attempt)
-    {
-        MenuSmokeSetPointerPhysical(physicalClickX, physicalClickY);
-        if (!MenuSmokePushMouse(SDL_MOUSEMOTION, physicalClickX, physicalClickY) || System::ProcessEvents())
-            return false;
-        MenuSmokeSetPointerPhysical(physicalClickX, physicalClickY);
-        if (!MenuSmokeRenderFrames(2, &frameCount))
-            return false;
-        selectedRegion = ypaworld->_globalMapRegions.SelectedRegion;
-        if (selectedRegion > 0)
-            break;
-    }
-    if (selectedRegion <= 0)
-    {
-        ypa_log_out("menu smoke: campaign map hover did not select a region\n");
+    if (!MenuSmokeRenderFrames(2, &frameCount))
         return false;
-    }
-
-    GFX::Engine.SaveScreenshot("env:snaps/menu-campaign-map");
-
-    // Stop at campaign map select.  A left click would start InitBriefing or
-    // ACTION_PLAY and can stall headless smoke runs for minutes.
-    if (userdata.EnvMode != ENVMODE_SINGLEPLAY)
-    {
-        ypa_log_out("menu smoke: left campaign map select before report\n");
-        return false;
-    }
+    GFX::Engine.SaveScreenshot("env:snaps/menu-title-after");
 
     const char *renderer = (const char *)glGetString(GL_RENDERER);
     const char *version = (const char *)glGetString(GL_VERSION);
@@ -479,19 +345,17 @@ static bool RunMenuSmoke()
     const std::string sourceId = MenuSmokeProvenanceValue(provenance, "source_id");
 
     std::string report;
-    report += "{\n  \"version\": 2,\n";
-    report += "  \"steam_input\": true,\n";
+    report += "{\n  \"version\": 1,\n";
     report += "  \"milestones\": [\n";
     report += "    {\"event\": \"title-before\", \"mode\": \"ENVMODE_TITLE\", \"frames\": 3},\n";
-    report += "    {\"event\": \"campaign-map\", \"mode\": \"ENVMODE_SINGLEPLAY\", \"frames\": 10}\n  ],\n";
-    report += fmt::sprintf("  \"frame_count\": %d,\n", frameCount);
-    report += fmt::sprintf("  \"selected_region\": %d,\n", selectedRegion);
-    report += fmt::sprintf("  \"map_probe\": [%d, %d],\n", mapClickX, mapClickY);
+    report += "    {\"event\": \"options\", \"mode\": \"ENVMODE_SETTINGS\", \"frames\": 2},\n";
+    report += "    {\"event\": \"title-after\", \"mode\": \"ENVMODE_TITLE\", \"frames\": 2}\n  ],\n";
+    report += fmt::sprintf("  \"frame_count\": %d,\n  \"title_frames\": 5,\n  \"options_frames\": 2,\n", frameCount);
     report += fmt::sprintf("  \"resolution\": [%d, %d],\n", physical.x, physical.y);
     report += "  \"renderer\": {\"gl_renderer\": \"" + MenuSmokeJsonEscape(renderer ? renderer : "") +
              "\", \"gl_version\": \"" + MenuSmokeJsonEscape(version ? version : "") +
              "\", \"gl_vendor\": \"" + MenuSmokeJsonEscape(vendor ? vendor : "") + "\"},\n";
-    report += "  \"final_mode\": \"ENVMODE_SINGLEPLAY\",\n";
+    report += "  \"final_mode\": \"ENVMODE_TITLE\",\n";
     report += "  \"asset_provenance\": {\"asset_root\": \"" + MenuSmokeJsonEscape(FSMgr::iDir::getAssetRoot()) +
              "\", \"source_id\": \"" + MenuSmokeJsonEscape(sourceId) +
              "\", \"iso_sha256\": \"" + MenuSmokeJsonEscape(isoSha) + "\"}\n}\n";
@@ -510,6 +374,14 @@ int tform_inited = 0;
 int audio_inited = 0;
 int input_inited = 0;
 
+enum GAME_SCREEN_MODE {
+    GAME_SCREEN_MODE_UNKNOWN = 0,
+    GAME_SCREEN_MODE_MENU = 1,
+    GAME_SCREEN_MODE_GAME = 2,
+    GAME_SCREEN_MODE_REPLAY = 3
+};
+
+GAME_SCREEN_MODE GameScreenMode;
 UserData userdata;
 
 static int DiagnosticLevelId()
@@ -1041,9 +913,6 @@ void deinit_globl_engines()
         TF::Engine.Deinit();
     if ( input_inited )
         Input::Engine.Deinit();
-    // Input deinit sends a final zero-vibration command. Keep Steam Input
-    // alive until that controller state has been cleared.
-    Steam::ApiLoader::Instance.Shutdown();
     if ( audio_inited )
         SFXEngine::SFXe.deinit();
 
@@ -1090,12 +959,6 @@ int WinMain__sub0__sub0()
     audio_inited = SFXEngine::SFXe.init();
     input_inited = Input::Engine.Init();
     tform_inited = TF::Engine.Init();
-
-    // OpenNeoUA: optional and non-fatal. The log line it emits is the primary
-    // on-device diagnostic for Steam Input, including the app-id mismatch that
-    // a non-Steam shortcut causes.
-    Steam::ApiLoader::Instance.Initialize();
-    Input::Actions.AddBackend(&Input::SteamBackend());
 
     if ( !audio_inited )
     {
@@ -1287,63 +1150,25 @@ int WinMain__sub0()
 
 uint32_t maxTicks = 1000/60; // init on 60FPS
 
-#ifndef _WIN32
-static std::string ResolveNativeGameRoot()
-{
-    char exe[PATH_MAX];
-    ssize_t n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
-    if (n <= 0)
-        return std::string();
-    exe[n] = '\0';
-    std::string path(exe);
-    std::string::size_type slash = path.find_last_of('/');
-    if (slash == std::string::npos || slash == 0)
-        return std::string();
-    std::string dir = path.substr(0, slash);
-    std::string::size_type slash2 = dir.find_last_of('/');
-    std::string leaf = (slash2 == std::string::npos) ? dir : dir.substr(slash2 + 1);
-    // Overlay install layout is <game-root>/bin/OpenNeoUA.
-    if (leaf == "bin" && slash2 != std::string::npos)
-        return dir.substr(0, slash2);
-    return dir;
-}
-#endif
-
-static bool IsSteamCompatVerb(const char *arg)
-{
-    return arg && (std::strcmp(arg, "waitforexitandrun") == 0 || std::strcmp(arg, "run") == 0);
-}
-
 int main(int argc, char *argv[])
 {
-    // Steam's Stop command may terminate the AppImage through SIGTERM rather
-    // than an SDL_QUIT event. Keep the handler async-signal-safe and let the
-    // normal loop perform engine/Steam shutdown.
-    std::signal(SIGTERM, HandleQuitSignal);
-    std::signal(SIGINT, HandleQuitSignal);
-
-    System::AddCmdLine(argv[0] ? argv[0] : "");
-    int argi = 1;
-    while (argi < argc && IsSteamCompatVerb(argv[argi]))
-        argi++;
-    for (int i = argi; i < argc; ++i)
-        System::AddCmdLine(argv[i] ? argv[i] : "");
+    for(int i = 0; i < argc; ++i)
+        System::AddCmdLine( std::string(argv[i]) );
 
     System::IniConf::Init();
     std::string assetRoot;
     std::string userRoot;
-    const std::vector<std::string> &cmdl = System::GetCmdLineArray();
     int32_t assetArg = System::FindCmdLineArg("--asset-root");
     int32_t userArg = System::FindCmdLineArg("--user-dir");
-    if (assetArg >= 0 && assetArg + 1 < (int32_t)cmdl.size())
-        assetRoot = cmdl[assetArg + 1];
+    if (assetArg >= 0 && assetArg + 1 < argc)
+        assetRoot = argv[assetArg + 1];
     else if (assetArg >= 0)
     {
         ypa_log_out("--asset-root requires a path\n");
         return 2;
     }
-    if (userArg >= 0 && userArg + 1 < (int32_t)cmdl.size())
-        userRoot = cmdl[userArg + 1];
+    if (userArg >= 0 && userArg + 1 < argc)
+        userRoot = argv[userArg + 1];
     else if (userArg >= 0)
     {
         ypa_log_out("--user-dir requires a path\n");
@@ -1379,21 +1204,7 @@ int main(int argc, char *argv[])
         FSMgr::iDir::setRoots(".", userRoot);
     }
     else
-    {
-#ifndef _WIN32
-        std::string gameRoot = ResolveNativeGameRoot();
-        if (!gameRoot.empty())
-        {
-            if (chdir(gameRoot.c_str()) != 0)
-                ypa_log_out("unable to chdir to game root %s\n", gameRoot.c_str());
-            FSMgr::iDir::setBaseDir(gameRoot);
-        }
-        else
-            FSMgr::iDir::setBaseDir("");
-#else
         FSMgr::iDir::setBaseDir("");
-#endif
-    }
 
     System::IniConf::ReadFromNucleusIni();
     bool gfxVbo = System::IniConf::GfxVBO.Get<bool>();
@@ -1479,8 +1290,6 @@ int main(int argc, char *argv[])
 
     while ( true )
     {
-        if ( QuitSignalReceived )
-            break;
 
         if (GFX::Engine.FpsMaxTicks == 0)
         {

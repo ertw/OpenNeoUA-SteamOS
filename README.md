@@ -73,7 +73,8 @@ OpenNeoUA.exe
 # Native Linux / Steam Deck
 
 The Linux build is a native `x86_64` overlay. It does not include Urban Assault
-data. Requires Docker. Do not use Proton.
+data, Steamworks, or Steam Input integration. It uses SDL2's normal keyboard,
+mouse, and joystick support. Requires Docker. Do not use Proton.
 
 ## Build the overlay
 
@@ -88,44 +89,9 @@ tar -xJf build/local-ci/artifacts/OpenNeoUA-steamrt4-x86_64-*.tar.xz \
   -C "/path/to/Urban Assault"
 ```
 
-## Add it to Steam (Spacewar / Steam Input IGA)
-
-OpenNeoUA's native Steam Input layout is authored for **Spacewar appid 480**.
-A Non-Steam shortcut gets a synthetic app id, so the official layout
-**Official Layout for Spacewar - OpenNeoUA Deck IGA** appears with every
-binding unset. Launch the game **as Spacewar** so Steam, the overlay, and
-Steam Input stay on 480.
-
-1. Quit Steam completely (Desktop Mode).
-2. From the Urban Assault folder:
-
-```sh
-python3 install_steamdeck_spacewar.py ./OpenNeoUA.sh
-```
-
-3. Start Steam. Ensure **Spacewar** is in your library (Steamworks accounts
-   have app 480).
-4. In Game Mode, launch **Spacewar** — not a Non-Steam shortcut. Leave
-   Compatibility off.
-5. In-game **Input Settings**, enable **Joystick**. Leave **Alt Joystick** off.
-
-Do not overwrite Steam's `controller_config/game_actions_480.vdf`; OpenNeoUA
-installs its IGA at runtime.
-
-### Legacy Non-Steam fallback (keyboard/mouse layout only)
-
-If you cannot use Spacewar, Non-Steam still works with the older Deck layout:
-
-1. Steam → Add a Game → Add a Non-Steam Game → browse to `OpenNeoUA.sh`.
-2. Leave Compatibility off.
-3. Enable Steam Input. Import `SteamInput/openneoua_deck_default.vdf`, or select
-   **OpenNeoUA Deck Default** if it is already listed.
-4. In-game **Input Settings**, enable **Joystick**. Leave **Alt Joystick** off.
-
-If Game Mode will not start `OpenNeoUA.sh`, point the shortcut at
-`bin/OpenNeoUA` and set **Start In** to the Urban Assault directory.
-
-This path does **not** load the IGA official bindings for appid 480.
+To launch an extracted overlay from Game Mode, add `OpenNeoUA.sh` as a normal
+Non-Steam game in Desktop Mode and leave Compatibility off. In OpenNeoUA's
+Input Settings, enable Joystick and leave Alt Joystick off.
 
 ## Private Steam Deck AppImage (local only)
 
@@ -138,50 +104,36 @@ cp "/path/to/Urban Assault.iso" vendor/ua.iso
   --output-dir build/steamdeck-private/artifacts
 ```
 
-Use `--iso` to override the default path. Steam Input support is bundled from
-the vendored Steamworks SDK at `vendor/steamworks-sdk/` when you build the
-overlay with `./packaging/steamrt4/local_ci.py`.
+Use `--iso` to override the default path.
 
 `chmod +x` the AppImage and copy it to the Deck. Saves live in
 `~/.local/share/OpenNeoUA`.
 
 For repeatable developer installs, the repository includes an SSH deployer.
 It uses the `steamdeck` host from `~/.ssh/config`, verifies the uploaded
-SHA-256 on the Deck, and atomically replaces the stable executable at
-`~/.local/bin/OpenNeoUA-dev.AppImage`:
+SHA-256 on the Deck, atomically replaces the stable executable at
+`~/Applications/OpenNeoUA-dev.AppImage`, and installs a desktop launcher:
 
 ```sh
 ./packaging/steamrt4/deploy_steamdeck.py
 ```
 
 The newest AppImage under `build/steamdeck-private/artifacts` is selected by
-default. Deployment refuses before copying any data while Steam is running on
-the Deck and refreshes Spacewar's launch option after every successful update.
-Development deployment also adds `--input-debug`, which displays the expected
-and actual Steam Input base mode/layer plus live action state in-game.
-Pass an explicit AppImage when needed. `--rsync` seeds a temporary
+default. Pass an explicit AppImage when needed. `--rsync` seeds a temporary
 copy from the installed build and transfers changed blocks; ordinary SCP is
-the simpler default. `--skip-spacewar-config` is available when only the file
-should be replaced.
+the simpler default. No Steam files are edited, and Steam may remain running.
 
-The developer TUI collects build, deployment, generator, test, and CI tasks:
+After the first deployment, switch the Deck to Desktop Mode. In Steam choose
+**Add a Game → Add a Non-Steam Game**, select **OpenNeoUA (Development)**, and
+return to Game Mode. Later deployments update the same stable AppImage path,
+so the shortcut does not need to be recreated. Valve documents this standard
+flow in its [Steam Deck Desktop FAQ](https://help.steampowered.com/en/faqs/view/671A-4453-E8D2-323C).
+
+The developer TUI collects build, deployment, test, and CI tasks:
 
 ```sh
 ./packaging/steamrt4/dev_menu.py
 ```
-
-### Register the AppImage as Spacewar
-
-Quit Steam, then from Desktop Mode:
-
-```sh
-./OpenNeoUA-SteamDeck-private-x86_64-….AppImage --install-steam-spacewar
-```
-
-Start Steam and launch **Spacewar** in Game Mode. Steam Input should show
-**OpenNeoUA Deck IGA** with bindings set. Adding the AppImage as a Non-Steam
-game will show the official Spacewar layout title with empty bindings — that
-is the synthetic-appid mismatch, not a packaging bug.
 
 # Third-Party Derived Interface Assets Notice
 

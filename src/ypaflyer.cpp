@@ -7,7 +7,6 @@
 #include "ypaflyer.h"
 #include "system/inpt.h"
 #include "log.h"
-#include "system/action_query.h"
 #include <math.h>
 
 size_t NC_STACK_ypaflyer::Init(IDVList &stak)
@@ -821,7 +820,7 @@ void NC_STACK_ypaflyer::User_layer(update_msg *arg)
         vec3d a3;
         a3 = _rotation.AxisZ();
 
-        float v60 = landedMovementLocked ? 0.0f : -Input::ActionAxisX(World::INPUT_BIND_FLY_DIR) * _maxrot * a2;
+        float v60 = landedMovementLocked ? 0.0f : -arg->inpt->Sliders[0] * _maxrot * a2;
 
         if ( a4 )
         {
@@ -954,7 +953,7 @@ void NC_STACK_ypaflyer::User_layer(update_msg *arg)
         _rotation *= mat3x3::RotateY(v60);
 
         if ( !landedMovementLocked )
-            _thraction += _force * (a2 * 0.3) * Input::ActionAxisX(World::INPUT_BIND_FLY_SPEED);
+            _thraction += _force * (a2 * 0.3) * arg->inpt->Sliders[2];
 
         if ( _thraction > _force )
             _thraction = _force;
@@ -966,7 +965,7 @@ void NC_STACK_ypaflyer::User_layer(update_msg *arg)
         if ( landedMovementLocked )
             _flyerBoost = _mass * 9.80665;
         else
-            _flyerBoost = (fabs(_fly_dir_length) / 111.0 + 1.0) * (Input::ActionAxisX(World::INPUT_BIND_FLY_HEIGHT) * 20000.0) * 0.5 + _mass * 9.80665;
+            _flyerBoost = (fabs(_fly_dir_length) / 111.0 + 1.0) * (arg->inpt->Sliders[1] * 20000.0) * 0.5 + _mass * 9.80665;
 
         float v22 = _pSector->height - _position.y;
 
@@ -994,7 +993,7 @@ void NC_STACK_ypaflyer::User_layer(update_msg *arg)
             arg79.target.pbact = arg106.ret_bact;
         }
 
-        if ( (Input::ActionHeld(World::INPUT_BIND_FIRE) || Input::ActionHeld(World::INPUT_BIND_CAMFIRE)) )
+        if ( arg->inpt->Buttons.IsAny({0, 5}) )
         {
             arg79.direction = vec3d(0.0, 0.0, 0.0);
             arg79.weapon = _weapon;
@@ -1007,8 +1006,8 @@ void NC_STACK_ypaflyer::User_layer(update_msg *arg)
 
             arg79.start_point.y = _fire_pos.y;
             arg79.start_point.z = _fire_pos.z;
-            arg79.flags = (Input::ActionHeld(World::INPUT_BIND_CAMFIRE) ? 1 : 0) | 2;
-            if ( (_oflags & BACT_OFLAG_VIEWER) && Input::ActionHeld(World::INPUT_BIND_BRAKE) )
+            arg79.flags = (arg->inpt->Buttons.Is(5) ? 1 : 0) | 2;
+            if ( (_oflags & BACT_OFLAG_VIEWER) && arg->inpt->Buttons.Is(3) )
                 arg79.flags |= BACT_ARG79_FLAG_RECOIL_BRAKE_HELD;
 
             LaunchMissile(&arg79);
@@ -1030,7 +1029,7 @@ void NC_STACK_ypaflyer::User_layer(update_msg *arg)
         {
             if ( !UsesVehicleMinigunTiming() && (_status_flg & BACT_STFLAG_FIRE) )
             {
-                if ( !Input::ActionHeld(World::INPUT_BIND_GUN) )
+                if ( !arg->inpt->Buttons.Is(2) )
                 {
                     setState_msg arg78;
                     arg78.setFlags = 0;
@@ -1041,7 +1040,7 @@ void NC_STACK_ypaflyer::User_layer(update_msg *arg)
                 }
             }
 
-            if ( Input::ActionHeld(World::INPUT_BIND_GUN))
+            if ( arg->inpt->Buttons.Is(2))
             {
                 if ( !UsesVehicleMinigunTiming() && !(_status_flg & BACT_STFLAG_FIRE) )
                 {
@@ -1063,7 +1062,7 @@ void NC_STACK_ypaflyer::User_layer(update_msg *arg)
             }
         }
 
-        if ( !landedMovementLocked && Input::ActionHeld(World::INPUT_BIND_BRAKE) )
+        if ( !landedMovementLocked && arg->inpt->Buttons.Is(3) )
             HandBrake(arg);
 
         if ( landedMovementLocked )

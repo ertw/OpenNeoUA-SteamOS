@@ -6,7 +6,6 @@
 #include "yw.h"
 #include "ypagun.h"
 #include "yparobo.h"
-#include "system/action_query.h"
 
 // OpenNeoUA custom: artillery shell guns are artillery pieces. They must be aimed only by
 // UpdateArtilleryShell()/ypabact_AimArtilleryShellLauncherVisual() at the current barrage zone,
@@ -467,7 +466,7 @@ void NC_STACK_ypagun::User_layer(update_msg *arg)
 
             if ( _status_flg & BACT_STFLAG_FIRE )
             {
-                if ( !(Input::ActionHeld(World::INPUT_BIND_FIRE) || Input::ActionHeld(World::INPUT_BIND_CAMFIRE)) )
+                if ( !arg->inpt->Buttons.IsAny({0, 5}) )
                 {
                     setState_msg arg78;
                     arg78.setFlags = 0;
@@ -492,7 +491,7 @@ void NC_STACK_ypagun::User_layer(update_msg *arg)
                 arg79.tgType = BACT_TGT_TYPE_UNIT;
             }
 
-            if ( (Input::ActionHeld(World::INPUT_BIND_FIRE) || Input::ActionHeld(World::INPUT_BIND_CAMFIRE)) )
+            if ( arg->inpt->Buttons.IsAny({0, 5}) )
             {
                 if ( _gunType == GUN_TYPE_REAL )
                 {
@@ -500,8 +499,8 @@ void NC_STACK_ypagun::User_layer(update_msg *arg)
                     arg79.direction = _rotation.AxisZ();
                     arg79.g_time = _clock;
                     arg79.start_point = _fire_pos;
-                    arg79.flags = (Input::ActionHeld(World::INPUT_BIND_CAMFIRE) ? 1 : 0) | 2;
-                    if ( (_oflags & BACT_OFLAG_VIEWER) && Input::ActionHeld(World::INPUT_BIND_BRAKE) )
+                    arg79.flags = (arg->inpt->Buttons.Is(5) ? 1 : 0) | 2;
+                    if ( (_oflags & BACT_OFLAG_VIEWER) && arg->inpt->Buttons.Is(3) )
                         arg79.flags |= BACT_ARG79_FLAG_RECOIL_BRAKE_HELD;
 
                     if ( LaunchMissile(&arg79) )
@@ -542,7 +541,7 @@ void NC_STACK_ypagun::User_layer(update_msg *arg)
                 }
             }
 
-            float yRot = Input::ActionAxisX(World::INPUT_BIND_FLY_DIR) * _maxrot * fTime;
+            float yRot = arg->inpt->Sliders[0] * _maxrot * fTime;
 
             if ( fabs( yRot ) > 0.001 )
             {
@@ -562,7 +561,7 @@ void NC_STACK_ypagun::User_layer(update_msg *arg)
                 _rotation *= mat3x3(_gunRott, yRot, MAT_FLAG_INV_SIN);
             }
 
-            float xRot = Input::ActionAxisX(World::INPUT_BIND_FLY_HEIGHT) * _maxrot * fTime;
+            float xRot = arg->inpt->Sliders[1] * _maxrot * fTime;
 
             if ( fabs(xRot) > 0.001 )
             {

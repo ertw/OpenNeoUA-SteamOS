@@ -94,26 +94,17 @@ sh -n "${source_root}/OpenNeoUA.sh"
         "${source_root}/packaging/steamrt4/test_overlay_mutation.py" \
         "${source_root}/packaging/steamrt4/test_game_menu.py" \
         "${source_root}/packaging/steamrt4/test_game_menu_policy.py" \
-        "${source_root}/packaging/steamrt4/test_map_menu_focus.py" \
         "${source_root}/packaging/steamrt4/build_smoketest_image.py" \
         "${source_root}/packaging/steamrt4/test_steamdeck.py" \
         "${source_root}/packaging/steamrt4/build_steamdeck.py" \
         "${source_root}/packaging/steamrt4/test_apprun.py" \
-        "${source_root}/packaging/steamrt4/install_steamdeck_spacewar.py" \
-        "${source_root}/packaging/steamrt4/test_install_steamdeck_spacewar.py" \
-    "${source_root}/packaging/steamrt4/test_steam_input.py" \
-    "${source_root}/packaging/steamrt4/test_steam_input_iga.py" \
-    "${source_root}/packaging/steamrt4/generate_iga_vdf.py" \
-    "${source_root}/packaging/steamrt4/generate_deck_iga_config.py" \
-    "${source_root}/packaging/steamrt4/test_redistribution_exemption.py" \
-    "${source_root}/packaging/steamrt4/verify_steam_api_symbols.py"
+        "${source_root}/packaging/steamrt4/deploy_steamdeck.py" \
+        "${source_root}/packaging/steamrt4/test_deploy_steamdeck.py" \
+        "${source_root}/packaging/steamrt4/dev_menu.py" \
+        "${source_root}/packaging/steamrt4/dev_workflow.py"
 python3 "${source_root}/packaging/steamrt4/test_launcher.py"
-python3 "${source_root}/packaging/steamrt4/test_steam_input.py"
-python3 "${source_root}/packaging/steamrt4/test_steam_input_iga.py"
-python3 "${source_root}/packaging/steamrt4/test_redistribution_exemption.py"
-python3 "${source_root}/packaging/steamrt4/verify_steam_api_symbols.py"
 python3 "${source_root}/packaging/steamrt4/test_apprun.py"
-python3 "${source_root}/packaging/steamrt4/test_install_steamdeck_spacewar.py"
+python3 "${source_root}/packaging/steamrt4/test_deploy_steamdeck.py"
 
 phase="configure Release build"
 cmake \
@@ -130,9 +121,6 @@ if [[ "${CI_CLEAR_CACHE:-0}" == "1" ]]; then
 fi
 cmake --build "${build_dir}"
 ccache --show-stats
-
-phase="run CTest for SDL virtual controller and action parity"
-ctest --test-dir "${build_dir}" --output-on-failure
 
 phase="verify resolver write destinations"
 python3 "${source_root}/packaging/steamrt4/test_resolver_write_paths.py"
@@ -157,10 +145,6 @@ package_command=(
 )
 if [[ -n "${dirty_base_commit}" ]]; then
     package_command+=(--dirty-base-commit "${dirty_base_commit}")
-fi
-steam_api_library="${source_root}/vendor/steamworks-sdk/redistributable_bin/linux64/libsteam_api.so"
-if [[ -f "${steam_api_library}" ]]; then
-    package_command+=(--steam-api-library "${steam_api_library}")
 fi
 "${package_command[@]}"
 

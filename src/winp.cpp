@@ -2,7 +2,6 @@
 #include "includes.h"
 #include "nucleas.h"
 #include "system/inpt.h"
-#include "system/joy_util.h"
 #include "winp.h"
 #include "utils.h"
 #include "log.h"
@@ -40,10 +39,8 @@ Common::Point NC_STACK_winp::_mMUpos;
 bool                 NC_STACK_winp::_joyEnable = false;
 SDL_JoystickGUID     NC_STACK_winp::_joyWantGuid;
 
-SDL_GameController  *NC_STACK_winp::_gameController = NULL;
 SDL_Joystick        *NC_STACK_winp::_joyHandle = NULL;
 SDL_Haptic          *NC_STACK_winp::_joyHaptic = NULL;
-SDL_JoystickID       NC_STACK_winp::_joyInstanceId = -1;
 
 std::array<int, 32>  NC_STACK_winp::_joyAxisMap;
 std::array<bool, 32> NC_STACK_winp::_joyAxisMapInv;
@@ -115,16 +112,6 @@ bool NC_STACK_winp::sdlGUIDcmp(SDL_JoystickGUID &gd1, SDL_JoystickGUID &gd2)
     return std::memcmp(&gd1, &gd2, sizeof(SDL_JoystickGUID)) == 0;
 }
 
-bool NC_STACK_winp::sdlGuidIsZero(const SDL_JoystickGUID &guid)
-{
-    return JoyUtil::GuidIsZero(guid);
-}
-
-int NC_STACK_winp::sdlScaleAxis(int raw)
-{
-    return JoyUtil::ScaleJoystickAxis(raw);
-}
-
 int NC_STACK_winp::sdlJoyAxis(SDL_Joystick* joystick, int axis)
 {
     int tmp = SDL_JoystickGetAxis(joystick, _joyAxisMap[axis]);
@@ -132,7 +119,17 @@ int NC_STACK_winp::sdlJoyAxis(SDL_Joystick* joystick, int axis)
     if ( _joyAxisMapInv[axis] )
         tmp = -tmp;
 
-    return sdlScaleAxis(tmp);
+    if (abs(tmp) <= 6553) // 20% deadzone
+        return 0;
+
+    tmp /= 109; //-32768/32767  to -300/300
+
+    if (tmp > 300)
+        tmp = 300;
+    else if (tmp < -300)
+        tmp = -300;
+
+    return tmp;
 }
 
 void NC_STACK_winp::sdlJoyReadMapping(SDL_Joystick* joystick)
@@ -292,25 +289,6 @@ int NC_STACK_winp::InputWatch(void *, SDL_Event *event)
 
     case SDL_MOUSEWHEEL:
         _mWheel += event->wheel.y;
-        break;
-
-    case SDL_CONTROLLERDEVICEADDED:
-        OnJoystickAdded(event->cdevice.which);
-        break;
-
-    case SDL_CONTROLLERDEVICEREMOVED:
-        OnJoystickRemoved(event->cdevice.which);
-        break;
-
-    case SDL_JOYDEVICEADDED:
-        // Game controllers also generate joystick add events; prefer the
-        // controller path so Steam Virtual Gamepad opens with normalized axes.
-        if ( !SDL_IsGameController(event->jdevice.which) )
-            OnJoystickAdded(event->jdevice.which);
-        break;
-
-    case SDL_JOYDEVICEREMOVED:
-        OnJoystickRemoved(event->jdevice.which);
         break;
 
     default:
@@ -670,399 +648,162 @@ void NC_STACK_winp::ResetSlider()
 
 
 
-void NC_STACK_winp::ReleaseJoystickButtons()
-{
-    for (int i = 0; i < 8; i++)
-    {
-        if ( _joyButtonStates & (1 << i) )
-            KeyUp(i + Input::KC_JOYB0);
-    }
-    _joyButtonStates = 0;
-}
-
-void NC_STACK_winp::ZeroJoystickAxes()
-{
-    _joyXYpos = Common::Point();
-    _joyZRZpos = Common::Point();
-    _joyPov = Common::Point();
-}
-
-void NC_STACK_winp::RefreshForceFeedbackDevice()
-{
-    Input::Engine.RebindForceFeedback();
-}
-
-void NC_STACK_winp::CloseJoystickDevice()
-{
-    if ( !_joyHandle && !_gameController && !_joyHaptic )
-    {
-        _joyEnable = false;
-        _joyInstanceId = -1;
-        return;
-    }
-
-    sdlInputLog("Closing joystick instance %d\n", (int)_joyInstanceId);
-
-    ReleaseJoystickButtons();
-    ZeroJoystickAxes();
-
-    SDL_Haptic *oldHaptic = _joyHaptic;
-    _joyHaptic = NULL;
-    // Drop engine FF effects before destroying the SDL haptic device.
-    RefreshForceFeedbackDevice();
-    if ( oldHaptic )
-        SDL_HapticClose(oldHaptic);
-
-    if ( _gameController )
-    {
-        SDL_GameControllerClose(_gameController);
-        _gameController = NULL;
-        _joyHandle = NULL; // owned by the game controller
-    }
-    else if ( _joyHandle )
-    {
-        SDL_JoystickClose(_joyHandle);
-        _joyHandle = NULL;
-    }
-
-    _joyEnable = false;
-    _joyInstanceId = -1;
-}
-
-bool NC_STACK_winp::OpenJoystickIndex(int deviceIndex)
-{
-    if ( deviceIndex < 0 || deviceIndex >= SDL_NumJoysticks() )
-        return false;
-
-    SDL_JoystickGUID jGUID = SDL_JoystickGetDeviceGUID(deviceIndex);
-    char guidBuff[64];
-    SDL_JoystickGetGUIDString(jGUID, guidBuff, sizeof(guidBuff));
-
-    CloseJoystickDevice();
-
-    if ( SDL_IsGameController(deviceIndex) )
-    {
-        _gameController = SDL_GameControllerOpen(deviceIndex);
-        if ( !_gameController )
-        {
-            sdlInputLog("SDL_GameControllerOpen(%d) failed: %s\n",
-                        deviceIndex, SDL_GetError());
-            return false;
-        }
-        _joyHandle = SDL_GameControllerGetJoystick(_gameController);
-        sdlInputLog("Opened game controller #%d: %s\n\tGUID:%s\n\tAPI:SDL_GameController\n",
-                    deviceIndex,
-                    SDL_GameControllerName(_gameController),
-                    guidBuff);
-    }
-    else
-    {
-        _joyHandle = SDL_JoystickOpen(deviceIndex);
-        if ( !_joyHandle )
-        {
-            sdlInputLog("SDL_JoystickOpen(%d) failed: %s\n",
-                        deviceIndex, SDL_GetError());
-            return false;
-        }
-        sdlInputLog("Opened joystick #%d: %s\n\tGUID:%s\n\tAPI:SDL_Joystick\n",
-                    deviceIndex,
-                    SDL_JoystickName(_joyHandle),
-                    guidBuff);
-    }
-
-    _joyInstanceId = SDL_JoystickInstanceID(_joyHandle);
-    _joyHaptic = SDL_HapticOpenFromJoystick(_joyHandle);
-    _joyEnable = true;
-
-    sdlInputLog("\tInstance:%d\tAxes:%d\tHats:%d\tButtons:%d\tBalls:%d\tHaptic:%s\n",
-                (int)_joyInstanceId,
-                SDL_JoystickNumAxes(_joyHandle),
-                SDL_JoystickNumHats(_joyHandle),
-                SDL_JoystickNumButtons(_joyHandle),
-                SDL_JoystickNumBalls(_joyHandle),
-                _joyHaptic ? "yes" : "no");
-
-    sdlJoyReadMapping(_joyHandle);
-    RefreshForceFeedbackDevice();
-    return true;
-}
-
-void NC_STACK_winp::OpenBestJoystick()
-{
-    int numJoy = SDL_NumJoysticks();
-    if ( !numJoy )
-    {
-        sdlInputLog("No joysticks found\n");
-        return;
-    }
-
-    int preferred = -1;
-    int firstController = -1;
-    int firstJoystick = -1;
-
-    for (int i = 0; i < numJoy; i++)
-    {
-        SDL_JoystickGUID jGUID = SDL_JoystickGetDeviceGUID(i);
-        char guidBuff[64];
-        SDL_JoystickGetGUIDString(jGUID, guidBuff, sizeof(guidBuff));
-
-        const char *name = SDL_IsGameController(i)
-            ? SDL_GameControllerNameForIndex(i)
-            : SDL_JoystickNameForIndex(i);
-        sdlInputLog("Found joystick #%d: %s\n\tGUID:%s\tGameController:%s\n",
-                    i, name ? name : "(null)", guidBuff,
-                    SDL_IsGameController(i) ? "yes" : "no");
-
-        if ( !sdlGuidIsZero(_joyWantGuid) && sdlGUIDcmp(jGUID, _joyWantGuid) )
-            preferred = i;
-        if ( firstController < 0 && SDL_IsGameController(i) )
-            firstController = i;
-        if ( firstJoystick < 0 )
-            firstJoystick = i;
-    }
-
-    int pick = -1;
-    if ( preferred >= 0 )
-    {
-        pick = preferred;
-    }
-    else if ( !sdlGuidIsZero(_joyWantGuid) )
-    {
-        sdlInputLog("Preferred joystick GUID is not present; waiting for reconnect\n");
-        return;
-    }
-    else if ( firstController >= 0 )
-    {
-        pick = firstController;
-    }
-    else
-    {
-        pick = firstJoystick;
-    }
-
-    if ( pick >= 0 )
-        OpenJoystickIndex(pick);
-}
-
-void NC_STACK_winp::OnJoystickAdded(int deviceIndex)
-{
-    sdlInputLog("Joystick device added: index %d\n", deviceIndex);
-    if ( _joyHandle )
-        return;
-
-    if ( deviceIndex < 0 || deviceIndex >= SDL_NumJoysticks() )
-        return;
-
-    SDL_JoystickGUID jGUID = SDL_JoystickGetDeviceGUID(deviceIndex);
-    if ( !sdlGuidIsZero(_joyWantGuid) && !sdlGUIDcmp(jGUID, _joyWantGuid) )
-    {
-        char guidBuff[64];
-        SDL_JoystickGetGUIDString(jGUID, guidBuff, sizeof(guidBuff));
-        sdlInputLog("Ignoring added joystick GUID %s (preferred GUID set)\n", guidBuff);
-        return;
-    }
-
-    OpenJoystickIndex(deviceIndex);
-}
-
-void NC_STACK_winp::OnJoystickRemoved(SDL_JoystickID instanceId)
-{
-    sdlInputLog("Joystick device removed: instance %d\n", (int)instanceId);
-    if ( !_joyHandle || _joyInstanceId != instanceId )
-        return;
-
-    CloseJoystickDevice();
-
-    // Prefer reconnecting immediately if another pad is already present
-    // (common after Steam Input profile switches).
-    OpenBestJoystick();
-}
-
-void NC_STACK_winp::ShutdownJoystick()
-{
-    CloseJoystickDevice();
-}
-
 void NC_STACK_winp::CheckJoy()
 {
-    if ( !_joyEnable || !_joyHandle )
+    if ( _joyEnable )
     {
-        ZeroJoystickAxes();
-        return;
-    }
+        uint32_t prevBtnState = _joyButtonStates;
+        _joyButtonStates = 0;
+        _joyXYpos = Common::Point();
+        _joyZRZpos = Common::Point();
 
-    if ( _gameController )
-        CheckJoyGameController();
-    else
-        CheckJoyRaw();
+        _joyXYpos.x = sdlJoyAxis(_joyHandle, 0);
+        _joyXYpos.y = sdlJoyAxis(_joyHandle, 1);
+
+        int joyaxs = SDL_JoystickNumAxes(_joyHandle);
+
+        if ( joyaxs > 2 )
+            _joyZRZpos.x = sdlJoyAxis(_joyHandle, 2);
+        else
+            _joyZRZpos.x = -300;
+
+        if ( joyaxs > 3 )
+            _joyZRZpos.y = sdlJoyAxis(_joyHandle, 3);
+        else
+            _joyZRZpos.y = 0;
+
+        for (int i = 0; i < 8; i++ )
+        {
+            if ( SDL_JoystickGetButton(_joyHandle, _joyButtonMap[i]) )
+            {
+                _joyButtonStates |= 1 << i;
+
+                if ( !((1 << i) & prevBtnState) )
+                    KeyDown(i + Input::KC_JOYB0);
+            }
+            else if ( (1 << i) & prevBtnState )
+            {
+                KeyUp(i + Input::KC_JOYB0);
+            }
+        }
+
+        if ( SDL_JoystickNumHats(_joyHandle) > 0)
+        {
+            switch( SDL_JoystickGetHat(_joyHandle, _joyHatMap[0]) )
+            {
+            case SDL_HAT_UP:
+                _joyPov.x = 0;
+                _joyPov.y = 300;
+                break;
+
+            case SDL_HAT_RIGHTUP:
+                _joyPov.x = 212;
+                _joyPov.y = 212;
+                break;
+
+            case SDL_HAT_RIGHT:
+                _joyPov.x = 300;
+                _joyPov.y = 0;
+                break;
+
+            case SDL_HAT_RIGHTDOWN:
+                _joyPov.x = 212;
+                _joyPov.y = -212;
+                break;
+
+            case SDL_HAT_DOWN:
+                _joyPov.x = 0;
+                _joyPov.y = -300;
+                break;
+
+            case SDL_HAT_LEFTDOWN:
+                _joyPov.x = -212;
+                _joyPov.y = -212;
+                break;
+
+            case SDL_HAT_LEFT:
+                _joyPov.x = -300;
+                _joyPov.y = 0;
+                break;
+
+            case SDL_HAT_LEFTUP:
+                _joyPov.x = -212;
+                _joyPov.y = 212;
+                break;
+
+            case SDL_HAT_CENTERED:
+            default:
+                _joyPov.x = 0;
+                _joyPov.y = 0;
+                break;
+            }
+        }
+        else
+        {
+            _joyPov.x = 0;
+            _joyPov.y = 0;
+        }
+    }
 }
 
-int NC_STACK_winp::CheckJoyGameController()
+void NC_STACK_winp::QueryPointer(TClickBoxInf *arg)
 {
-    uint32_t prevBtnState = _joyButtonStates;
-    _joyButtonStates = 0;
-    _joyXYpos = Common::Point();
-    _joyZRZpos = Common::Point();
-    _joyPov = Common::Point();
+    arg->flag = 0;
 
-    int leftX = SDL_GameControllerGetAxis(_gameController, SDL_CONTROLLER_AXIS_LEFTX);
-    int leftY = SDL_GameControllerGetAxis(_gameController, SDL_CONTROLLER_AXIS_LEFTY);
-    int trigger = SDL_GameControllerGetAxis(_gameController, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
-    int rightX = SDL_GameControllerGetAxis(_gameController, SDL_CONTROLLER_AXIS_RIGHTX);
+    CheckJoy();
 
-    // Match legacy joyconf axis invert mapping for logical axes 0-3.
-    if ( _joyAxisMapInv[0] )
-        leftX = -leftX;
-    if ( _joyAxisMapInv[1] )
-        leftY = -leftY;
-    if ( _joyAxisMapInv[2] )
-        trigger = -trigger;
-    if ( _joyAxisMapInv[3] )
-        rightX = -rightX;
+    arg->move.ScreenPos = _mPos;
+    arg->wheel = _mWheel;
+    _mMove = _mMoveQuery;
 
-    _joyXYpos.x = sdlScaleAxis(leftX);
-    _joyXYpos.y = sdlScaleAxis(leftY);
-    // Triggers are 0..32767; map into the legacy throttle range centered idle.
-    _joyZRZpos.x = sdlScaleAxis(trigger * 2 - 32767);
-    _joyZRZpos.y = sdlScaleAxis(rightX);
+    _mMoveQuery = Common::Point();
+    _mWheel = 0;
 
-    static const SDL_GameControllerButton kButtons[8] = {
-        SDL_CONTROLLER_BUTTON_A,
-        SDL_CONTROLLER_BUTTON_B,
-        SDL_CONTROLLER_BUTTON_X,
-        SDL_CONTROLLER_BUTTON_Y,
-        SDL_CONTROLLER_BUTTON_LEFTSHOULDER,
-        SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
-        SDL_CONTROLLER_BUTTON_BACK,
-        SDL_CONTROLLER_BUTTON_START,
-    };
+    if ( _mLstate )
+        arg->flag |= TClickBoxInf::FLAG_LM_HOLD;
+    if ( _mMstate )
+        arg->flag |= TClickBoxInf::FLAG_MM_HOLD;
+    if ( _mRstate )
+        arg->flag |= TClickBoxInf::FLAG_RM_HOLD;
+    if ( _mDBLstate )
+        arg->flag |= TClickBoxInf::FLAG_DBL_CLICK;
 
-    for (int i = 0; i < 8; i++)
+    if ( _mLDcnt > 0 )
     {
-        int mapped = _joyButtonMap[i];
-        if ( mapped < 0 || mapped >= 8 )
-            mapped = i;
-        if ( SDL_GameControllerGetButton(_gameController, kButtons[mapped]) )
-        {
-            _joyButtonStates |= 1 << i;
-            if ( !((1 << i) & prevBtnState) )
-                KeyDown(i + Input::KC_JOYB0);
-        }
-        else if ( (1 << i) & prevBtnState )
-        {
-            KeyUp(i + Input::KC_JOYB0);
-        }
+        arg->ldw_pos.ScreenPos.x = _mLDpos.x;
+        arg->ldw_pos.ScreenPos.y = _mLDpos.y;
+        arg->flag |= TClickBoxInf::FLAG_LM_DOWN;
+    }
+    if ( _mLUcnt > 0 )
+    {
+        arg->lup_pos.ScreenPos.x = _mLUpos.x;
+        arg->lup_pos.ScreenPos.y = _mLUpos.y;
+        arg->flag |= TClickBoxInf::FLAG_LM_UP;
+    }
+    if ( _mRDcnt > 0 )
+    {
+        arg->flag |= TClickBoxInf::FLAG_RM_DOWN;
+    }
+    if ( _mRUcnt > 0 )
+    {
+        arg->flag |= TClickBoxInf::FLAG_RM_UP;
+    }
+    if ( _mMDcnt > 0 )
+    {
+        arg->flag |= TClickBoxInf::FLAG_MM_DOWN;
+    }
+    if ( _mMUcnt > 0 )
+    {
+        arg->flag |= TClickBoxInf::FLAG_MM_UP;
     }
 
-    int hatX = 0;
-    int hatY = 0;
-    if ( SDL_GameControllerGetButton(_gameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT) )
-        hatX -= 300;
-    if ( SDL_GameControllerGetButton(_gameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) )
-        hatX += 300;
-    if ( SDL_GameControllerGetButton(_gameController, SDL_CONTROLLER_BUTTON_DPAD_UP) )
-        hatY += 300;
-    if ( SDL_GameControllerGetButton(_gameController, SDL_CONTROLLER_BUTTON_DPAD_DOWN) )
-        hatY -= 300;
-    _joyPov.x = hatX;
-    _joyPov.y = hatY;
-    return 1;
-}
-
-int NC_STACK_winp::CheckJoyRaw()
-{
-    uint32_t prevBtnState = _joyButtonStates;
-    _joyButtonStates = 0;
-    _joyXYpos = Common::Point();
-    _joyZRZpos = Common::Point();
-
-    _joyXYpos.x = sdlJoyAxis(_joyHandle, 0);
-    _joyXYpos.y = sdlJoyAxis(_joyHandle, 1);
-
-    int joyaxs = SDL_JoystickNumAxes(_joyHandle);
-
-    if ( joyaxs > 2 )
-        _joyZRZpos.x = sdlJoyAxis(_joyHandle, 2);
-    else
-        _joyZRZpos.x = -300;
-
-    if ( joyaxs > 3 )
-        _joyZRZpos.y = sdlJoyAxis(_joyHandle, 3);
-    else
-        _joyZRZpos.y = 0;
-
-    for (int i = 0; i < 8; i++ )
-    {
-        if ( SDL_JoystickGetButton(_joyHandle, _joyButtonMap[i]) )
-        {
-            _joyButtonStates |= 1 << i;
-
-            if ( !((1 << i) & prevBtnState) )
-                KeyDown(i + Input::KC_JOYB0);
-        }
-        else if ( (1 << i) & prevBtnState )
-        {
-            KeyUp(i + Input::KC_JOYB0);
-        }
-    }
-
-    if ( SDL_JoystickNumHats(_joyHandle) > 0)
-    {
-        switch( SDL_JoystickGetHat(_joyHandle, _joyHatMap[0]) )
-        {
-        case SDL_HAT_UP:
-            _joyPov.x = 0;
-            _joyPov.y = 300;
-            break;
-
-        case SDL_HAT_RIGHTUP:
-            _joyPov.x = 212;
-            _joyPov.y = 212;
-            break;
-
-        case SDL_HAT_RIGHT:
-            _joyPov.x = 300;
-            _joyPov.y = 0;
-            break;
-
-        case SDL_HAT_RIGHTDOWN:
-            _joyPov.x = 212;
-            _joyPov.y = -212;
-            break;
-
-        case SDL_HAT_DOWN:
-            _joyPov.x = 0;
-            _joyPov.y = -300;
-            break;
-
-        case SDL_HAT_LEFTDOWN:
-            _joyPov.x = -212;
-            _joyPov.y = -212;
-            break;
-
-        case SDL_HAT_LEFT:
-            _joyPov.x = -300;
-            _joyPov.y = 0;
-            break;
-
-        case SDL_HAT_LEFTUP:
-            _joyPov.x = -212;
-            _joyPov.y = 212;
-            break;
-
-        case SDL_HAT_CENTERED:
-        default:
-            _joyPov.x = 0;
-            _joyPov.y = 0;
-            break;
-        }
-    }
-    else
-    {
-        _joyPov.x = 0;
-        _joyPov.y = 0;
-    }
-    return 1;
+    _mDBLstate = false;
+    _mLDcnt = 0;
+    _mLUcnt = 0;
+    _mRDcnt = 0;
+    _mRUcnt = 0;
+    _mMDcnt = 0;
+    _mMUcnt = 0;
 }
 
 void NC_STACK_winp::InitFirst()
@@ -1179,16 +920,48 @@ void NC_STACK_winp::InitFirst()
     KBDMapping[SDL_SCANCODE_F14]         = Input::KC_EXTRA17;
     KBDMapping[SDL_SCANCODE_F15]         = Input::KC_EXTRA18;
 
-    // Joystick / game controller discovery (hot-plug handled in InputWatch).
+    //Joy staff
+
     _joyEnable = false;
-    _gameController = NULL;
-    _joyHandle = NULL;
-    _joyHaptic = NULL;
-    _joyInstanceId = -1;
 
     sdlInputResetLog();
     _joyWantGuid = sdlReadJoyGuid();
-    OpenBestJoystick();
+
+    int numJoy = SDL_NumJoysticks();
+
+    if (numJoy)
+    {
+        for (int i = 0; i < numJoy; i++)
+        {
+            SDL_JoystickGUID jGUID = SDL_JoystickGetDeviceGUID(i);
+
+            char guidBuff[64];
+            SDL_JoystickGetGUIDString(jGUID, guidBuff, sizeof(guidBuff));
+
+            sdlInputLog("Found joystick #%d: %s\n\tGUID:%s\n", i, SDL_JoystickNameForIndex(i), guidBuff);
+
+            if (!_joyHandle && sdlGUIDcmp(jGUID, _joyWantGuid) )
+                _joyHandle = SDL_JoystickOpen(i);
+        }
+
+        if ( !_joyHandle )
+            _joyHandle = SDL_JoystickOpen(0);
+
+        _joyHaptic = SDL_HapticOpenFromJoystick(_joyHandle);
+    }
+    else
+    {
+        sdlInputLog("No joysticks found\n");
+    }
+
+    if (_joyHandle)
+    {
+        _joyEnable = true;
+        sdlInputLog("\nSelected joystick: %s\n", SDL_JoystickName(_joyHandle));
+        sdlInputLog("\tAxes:%d\tHats:%d\tButtons:%d\tBalls:%d\n", SDL_JoystickNumAxes(_joyHandle), SDL_JoystickNumHats(_joyHandle), SDL_JoystickNumButtons(_joyHandle), SDL_JoystickNumBalls(_joyHandle));
+        sdlJoyReadMapping(_joyHandle);
+        sdlInputLog("\n");
+    }
 
     _mLstate = false;
     _mRstate = false;
@@ -1202,8 +975,6 @@ void NC_STACK_winp::InitFirst()
     _mMUcnt = 0;
     _mMDcnt = 0;
 
-    _mWheel = 0;
-
     _kbdLastDown = 0;
     _kbdLastHit = 0;
 
@@ -1212,62 +983,3 @@ void NC_STACK_winp::InitFirst()
     System::EventsAddHandler(InputWatch);
 }
 
-void NC_STACK_winp::QueryPointer(TClickBoxInf *arg)
-{
-    arg->flag = 0;
-
-    CheckJoy();
-
-    arg->move.ScreenPos = _mPos;
-    arg->wheel = _mWheel;
-    _mMove = _mMoveQuery;
-
-    _mMoveQuery = Common::Point();
-    _mWheel = 0;
-
-    if ( _mLstate )
-        arg->flag |= TClickBoxInf::FLAG_LM_HOLD;
-    if ( _mMstate )
-        arg->flag |= TClickBoxInf::FLAG_MM_HOLD;
-    if ( _mRstate )
-        arg->flag |= TClickBoxInf::FLAG_RM_HOLD;
-    if ( _mDBLstate )
-        arg->flag |= TClickBoxInf::FLAG_DBL_CLICK;
-
-    if ( _mLDcnt > 0 )
-    {
-        arg->ldw_pos.ScreenPos.x = _mLDpos.x;
-        arg->ldw_pos.ScreenPos.y = _mLDpos.y;
-        arg->flag |= TClickBoxInf::FLAG_LM_DOWN;
-    }
-    if ( _mLUcnt > 0 )
-    {
-        arg->lup_pos.ScreenPos.x = _mLUpos.x;
-        arg->lup_pos.ScreenPos.y = _mLUpos.y;
-        arg->flag |= TClickBoxInf::FLAG_LM_UP;
-    }
-    if ( _mRDcnt > 0 )
-    {
-        arg->flag |= TClickBoxInf::FLAG_RM_DOWN;
-    }
-    if ( _mRUcnt > 0 )
-    {
-        arg->flag |= TClickBoxInf::FLAG_RM_UP;
-    }
-    if ( _mMDcnt > 0 )
-    {
-        arg->flag |= TClickBoxInf::FLAG_MM_DOWN;
-    }
-    if ( _mMUcnt > 0 )
-    {
-        arg->flag |= TClickBoxInf::FLAG_MM_UP;
-    }
-
-    _mDBLstate = false;
-    _mLDcnt = 0;
-    _mLUcnt = 0;
-    _mRDcnt = 0;
-    _mRUcnt = 0;
-    _mMDcnt = 0;
-    _mMUcnt = 0;
-}

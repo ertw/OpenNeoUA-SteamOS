@@ -134,29 +134,7 @@ class SteamDeckPolicyTests(unittest.TestCase):
             with self.assertRaises(AssetBuildError):
                 verify_sha256_manifest(root, manifest)
 
-    def test_overlay_steam_input_directory_is_copied_into_asset_root(self) -> None:
-        # Private AppImage assembly copies every overlay top-level directory
-        # except bin/lib/launcher/manifest into usr/share/openneoua.  SteamInput
-        # must therefore remain a regular package top-level directory.
-        from pathlib import Path as _Path
-        try:
-            from package import PACKAGE_TOP_LEVEL, STEAM_INPUT_REQUIRED_FILES
-        except ImportError:  # pragma: no cover
-            from packaging.steamrt4.package import (
-                PACKAGE_TOP_LEVEL,
-                STEAM_INPUT_REQUIRED_FILES,
-            )
-        self.assertIn("SteamInput", PACKAGE_TOP_LEVEL)
-        self.assertIn("install_steamdeck_spacewar.py", PACKAGE_TOP_LEVEL)
-        for name in STEAM_INPUT_REQUIRED_FILES:
-            self.assertTrue(
-                (
-                    _Path(__file__).resolve().parent / "steam_input" / name
-                ).is_file(),
-                msg=name,
-            )
-
-    def test_appdir_payload_copies_steam_appid_next_to_binary(self) -> None:
+    def test_appdir_payload_separates_binary_libraries_and_assets(self) -> None:
         try:
             from build_steamdeck import _copy_overlay_payload
         except ImportError:  # pragma: no cover
@@ -167,31 +145,22 @@ class SteamDeckPolicyTests(unittest.TestCase):
             overlay = root / "overlay"
             (overlay / "bin").mkdir(parents=True)
             (overlay / "bin" / "OpenNeoUA").write_bytes(b"\x7fELF")
-            (overlay / "bin" / "steam_appid.txt").write_text("480\n", encoding="utf-8")
-            installer = overlay / "install_steamdeck_spacewar.py"
-            installer.write_text("#!/usr/bin/env python3\nprint('ok')\n", encoding="utf-8")
-            installer.chmod(0o755)
-            (overlay / "SteamInput").mkdir()
-            (overlay / "SteamInput" / "game_actions_480.vdf").write_text("actions\n", encoding="utf-8")
+            (overlay / "lib").mkdir()
+            (overlay / "lib" / "libexample.so").write_bytes(b"library")
+            (overlay / "Interface").mkdir()
+            (overlay / "Interface" / "marker.svg").write_text("<svg/>\n", encoding="utf-8")
+            (overlay / "OpenNeoUA.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+            (overlay / "MANIFEST.sha256").write_text("manifest\n", encoding="utf-8")
 
             appdir = root / "AppDir"
             asset_root = appdir / "usr" / "share" / "openneoua"
             _copy_overlay_payload(overlay, appdir, asset_root)
 
             self.assertTrue((appdir / "usr" / "bin" / "OpenNeoUA").is_file())
-            self.assertEqual(
-                (appdir / "usr" / "bin" / "steam_appid.txt").read_text(encoding="utf-8"),
-                "480\n",
-            )
-            self.assertTrue(
-                (appdir / "usr" / "bin" / "install_steamdeck_spacewar.py").is_file()
-            )
-            self.assertFalse(
-                (asset_root / "install_steamdeck_spacewar.py").exists()
-            )
-            self.assertTrue(
-                (asset_root / "SteamInput" / "game_actions_480.vdf").is_file()
-            )
+            self.assertTrue((appdir / "usr" / "lib" / "libexample.so").is_file())
+            self.assertTrue((asset_root / "Interface" / "marker.svg").is_file())
+            self.assertFalse((asset_root / "OpenNeoUA.sh").exists())
+            self.assertFalse((asset_root / "MANIFEST.sha256").exists())
 
 
 if __name__ == "__main__":

@@ -19,8 +19,6 @@
 #include "font.h"
 #include "gui/uacommon.h"
 #include "system/inivals.h"
-#include "system/action_set_sync.h"
-#include "system/action_backend.h"
 #include "system/system.h"
 #include "world/spin.h"
 #include "crashdiag.h"
@@ -2240,14 +2238,7 @@ void NC_STACK_ypaworld::FFeedback_VehicleChanged()
     {
         _ffTimeStamp = _timeStamp;
 
-        // Weapon-camera control temporarily promotes the projectile to the
-        // user unit. It is still part of the parent vehicle context: do not
-        // cancel the weapon pulse or tear down that vehicle's ambient effect.
-        if ( _userUnit->_bact_type == BACT_TYPES_MISSLE && _userUnit->_parent )
-            return;
-
         Input::Engine.ForceFeedback(Input::FF_STATE_STOP, Input::FF_TYPE_ALL);
-        _ffEffectType = -1;
 
         int effectType;
         float v13;
@@ -7047,14 +7038,11 @@ void NC_STACK_ypaworld::FFeedback_Update()
 
     if ( _userUnit )
     {
-        NC_STACK_ypabact *feedbackUnit = _userUnit;
-        if ( feedbackUnit->_bact_type == BACT_TYPES_MISSLE && feedbackUnit->_parent )
-            feedbackUnit = feedbackUnit->_parent;
         if ( _timeStamp - _ffTimeStamp > 250 )
         {
             _ffTimeStamp = _timeStamp;
 
-            if ( feedbackUnit->_status == BACT_STATUS_DEAD )
+            if ( _userUnit->_status == BACT_STATUS_DEAD )
             {
                 Input::Engine.ForceFeedback(Input::FF_STATE_UPDATE, _ffEffectType);
             }
@@ -7062,12 +7050,12 @@ void NC_STACK_ypaworld::FFeedback_Update()
             {
                 if ( _ffEffectType != -1 )
                 {
-                    float a1 = POW2(feedbackUnit->_force) - POW2(feedbackUnit->_mass) * 100.0;
+                    float a1 = POW2(_userUnit->_force) - POW2(_userUnit->_mass) * 100.0;
 
                     if (a1 < 0.0)
                         a1 = 0.0;
 
-                    float v17 = fabs(feedbackUnit->_fly_dir_length) / ( sqrt(a1) / feedbackUnit->_airconst_static );
+                    float v17 = fabs(_userUnit->_fly_dir_length) / ( sqrt(a1) / _userUnit->_airconst_static );
                     if ( v17 >= 1.0 )
                         v17 = 1.0;
                     else if (v17 < 0.0)
@@ -7088,11 +7076,11 @@ void NC_STACK_ypaworld::FFeedback_Update()
                 if ( p1 > 1.0 )
                     p1 = 1.0;
 
-                vec3d tmp = top->PCarrier->Position - feedbackUnit->_position;
+                vec3d tmp = top->PCarrier->Position - _userUnit->_position;
 
                 float p2 = top->PShkFx->time;
-                float p3 = feedbackUnit->_rotation.AxisX().dot( tmp );
-                float p4 = -feedbackUnit->_rotation.AxisZ().dot( tmp );
+                float p3 = _userUnit->_rotation.AxisX().dot( tmp );
+                float p4 = -_userUnit->_rotation.AxisZ().dot( tmp );
 
                 if ( p2 > 0.0 )
                 {
@@ -8214,90 +8202,6 @@ void NC_STACK_ypaworld::debug_count_units()
 
 void NC_STACK_ypaworld::debug_info_draw(TInputState *inpt)
 {
-    if ( System::IniConf::InputDebug.Get<bool>() ||
-         System::FindCmdLineArg("--input-debug") >= 0 )
-    {
-        CmdStream inputText;
-        char line[512];
-        FontUA::select_tileset(&inputText, 15);
-        FontUA::set_xpos(&inputText, 8);
-        FontUA::set_ypos(&inputText, 16);
-        const Input::InputContext &ctx = Input::CurrentInputContext();
-        Steam::ApiLoader &steam = Steam::ApiLoader::Instance;
-        bool baseOk = !steam.Ready();
-        bool layerOk = !steam.Ready();
-        int actualLayers = 0;
-        const char *actualBase = steam.Ready() ? "None" : "N/A";
-        std::string actualLayerNames = steam.Ready() ? "None" : "N/A";
-        if ( steam.Ready() && steam.ControllerCount() > 0 )
-        {
-            const Steam::ApiTable &api = steam.Api();
-            const Steam::InputHandle controller = steam.Controllers()[0];
-            const Steam::InputActionSetHandle current = api.GetCurrentActionSet
-                ? api.GetCurrentActionSet(steam.InputInterface(), controller) : 0;
-            for ( int set = Input::ACTION_SET_MENU; set < Input::ACTION_SET_COUNT; ++set )
-            {
-                if ( api.GetActionSetHandle && current == api.GetActionSetHandle(
-                         steam.InputInterface(), Input::ActionSetName(static_cast<Input::ACTION_SET>(set))) )
-                    actualBase = Input::ActionSetName(static_cast<Input::ACTION_SET>(set));
-            }
-            const Steam::InputActionSetHandle expected = api.GetActionSetHandle
-                ? api.GetActionSetHandle(steam.InputInterface(), Input::ActionSetName(ctx.BaseSet)) : 0;
-            baseOk = current == expected;
-            Steam::InputActionSetHandle layers[16] = {0};
-            if ( api.GetActiveActionSetLayers )
-                actualLayers = api.GetActiveActionSetLayers(steam.InputInterface(), controller, layers);
-            actualLayerNames.clear();
-            for ( int layer = Input::ACTION_LAYER_GROUND_STRATEGIC;
-                  layer <= Input::ACTION_LAYER_HOST_STRATEGIC; ++layer )
-            {
-                const char *name = Input::ActionLayerName(static_cast<Input::ACTION_LAYER>(layer));
-                const Steam::InputActionSetHandle handle = api.GetActionSetHandle
-                    ? api.GetActionSetHandle(steam.InputInterface(), name) : 0;
-                if ( handle && std::find(layers, layers + actualLayers, handle) != layers + actualLayers )
-                {
-                    if ( !actualLayerNames.empty() ) actualLayerNames += ",";
-                    actualLayerNames += name;
-                }
-            }
-            if ( actualLayerNames.empty() ) actualLayerNames = "None";
-            const Steam::InputActionSetHandle expectedLayer = ctx.Layer == Input::ACTION_LAYER_NONE ? 0 :
-                api.GetActionSetHandle(steam.InputInterface(), Input::ActionLayerName(ctx.Layer));
-            layerOk = expectedLayer == 0 ? actualLayers == 0 :
-                std::find(layers, layers + actualLayers, expectedLayer) != layers + actualLayers;
-        }
-        sub_445654(this, &inputText, line, "STEAM INPUT %s controllers=%d [%s]",
-                   steam.Ready() ? "READY" : steam.StatusText().c_str(), steam.ControllerCount(),
-                   baseOk && layerOk ? "OK" : "MISMATCH");
-        FontUA::next_line(&inputText);
-        sub_445654(this, &inputText, line, "mode expected=%s+%s actual=%s+%s",
-                   Input::ActionSetName(ctx.BaseSet), Input::ActionLayerName(ctx.Layer),
-                   actualBase, actualLayerNames.c_str());
-        FontUA::next_line(&inputText);
-        sub_445654(this, &inputText, line, "stick h/a/m=%d/%d/%d raw=%+.2f,%+.2f move=%+.2f,%+.2f",
-                   Input::SteamBackend().MoveHandleResolved(),
-                   Input::SteamBackend().MoveActive(), Input::SteamBackend().MoveMode(),
-                   Input::SteamBackend().MoveX(), Input::SteamBackend().MoveY(),
-                   Input::Actions.AnalogX(ctx.BaseSet == Input::ACTION_SET_GROUND ? World::INPUT_BIND_DRIVE_DIR : World::INPUT_BIND_FLY_DIR),
-                   Input::Actions.AnalogX(ctx.BaseSet == Input::ACTION_SET_GROUND ? World::INPUT_BIND_DRIVE_SPEED :
-                                          ctx.BaseSet == Input::ACTION_SET_AIR ? World::INPUT_BIND_FLY_SPEED : World::INPUT_BIND_FLY_HEIGHT));
-        FontUA::next_line(&inputText);
-        sub_445654(this, &inputText, line, "unit=%d map=%d squad=%d aim=%+.1f,%+.1f UI=%d/%d/%d",
-                   ctx.UnitType, ctx.MapVisible, ctx.SquadVisible,
-                   Input::SteamBackend().AimDeltaX(), Input::SteamBackend().AimDeltaY(),
-                   Input::SteamBackend().UiActive(Input::STEAM_UI_PRIMARY),
-                   Input::SteamBackend().UiActive(Input::STEAM_UI_SECONDARY),
-                   Input::SteamBackend().UiActive(Input::STEAM_UI_MIDDLE));
-        FontUA::next_line(&inputText);
-        sub_445654(this, &inputText, line, "actions fire=%d gun=%d camera=%d target=%d brake=%d",
-                   Input::Actions.Active(World::INPUT_BIND_FIRE),
-                   Input::Actions.Active(World::INPUT_BIND_GUN),
-                   Input::Actions.Active(World::INPUT_BIND_CAMFIRE),
-                   Input::Actions.Active(World::INPUT_BIND_CYCLE_TARGET),
-                   Input::Actions.Active(World::INPUT_BIND_BRAKE));
-        FontUA::set_end(&inputText);
-        GFX::Engine.ProcessDrawSeq(inputText);
-    }
     if ( _showDebugMode != 0 )
     {
         CmdStream dbg_txt;

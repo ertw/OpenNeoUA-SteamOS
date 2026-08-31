@@ -4,122 +4,10 @@
 #include "../ini.h"
 #include "../log.h"
 #include "inpt.h"
-#include "action_input.h"
-#include "action_set_sync.h"
 #include "inivals.h"
-#include "steam_api_loader.h"
 #include "winp.h"
 
 namespace Input{
-
-namespace
-{
-
-struct SteamRumbleMixer
-{
-    uint16_t AmbientLeft = 0;
-    uint16_t AmbientRight = 0;
-    uint16_t WeaponLeft = 0;
-    uint16_t WeaponRight = 0;
-    uint16_t PulseLeft = 0;
-    uint16_t PulseRight = 0;
-    uint32_t PulseUntil = 0;
-    uint16_t SentLeft = 0;
-    uint16_t SentRight = 0;
-
-    void Update()
-    {
-        const uint32_t now = SDL_GetTicks();
-        if ( PulseUntil && static_cast<int32_t>(now - PulseUntil) >= 0 )
-        {
-            PulseLeft = PulseRight = 0;
-            PulseUntil = 0;
-        }
-        const uint16_t left = std::max(AmbientLeft, std::max(WeaponLeft, PulseLeft));
-        const uint16_t right = std::max(AmbientRight, std::max(WeaponRight, PulseRight));
-        if ( left != SentLeft || right != SentRight )
-        {
-            Steam::ApiLoader::Instance.SetVibration(left, right);
-            SentLeft = left;
-            SentRight = right;
-        }
-    }
-
-    void Pulse(uint16_t left, uint16_t right, uint32_t milliseconds)
-    {
-        PulseLeft = std::max(PulseLeft, left);
-        PulseRight = std::max(PulseRight, right);
-        PulseUntil = SDL_GetTicks() + milliseconds;
-        Update();
-    }
-
-    void StopAll()
-    {
-        AmbientLeft = AmbientRight = WeaponLeft = WeaponRight = 0;
-        PulseLeft = PulseRight = 0;
-        PulseUntil = 0;
-        Update();
-    }
-};
-
-SteamRumbleMixer SteamRumble;
-
-uint16_t RumbleMagnitude(float value, uint16_t minimum, uint16_t maximum)
-{
-    value = std::max(0.0f, std::min(1.0f, value));
-    return static_cast<uint16_t>(minimum + value * (maximum - minimum));
-}
-
-void UpdateSteamRumble(uint8_t state, uint8_t effect, float p1)
-{
-    switch ( effect )
-    {
-    case FF_TYPE_ALL:
-        SteamRumble.StopAll();
-        return;
-    case FF_TYPE_TANKENGINE:
-    case FF_TYPE_JETENGINE:
-    case FF_TYPE_HELIENGINE:
-        if ( state == FF_STATE_STOP )
-            SteamRumble.AmbientLeft = SteamRumble.AmbientRight = 0;
-        else
-        {
-            const uint16_t magnitude = RumbleMagnitude(p1, 2500, 10500);
-            SteamRumble.AmbientLeft = magnitude;
-            SteamRumble.AmbientRight = magnitude / 2;
-        }
-        break;
-    case FF_TYPE_MINIGUN:
-        if ( state == FF_STATE_STOP )
-            SteamRumble.WeaponLeft = SteamRumble.WeaponRight = 0;
-        else
-        {
-            SteamRumble.WeaponLeft = 15000;
-            SteamRumble.WeaponRight = 28000;
-        }
-        break;
-    case FF_TYPE_MISSILEFIRE:
-        if ( state != FF_STATE_STOP ) SteamRumble.Pulse(29000, 50000, 130);
-        break;
-    case FF_TYPE_GRENADEFIRE:
-        if ( state != FF_STATE_STOP ) SteamRumble.Pulse(38000, 34000, 150);
-        break;
-    case FF_TYPE_BOMBFIRE:
-        if ( state != FF_STATE_STOP ) SteamRumble.Pulse(52000, 42000, 190);
-        break;
-    case FF_TYPE_COLLISION:
-    case FF_TYPE_SHAKE:
-        if ( state != FF_STATE_STOP )
-            SteamRumble.Pulse(RumbleMagnitude(p1, 12000, 50000),
-                              RumbleMagnitude(p1, 9000, 42000), 120);
-        break;
-    default:
-        break;
-    }
-    SteamRumble.Update();
-}
-
-}
 
 INPEngine INPEngine::Instance;
 
@@ -360,21 +248,6 @@ int INPEngine::Init()
 
 void INPEngine::Deinit()
 {
-    SteamRumble.StopAll();
-    FFstopAll();
-    _ffTankEngine.Unbind();
-    _ffJetEngine.Unbind();
-    _ffCopterEngine.Unbind();
-    _ffRotDamper.Unbind();
-    _ffMGun.Unbind();
-    _ffMissFire.Unbind();
-    _ffGrenadeFire.Unbind();
-    _ffBombFire.Unbind();
-    _ffCollide.Unbind();
-    _ffShake.Unbind();
-
-    NC_STACK_winp::ShutdownJoystick();
-
     if ( _timer )
         _timer->Delete();
 
@@ -385,78 +258,38 @@ void INPEngine::Deinit()
         FreeKNodes(&lst);
 }
 
-void INPEngine::RebindForceFeedback()
+void INPEngine::QueryInput(TInputState *state)
 {
-    FFstopAll();
-    _ffTankEngine.Unbind();
-    _ffJetEngine.Unbind();
-    _ffCopterEngine.Unbind();
-    _ffRotDamper.Unbind();
-    _ffMGun.Unbind();
-    _ffMissFire.Unbind();
-    _ffGrenadeFire.Unbind();
-    _ffBombFire.Unbind();
-    _ffCollide.Unbind();
-    _ffShake.Unbind();
-
-    SDL_Haptic *joyHaptic = NC_STACK_winp::GetJoyHaptic();
-    if ( !joyHaptic )
-        return;
-
-    _ffTankEngine.Bind(joyHaptic);
-    _ffJetEngine.Bind(joyHaptic);
-    _ffCopterEngine.Bind(joyHaptic);
-    _ffRotDamper.Bind(joyHaptic);
-    _ffMGun.Bind(joyHaptic);
-    _ffMissFire.Bind(joyHaptic);
-    _ffGrenadeFire.Bind(joyHaptic);
-    _ffBombFire.Bind(joyHaptic);
-    _ffCollide.Bind(joyHaptic);
-    _ffShake.Bind(joyHaptic);
-}
-
-void INPEngine::EvaluateLegacyPrimitives(LegacyInputPrimitives *out, bool resolveClicks)
-{
-    *out = LegacyInputPrimitives();
+    *state = TInputState();
 
     if ( _timer )
-        out->Period = _timer->itimer_func64();
+        state->Period = _timer->itimer_func64();
     else
-        out->Period = 20;
+        state->Period = 20;
 
     if ( !_wimp.HasFocus || _wimp.HasFocus() )
     {
-        out->HasFocus = true;
-
-        // QueryKeyboard writes through a TInputState; only the four keyboard
-        // fields are taken from it, exactly as before.
-        TInputState keyboard;
-
         if ( _keyboard.KeyboardQuery )
-            _keyboard.KeyboardQuery(&keyboard);
+            _keyboard.KeyboardQuery(state);
 
-        out->KbdLastDown = keyboard.KbdLastDown;
-        out->KbdLastHit = keyboard.KbdLastHit;
-        out->Chr = keyboard.chr;
-
-        out->HotKeyID = CheckHotKey(out->KbdLastHit);
+        state->HotKeyID = CheckHotKey(state->KbdLastHit);
 
         if ( _wimp.PointerQuery )
-            _wimp.PointerQuery(&out->ClickInf);
+            _wimp.PointerQuery(&state->ClickInf);
 
-        ApplyPointerResolution(&out->ClickInf.move);
-        ApplyPointerResolution(&out->ClickInf.ldw_pos);
-        ApplyPointerResolution(&out->ClickInf.lup_pos);
+        ApplyPointerResolution(&state->ClickInf.move);
+        ApplyPointerResolution(&state->ClickInf.ldw_pos);
+        ApplyPointerResolution(&state->ClickInf.lup_pos);
 
-        if ( resolveClicks )
-            ClickCheck.CheckClick(&out->ClickInf);
+        ClickCheck.CheckClick(&state->ClickInf);
 
         for (size_t i = 0; i < _buttons.size(); i++)
         {
             bool btn = true;
             UpdateList(&_buttons[i], &btn);
 
-            out->ButtonState[i] = btn;
+            if (btn)
+                state->Buttons.Set(i);
         }
 
         for (size_t i = 0; i < _sliders.size(); i++)
@@ -465,84 +298,15 @@ void INPEngine::EvaluateLegacyPrimitives(LegacyInputPrimitives *out, bool resolv
             float pos = 0.0;
             UpdateList(&_sliders[i], &btn, &pos);
 
-            out->SliderValid[i] = btn;
-            out->SliderPos[i] = pos;
+            if (btn)
+                state->Sliders[i] = pos;
         }
     }
     else
     {
-        out->HasFocus = false;
-
         for ( InputNodeList &lst : _sliders )
             UpdateList(&lst);
     }
-}
-
-void INPEngine::QueryInput(TInputState *state)
-{
-    // OpenNeoUA: TInputState is now produced by the action facade. The legacy
-    // expression evaluator still supplies the raw primitives, so the keyboard,
-    // mouse and joystick path is unchanged; only the assembly of TInputState
-    // moved. BuildLegacyInputState remains as the reference the parity harness
-    // diffs against, and as the revert path.
-    LegacyInputPrimitives primitives;
-    EvaluateLegacyPrimitives(&primitives, false);
-
-    Steam::ApiLoader::Instance.RunFrame();
-    SteamRumble.Update();
-    SyncSteamActionSet();
-
-    Actions.Update(primitives);
-    if ( StrategicLayerActive() && SteamBackend().UiPressed(STEAM_UI_CANCEL) )
-        CloseFrontStrategicWindow();
-
-    // Strategic layers turn Steam Input into a real gameplay-UI pointer before
-    // click-box hit testing. This preserves the existing drag/list/map code and
-    // ensures hit testing runs exactly once for physical and virtual mice.
-    const bool steamUiRelease = SteamBackend().UiReleased(STEAM_UI_PRIMARY) ||
-                                SteamBackend().UiReleased(STEAM_UI_SECONDARY) ||
-                                SteamBackend().UiReleased(STEAM_UI_MIDDLE);
-    const bool steamMenuPointer = CurrentInputContext().BaseSet == ACTION_SET_MENU;
-    if ( (StrategicLayerActive() || steamUiRelease || steamMenuPointer) && SteamInputControlsJoystick() )
-    {
-        TClickBoxInf &click = primitives.ClickInf;
-        const Common::Point physical = click.move.ScreenPos;
-        if ( !_steamVirtualPointerReady || physical != _lastPhysicalPointer )
-        {
-            _steamVirtualPointer = physical;
-            _steamVirtualPointerReady = true;
-        }
-        _lastPhysicalPointer = physical;
-        _steamVirtualPointer.x += (int)SteamBackend().MenuCursorDeltaX();
-        _steamVirtualPointer.y += (int)SteamBackend().MenuCursorDeltaY();
-        if ( _pointerLogicalResolution.x > 0 && _pointerLogicalResolution.y > 0 )
-        {
-            _steamVirtualPointer.x = std::max(0, std::min(_steamVirtualPointer.x, _pointerLogicalResolution.x - 1));
-            _steamVirtualPointer.y = std::max(0, std::min(_steamVirtualPointer.y, _pointerLogicalResolution.y - 1));
-        }
-        click.move.ScreenPos = _steamVirtualPointer;
-        const auto applyButton = [&click](STEAM_UI_ACTION action, int down, int hold, int up)
-        {
-            if ( SteamBackend().UiPressed(action) ) click.flag |= down;
-            if ( SteamBackend().UiActive(action) ) click.flag |= hold;
-            if ( SteamBackend().UiReleased(action) ) click.flag |= up;
-        };
-        applyButton(STEAM_UI_PRIMARY, TClickBoxInf::FLAG_LM_DOWN, TClickBoxInf::FLAG_LM_HOLD, TClickBoxInf::FLAG_LM_UP);
-        applyButton(STEAM_UI_SECONDARY, TClickBoxInf::FLAG_RM_DOWN, TClickBoxInf::FLAG_RM_HOLD, TClickBoxInf::FLAG_RM_UP);
-        applyButton(STEAM_UI_MIDDLE, TClickBoxInf::FLAG_MM_DOWN, TClickBoxInf::FLAG_MM_HOLD, TClickBoxInf::FLAG_MM_UP);
-        if ( click.flag & TClickBoxInf::FLAG_LM_DOWN ) click.ldw_pos = click.move;
-        if ( click.flag & TClickBoxInf::FLAG_LM_UP ) click.lup_pos = click.move;
-    }
-    else
-    {
-        _steamVirtualPointerReady = false;
-    }
-    ClickCheck.CheckClick(&primitives.ClickInf);
-    Actions.SetResolvedClickInfo(primitives.ClickInf);
-    Actions.PopulateLegacyState(state);
-
-    if ( ActionParity::Enabled() )
-        ActionParity::Check(primitives, *state);
 }
 
 void INPEngine::SetPointerResolution(const Common::Point &physicalSize,
@@ -892,7 +656,6 @@ int16_t INPEngine::GetHotKey(uint16_t id)
 
 void INPEngine::ForceFeedback(uint8_t state, uint8_t effID, float p1, float p2, float p3, float p4)
 {
-    UpdateSteamRumble(state, effID, p1);
     switch ( effID )
     {
     case FF_TYPE_TANKENGINE:

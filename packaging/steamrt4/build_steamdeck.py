@@ -789,36 +789,6 @@ APPDIR=${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}
 ASSET_ROOT="$APPDIR/usr/share/openneoua"
 USER_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/OpenNeoUA"
 mkdir -p "$USER_DIR"
-APPID_FILE="$APPDIR/usr/bin/steam_appid.txt"
-INSTALLER="$APPDIR/usr/bin/install_steamdeck_spacewar.py"
-# Register this AppImage as Spacewar (480) Launch Options so Steam Input
-# uses appid 480 instead of a Non-Steam synthetic shortcut id.
-if [ "${1-}" = "--install-steam-spacewar" ]; then
-    shift
-    if [ ! -f "$INSTALLER" ]; then
-        echo "OpenNeoUA AppRun: missing $INSTALLER" >&2
-        exit 127
-    fi
-    if [ -z "${APPIMAGE:-}" ]; then
-        echo "OpenNeoUA AppRun: APPIMAGE is unset; pass the .AppImage path to the installer" >&2
-        exec python3 "$INSTALLER" "$@"
-    fi
-    exec python3 "$INSTALLER" "$APPIMAGE" "$@"
-fi
-# SteamAPI looks for steam_appid.txt in cwd and next to the launched file.
-# For an AppImage that is the .AppImage path / original cwd, not usr/bin
-# inside the squashfs mount.
-if [ -f "$APPID_FILE" ]; then
-    if [ -n "${APPIMAGE:-}" ]; then
-        appimage_dir=$(CDPATH= cd -- "$(dirname -- "$APPIMAGE")" && pwd) || true
-        if [ -n "${appimage_dir:-}" ] && [ -d "$appimage_dir" ]; then
-            cp -f "$APPID_FILE" "$appimage_dir/steam_appid.txt" || true
-        fi
-    fi
-    if [ -n "${OWD:-}" ] && [ -d "$OWD" ]; then
-        cp -f "$APPID_FILE" "$OWD/steam_appid.txt" || true
-    fi
-fi
 if [ -n "${LD_LIBRARY_PATH:-}" ]; then
     LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 else
@@ -839,15 +809,12 @@ def _copy_overlay_payload(overlay: Path, appdir: Path, asset_root: Path) -> None
     target_binary.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(binary, target_binary)
     target_binary.chmod(0o755)
-    appid = overlay / "bin" / "steam_appid.txt"
-    if appid.is_file() and not appid.is_symlink():
-        shutil.copyfile(appid, target_binary.parent / "steam_appid.txt")
     (appdir / "usr" / "lib").mkdir(parents=True, exist_ok=True)
     library_source = overlay / "lib"
     if library_source.is_dir():
         _copy_regular_tree(library_source, appdir / "usr" / "lib", allow_symlinks=True)
     # Native overlay assets have already been canonicalized by package.py.  Do
-    # not copy the legacy launcher, Spacewar installer, or the outer package
+    # not copy the legacy launcher or the outer package
     # manifest into the private payload.  BUILD-INFO.txt is intentionally
     # retained: it is the complete, sanitized dependency-version report that
     # must remain covered by the AppImage asset manifest and provenance.
@@ -856,7 +823,6 @@ def _copy_overlay_payload(overlay: Path, appdir: Path, asset_root: Path) -> None
         "lib",
         "MANIFEST.sha256",
         "OpenNeoUA.sh",
-        "install_steamdeck_spacewar.py",
     }
     for child in sorted(overlay.iterdir()):
         if child.name in ignored or child.name == ".git":
@@ -869,11 +835,6 @@ def _copy_overlay_payload(overlay: Path, appdir: Path, asset_root: Path) -> None
             shutil.copyfile(child, destination)
         else:
             raise _error("overlay contains unsupported top-level path: {}".format(child.name))
-    installer_source = overlay / "install_steamdeck_spacewar.py"
-    if installer_source.is_file() and not installer_source.is_symlink():
-        installer_dest = appdir / "usr" / "bin" / "install_steamdeck_spacewar.py"
-        shutil.copyfile(installer_source, installer_dest)
-        installer_dest.chmod(0o755)
 
 
 def assemble_appdir(
@@ -915,18 +876,15 @@ def verify_appdir(appdir: Path) -> None:
     apprun = appdir / "AppRun"
     desktop = appdir / "OpenNeoUA.desktop"
     binary = appdir / "usr" / "bin" / "OpenNeoUA"
-    installer = appdir / "usr" / "bin" / "install_steamdeck_spacewar.py"
     asset_root = appdir / "usr" / "share" / "openneoua"
     library_root = appdir / "usr" / "lib"
-    for path in (apprun, desktop, binary, installer, asset_root, library_root):
+    for path in (apprun, desktop, binary, asset_root, library_root):
         if not path.exists() or path.is_symlink():
             raise _error("AppDir entry is missing or a symlink: {}".format(path.relative_to(appdir)))
     if not stat.S_IMODE(apprun.stat().st_mode) & stat.S_IXUSR:
         raise _error("AppRun is not executable")
     if not stat.S_IMODE(binary.stat().st_mode) & stat.S_IXUSR:
         raise _error("OpenNeoUA executable is not executable")
-    if not stat.S_IMODE(installer.stat().st_mode) & stat.S_IXUSR:
-        raise _error("Spacewar installer is not executable")
     desktop_text = desktop.read_text(encoding="utf-8")
     for required in ("Type=Application", "Exec=OpenNeoUA %F", "Icon=OpenNeoUA"):
         if required not in desktop_text:

@@ -22,7 +22,6 @@
 
 #include "system/inpt.h"
 #include "system/inivals.h"
-#include "system/action_query.h"
 #include "world/blacksecttint.h"
 #include "world/energyfx.h"
 #include "world/spin.h"
