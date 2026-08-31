@@ -8,9 +8,9 @@ import unittest
 from pathlib import Path
 
 try:
-    from generate_iga_vdf import ACTION_SETS, parse_action_table
+    from generate_iga_vdf import ACTION_SETS, ACTION_LAYERS, parse_action_table
 except ImportError:  # pragma: no cover
-    from packaging.steamrt4.generate_iga_vdf import ACTION_SETS, parse_action_table
+    from packaging.steamrt4.generate_iga_vdf import ACTION_SETS, ACTION_LAYERS, parse_action_table
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -27,7 +27,7 @@ INPUT_MODE_PATTERN = re.compile(r'^\t\t\t\t\t"input_mode"\s+"([a-z_]+)"\s*$')
 MENU_NAV = frozenset(
     {"MenuUp", "MenuDown", "MenuLeft", "MenuRight", "MenuConfirm", "MenuCancel"}
 )
-EXTRA_STICK = frozenset({"Aim", "MenuCursor"})
+EXTRA_STICK = frozenset({"Aim", "MenuCursor", "GroundMove", "AirMove", "HostView", "StrategicCursor"})
 
 
 def parse_iga_actions(text: str) -> dict[str, set[str]]:
@@ -115,11 +115,38 @@ class SteamInputIgaTests(unittest.TestCase):
     def test_extra_stick_actions(self) -> None:
         self.assertIn("Aim", self.iga_actions["Ground"])
         self.assertIn("MenuCursor", self.iga_actions["Menu"])
-        self.assertIn("MenuCursor", self.iga_actions["Map"])
+        self.assertIn("GroundMove", self.iga_actions["Ground"])
+        self.assertIn("AirMove", self.iga_actions["Air"])
+        self.assertIn("HostView", self.iga_actions["Host"])
+
+    def test_strategic_layers_have_valid_parents(self) -> None:
+        for parent, layer in ACTION_LAYERS.items():
+            self.assertIn('"{}"'.format(layer), self.iga_text)
+            self.assertIn('"parent_set_name"\t\t"{}"'.format(parent), self.iga_text)
+
+    def test_deck_layout_has_unique_sources_and_eight_segment_radials(self) -> None:
+        layout = (REPO_ROOT / "packaging" / "steamrt4" / "steam_input" / "openneoua_deck_iga.vdf").read_text(encoding="utf-8")
+        for name in (*ACTION_SETS, *ACTION_LAYERS.values()):
+            preset = layout.split('\t\t"name"\t\t"{}"'.format(name), 1)[1].split('\t"preset"', 1)[0]
+            sources = re.findall(r'^\t\t\t"\d+"\t\t"([^"]+)"$', preset, re.MULTILINE)
+            self.assertEqual(len(sources), len(set(sources)), msg=name)
+        radial_groups = layout.split('\t\t"mode"\t\t"radial_menu"')[1:]
+        self.assertEqual(len(radial_groups), 6)
+        for group in radial_groups:
+            buttons = re.findall(r'"button_([0-7])"', group.split('\t}', 1)[0])
+            self.assertEqual(buttons, [str(i) for i in range(8)])
 
     def test_localization_tokens(self) -> None:
         for name in sorted(self.table_names):
             self.assertIn('"Action_{}"'.format(name), self.iga_text, msg=name)
+
+    def test_generated_action_coverage_is_complete(self) -> None:
+        coverage = (REPO_ROOT / "packaging" / "steamrt4" / "steam_input" / "ACTION_COVERAGE.md").read_text(encoding="utf-8")
+        classifications = ("directly bound", "radial-bound", "remappable-only", "intentionally retired")
+        for name in sorted(self.table_names):
+            rows = [line for line in coverage.splitlines() if line.startswith("| {} |".format(name))]
+            self.assertEqual(len(rows), 1, msg=name)
+            self.assertTrue(any(label in rows[0] for label in classifications), msg=rows[0])
 
     def test_configurations_reference_deck_iga(self) -> None:
         self.assertIn('"configurations"', self.iga_text)

@@ -347,6 +347,14 @@ bool ApiLoader::ResolveSymbols()
             &_api.SetActionManifestPath, &optional);
     Resolve(_library, "SteamAPI_ISteamInput_GetCurrentActionSet",
             &_api.GetCurrentActionSet, &optional);
+    Resolve(_library, "SteamAPI_ISteamInput_ActivateActionSetLayer",
+            &_api.ActivateActionSetLayer, &optional);
+    Resolve(_library, "SteamAPI_ISteamInput_DeactivateActionSetLayer",
+            &_api.DeactivateActionSetLayer, &optional);
+    Resolve(_library, "SteamAPI_ISteamInput_DeactivateAllActionSetLayers",
+            &_api.DeactivateAllActionSetLayers, &optional);
+    Resolve(_library, "SteamAPI_ISteamInput_GetActiveActionSetLayers",
+            &_api.GetActiveActionSetLayers, &optional);
     Resolve(_library, "SteamAPI_ISteamInput_GetDigitalActionOrigins",
             &_api.GetDigitalActionOrigins, &optional);
     Resolve(_library, "SteamAPI_ISteamInput_GetAnalogActionOrigins",

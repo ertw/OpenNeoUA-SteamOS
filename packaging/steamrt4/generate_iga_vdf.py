@@ -11,6 +11,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ACTION_TABLE = REPO_ROOT / "src" / "system" / "action_table.h"
 DEFAULT_OUTPUT = REPO_ROOT / "packaging" / "steamrt4" / "steam_input" / "game_actions_480.vdf"
+DEFAULT_COVERAGE_OUTPUT = REPO_ROOT / "packaging" / "steamrt4" / "steam_input" / "ACTION_COVERAGE.md"
 DECK_IGA_CONFIG = "openneoua_deck_iga.vdf"
 
 ENTRY_PATTERN = re.compile(
@@ -18,7 +19,12 @@ ENTRY_PATTERN = re.compile(
     r"INPUT_BIND_TYPE_\w+,\s*\d+,\s*\"(?P<name>[^\"]+)\",\s*(?P<retired>true|false)\s*\}"
 )
 
-ACTION_SETS = ("Menu", "Ground", "Air", "Host", "Map")
+ACTION_SETS = ("Menu", "Ground", "Air", "Host")
+ACTION_LAYERS = {
+    "Ground": "GroundStrategic",
+    "Air": "AirStrategic",
+    "Host": "HostStrategic",
+}
 
 # StickPadGyro actions beyond the action table.
 EXTRA_STICK_ACTIONS = {
@@ -27,17 +33,23 @@ EXTRA_STICK_ACTIONS = {
     ),
     "Ground": (
         ("Aim", "absolute_mouse", "Aim"),
+        ("GroundMove", "joystick_move", "Ground Movement"),
+        ("StrategicCursor", "absolute_mouse", "Strategic Cursor"),
     ),
     "Air": (
         ("Aim", "absolute_mouse", "Aim"),
+        ("AirMove", "joystick_move", "Air Movement"),
+        ("StrategicCursor", "absolute_mouse", "Strategic Cursor"),
     ),
     "Host": (
         ("Aim", "absolute_mouse", "Aim"),
-    ),
-    "Map": (
-        ("MenuCursor", "absolute_mouse", "Map Cursor"),
+        ("HostView", "joystick_move", "Host View"),
+        ("StrategicCursor", "absolute_mouse", "Strategic Cursor"),
     ),
 }
+
+UI_ACTIONS = (("UiPrimary", "Primary UI"), ("UiSecondary", "Secondary UI"),
+              ("UiMiddle", "Pan UI"), ("UiCancel", "Close UI"))
 
 # Menu-only digital navigation actions for controller focus (Phase 7).
 MENU_NAV_ACTIONS = (
@@ -54,6 +66,13 @@ ANALOG_TRIGGER_NAMES = frozenset({"FlySpeed", "DriveSpeed"})
 
 # StickPadGyro joystick_move candidates among slider actions.
 JOYSTICK_MOVE_NAMES = frozenset({"FlyDir", "FlyHeight", "DriveDir", "GunHeight"})
+
+DIRECT_BOUND = frozenset({"Brake", "Quit", "SwitchWeapon", "AlternativeView", "ZoomIn", "ZoomOut",
+    "SquadManager", "Order", "Map", "Pause", "CamFire", "CycleTarget", "NextUnit", "ControlUnit",
+    "Fire", "Gun", "Sprint"})
+RADIAL_BOUND = frozenset({"ControlUnit", "Autopilot", "Hud", "LogWindow", "SquadNew", "SquadAdd",
+    "SetCommander", "Analyzer", "Map", "SquadManager", "ZoomIn", "ZoomOut", "MapLandLayer",
+    "MapOwnerLayer", "MapHeightLayer", "MapLockView"})
 
 
 def split_camel(name: str) -> str:
@@ -120,6 +139,11 @@ def build_vdf(entries: list[dict[str, object]]) -> str:
         lines.append('\t\t"{}"'.format(action_set))
         lines.append("\t\t{")
         lines.append('\t\t\t"title"\t\t"#Set_{}"'.format(action_set))
+        if action_set in ACTION_LAYERS:
+            lines.append('\t\t\t"Layers"')
+            lines.append("\t\t\t{")
+            lines.append('\t\t\t\t"{}"\t\t"#Set_{}"'.format(ACTION_LAYERS[action_set], ACTION_LAYERS[action_set]))
+            lines.append("\t\t\t}")
 
         buttons: list[str] = []
         triggers: list[str] = []
@@ -140,6 +164,10 @@ def build_vdf(entries: list[dict[str, object]]) -> str:
             for nav_name, label in MENU_NAV_ACTIONS:
                 buttons.append(nav_name)
                 loc["Action_{}".format(nav_name)] = label
+        else:
+            for ui_name, label in UI_ACTIONS:
+                buttons.append(ui_name)
+                loc["Action_{}".format(ui_name)] = label
 
         for name, mode, label in EXTRA_STICK_ACTIONS.get(action_set, ()):
             sticks.append((name, mode))
@@ -169,6 +197,17 @@ def build_vdf(entries: list[dict[str, object]]) -> str:
         lines.append("\t\t}")
 
     lines.append("\t}")
+    lines.append('\t"action_layers"')
+    lines.append("\t{")
+    for parent, layer in ACTION_LAYERS.items():
+        lines.append('\t\t"{}"'.format(layer))
+        lines.append("\t\t{")
+        lines.append('\t\t\t"title"\t\t"#Set_{}"'.format(layer))
+        lines.append('\t\t\t"parent_set_name"\t\t"{}"'.format(parent))
+        lines.append('\t\t\t"set_layer"\t\t"1"')
+        lines.append("\t\t}")
+        loc["Set_{}".format(layer)] = "{} UI".format(parent)
+    lines.append("\t}")
     lines.append("\t\"configurations\"")
     lines.append("\t{")
     lines.append('\t\t"controller_neptune"')
@@ -186,6 +225,8 @@ def build_vdf(entries: list[dict[str, object]]) -> str:
     for action_set in ACTION_SETS:
         loc["Set_{}".format(action_set)] = "{} Controls".format(action_set)
         lines.append('\t\t\t"Set_{}"\t\t"{} Controls"'.format(action_set, action_set))
+    for layer in ACTION_LAYERS.values():
+        lines.append('\t\t\t"Set_{}"\t\t"{}"'.format(layer, loc["Set_{}".format(layer)]))
     for token in sorted(loc):
         if token.startswith("Set_"):
             continue
@@ -193,6 +234,23 @@ def build_vdf(entries: list[dict[str, object]]) -> str:
     lines.append("\t\t}")
     lines.append("\t}")
     lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def build_coverage(entries: list[dict[str, object]]) -> str:
+    lines = ["# Steam Input action coverage", "", "Generated by `generate_iga_vdf.py`.", "",
+             "| Action | Coverage |", "|---|---|"]
+    for entry in entries:
+        name = str(entry["name"])
+        if name in RADIAL_BOUND:
+            coverage = "radial-bound"
+        elif name in DIRECT_BOUND or entry["kind"] == "analog":
+            coverage = "directly bound"
+        elif entry["retired"]:
+            coverage = "intentionally retired"
+        else:
+            coverage = "remappable-only"
+        lines.append("| {} | {} |".format(name, coverage))
     return "\n".join(lines) + "\n"
 
 
@@ -204,6 +262,7 @@ def main() -> None:
         default=DEFAULT_OUTPUT,
         help="Output VDF path",
     )
+    parser.add_argument("--coverage-output", type=Path, default=DEFAULT_COVERAGE_OUTPUT)
     args = parser.parse_args()
 
     text = ACTION_TABLE.read_text(encoding="utf-8")
@@ -211,6 +270,7 @@ def main() -> None:
     vdf = build_vdf(entries)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(vdf, encoding="utf-8")
+    args.coverage_output.write_text(build_coverage(entries), encoding="utf-8")
     print("Wrote {} ({} actions)".format(args.output, len(entries)))
 
 

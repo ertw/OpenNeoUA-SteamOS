@@ -7,9 +7,9 @@ import argparse
 from pathlib import Path
 
 try:
-    from generate_iga_vdf import ACTION_SETS
+    from generate_iga_vdf import ACTION_SETS, ACTION_LAYERS
 except ImportError:  # pragma: no cover
-    from packaging.steamrt4.generate_iga_vdf import ACTION_SETS
+    from packaging.steamrt4.generate_iga_vdf import ACTION_SETS, ACTION_LAYERS
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -45,7 +45,9 @@ class SourceMap:
 
     def __init__(self) -> None:
         self.next_id = 0
-        self.by_set: dict[str, list[tuple[str, str]]] = {name: [] for name in ACTION_SETS}
+        self.by_set: dict[str, list[tuple[str, str]]] = {
+            name: [] for name in (*ACTION_SETS, *ACTION_LAYERS.values())
+        }
 
     def add(self, action_set: str, source: str) -> str:
         gid = str(self.next_id)
@@ -213,6 +215,22 @@ def emit_switch_group(lines: list[str], gid: str, action_set: str) -> None:
     emit_group_close(lines)
 
 
+def emit_radial_group(lines: list[str], gid: str, action_set: str, strategic: bool = False) -> None:
+    gameplay = (("ControlUnit", "Control Unit"), ("Autopilot", "Autopilot"),
+                ("Hud", "HUD"), ("LogWindow", "Log"), ("SquadNew", "New Squad"),
+                ("SquadAdd", "Add Unit"), ("SetCommander", "Set Commander"),
+                ("Analyzer", "Analyzer"))
+    strategic_actions = (("Map", "Map"), ("SquadManager", "Squad Manager"),
+                         ("ZoomIn", "Zoom In"), ("ZoomOut", "Zoom Out"),
+                         ("MapLandLayer", "Landscape"), ("MapOwnerLayer", "Owner"),
+                         ("MapHeightLayer", "Height"), ("MapLockView", "Lock View"))
+    emit_group_open(lines, gid, "radial_menu")
+    for index, (action, label) in enumerate(strategic_actions if strategic else gameplay):
+        emit_binding(lines, "button_{}".format(index), game_action(action_set, action, label))
+    lines.append("\t\t}")
+    emit_group_close(lines)
+
+
 def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -> None:
     if action_set == "Menu":
         emit_menu_face(lines, sources.add(action_set, "button_diamond active"))
@@ -228,30 +246,9 @@ def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -
         emit_switch_group(lines, sources.add(action_set, "switch active"), action_set)
         return
 
-    if action_set == "Map":
-        emit_face_group(lines, sources.add(action_set, "button_diamond active"), action_set)
-        emit_dpad_group(lines, sources.add(action_set, "dpad active"), action_set)
-        emit_absolute_mouse_group(
-            lines,
-            sources.add(action_set, "right_trackpad active"),
-            "Map",
-            "MenuCursor",
-            "Map Cursor",
-            sensitivity="100",
-            click_action="PlaceMapMarker",
-            click_label="Place Marker",
-        )
-        emit_trigger_group(
-            lines, sources.add(action_set, "right_trigger active"), "click", action_set, "Fire", "Fire"
-        )
-        emit_trigger_group(
-            lines, sources.add(action_set, "left_trigger active"), "click", action_set, "Gun", "Gun"
-        )
-        emit_switch_group(lines, sources.add(action_set, "switch active"), action_set)
-        return
-
     emit_face_group(lines, sources.add(action_set, "button_diamond active"), action_set)
     emit_dpad_group(lines, sources.add(action_set, "dpad active"), action_set)
+    emit_radial_group(lines, sources.add(action_set, "left_trackpad active"), action_set)
     emit_absolute_mouse_group(
         lines,
         sources.add(action_set, "right_trackpad active"),
@@ -281,8 +278,8 @@ def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -
             lines,
             sources.add(action_set, "joystick active"),
             action_set,
-            "DriveDir",
-            "Drive",
+            "GroundMove",
+            "Drive / Reverse",
             sprint_action="Sprint",
         )
         emit_switch_group(lines, sources.add(action_set, "switch active"), action_set)
@@ -295,32 +292,41 @@ def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -
             sensitivity="60",
             gyro=True,
         )
-        emit_analog_trigger_group(
-            lines,
-            sources.add(action_set, "left_trigger active"),
-            action_set,
-            "DriveSpeed",
-            "Drive Speed",
-        )
         return
 
     emit_joystick_group(
-        lines, sources.add(action_set, "joystick active"), action_set, "FlyDir", "Fly Direction"
-    )
-    emit_joystick_group(
-        lines, sources.add(action_set, "right_joystick active"), action_set, "FlyHeight", "Fly Height"
+        lines, sources.add(action_set, "joystick active"), action_set,
+        "AirMove" if action_set == "Air" else "HostView",
+        "Air Movement" if action_set == "Air" else "Host View"
     )
     emit_switch_group(lines, sources.add(action_set, "switch active"), action_set)
-    emit_analog_trigger_group(
-        lines, sources.add(action_set, "left_trigger active"), action_set, "FlySpeed", "Fly Speed"
-    )
+
+
+def emit_strategic_layer(lines: list[str], sources: SourceMap, parent: str, layer: str) -> None:
+    emit_radial_group(lines, sources.add(layer, "left_trackpad active"), parent, strategic=True)
+    emit_absolute_mouse_group(lines, sources.add(layer, "right_trackpad active"), parent,
+                              "StrategicCursor", "Strategic Cursor", sensitivity="100",
+                              click_action="UiMiddle", click_label="Pan")
+    emit_absolute_mouse_group(lines, sources.add(layer, "right_joystick active"), parent,
+                              "StrategicCursor", "Strategic Cursor", sensitivity="100")
+    emit_trigger_group(lines, sources.add(layer, "right_trigger active"), "click", parent, "UiPrimary", "Select / Drag")
+    emit_trigger_group(lines, sources.add(layer, "left_trigger active"), "click", parent, "UiSecondary", "Context Action")
+    emit_group_open(lines, sources.add(layer, "button_diamond active"), "four_buttons")
+    emit_binding(lines, "button_b", game_action(parent, "UiCancel", "Close"))
+    lines.append("\t\t}")
+    emit_group_close(lines)
 
 
 def emit_preset(lines: list[str], sources: SourceMap, action_set: str) -> None:
     lines.append('\t"preset"')
     lines.append("\t{")
-    lines.append('\t\t"id"\t\t"{}"'.format(ACTION_SETS.index(action_set)))
+    contexts = (*ACTION_SETS, *ACTION_LAYERS.values())
+    lines.append('\t\t"id"\t\t"{}"'.format(contexts.index(action_set)))
     lines.append('\t\t"name"\t\t"{}"'.format(action_set))
+    if action_set in ACTION_LAYERS.values():
+        parent = next(parent for parent, layer in ACTION_LAYERS.items() if layer == action_set)
+        lines.append('\t\t"set_layer"\t\t"1"')
+        lines.append('\t\t"parent_set_name"\t\t"{}"'.format(parent))
     lines.append('\t\t"group_source_bindings"')
     lines.append("\t\t{")
     for gid, source in sources.by_set[action_set]:
@@ -340,12 +346,16 @@ def build_vdf() -> str:
         '\t"creator"\t\t"0"',
         '\t"controller_type"\t\t"controller_neptune"',
         '\t"controller_capacitor"\t\t"1"',
-        '\t"revision"\t\t"4"',
+        '\t"revision"\t\t"5"',
     ]
     for action_set in ACTION_SETS:
         emit_groups_for_set(lines, sources, action_set)
+    for parent, layer in ACTION_LAYERS.items():
+        emit_strategic_layer(lines, sources, parent, layer)
     for action_set in ACTION_SETS:
         emit_preset(lines, sources, action_set)
+    for layer in ACTION_LAYERS.values():
+        emit_preset(lines, sources, layer)
     lines.extend(
         [
             '\t"settings"',
