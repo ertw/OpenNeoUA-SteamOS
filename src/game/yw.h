@@ -2370,6 +2370,7 @@ public:
     virtual size_t Init(IDVList &stak) override;
     virtual size_t Deinit() override;
     virtual size_t Process(base_64arg *arg);
+    void RequestGameplayPause() { _gameplayPauseRequested = true; }
     virtual void ypaworld_func129(yw_arg129 *arg);
     virtual size_t GetSectorInfo(yw_130arg *arg);
     virtual void ypaworld_func131(NC_STACK_ypabact *bact);
@@ -3321,6 +3322,7 @@ public:
     uint32_t _gamePausedTimeStamp = 0;
     bool _debugGameplaySlowMotion = false;
     bool _debugGameplayFastMotion = false;
+    bool _gameplayPauseRequested = false;
     bool _debugGameplayFrozen = false;
     bool _debugHostStationCheat = false;
     bool _debugGlobalInvulnerability = false;
