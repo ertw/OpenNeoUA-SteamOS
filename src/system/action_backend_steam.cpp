@@ -1,6 +1,7 @@
 #include "action_backend.h"
 
 #include "steam_api_loader.h"
+#include "action_set_sync.h"
 
 namespace Input
 {
@@ -62,6 +63,11 @@ void SteamInputBackend::ResetHandles()
     _aimDelX = 0.0f;
     _aimDelY = 0.0f;
     _aimHandle = 0;
+    _groundMoveHandle = _airMoveHandle = _hostViewHandle = _strategicCursorHandle = 0;
+    _uiResolved.fill(0);
+    _uiActive.fill(false);
+    _uiPressed.fill(false);
+    _uiReleased.fill(false);
     _handlesReady = false;
 }
 
@@ -109,6 +115,13 @@ void SteamInputBackend::EnsureHandles()
         _menuNavResolved[i] = api.GetDigitalActionHandle(iface, kMenuNavNames[i]);
 
     _aimHandle = api.GetAnalogActionHandle(iface, "Aim");
+    _groundMoveHandle = api.GetAnalogActionHandle(iface, "GroundMove");
+    _airMoveHandle = api.GetAnalogActionHandle(iface, "AirMove");
+    _hostViewHandle = api.GetAnalogActionHandle(iface, "HostView");
+    _strategicCursorHandle = api.GetAnalogActionHandle(iface, "StrategicCursor");
+    static const char *const kUiNames[] = {"UiPrimary", "UiSecondary", "UiMiddle", "UiCancel"};
+    for ( std::size_t i = 0; i < _uiResolved.size(); ++i )
+        _uiResolved[i] = api.GetDigitalActionHandle(iface, kUiNames[i]);
 
     _handlesReady = true;
 }
@@ -157,6 +170,8 @@ void SteamInputBackend::ContributeSmoke(ActionFrame *frame)
     _menuCursorDelY = 0.0f;
     _aimDelX = 0.0f;
     _aimDelY = 0.0f;
+    _uiPressed.fill(false);
+    _uiReleased.fill(false);
 
     for ( std::size_t i = 0; i < _menuNavActive.size(); i++ )
     {
@@ -192,6 +207,7 @@ void SteamInputBackend::Contribute(ActionFrame *frame)
     const Steam::ApiTable &api = steam.Api();
     void *iface = steam.InputInterface();
     const Steam::InputHandle controller = steam.Controllers()[0];
+    const bool strategic = StrategicLayerActive();
 
     for ( int binding = 1; binding < World::INPUT_BIND_MAX; binding++ )
     {
@@ -243,6 +259,47 @@ void SteamInputBackend::Contribute(ActionFrame *frame)
         }
     }
 
+    // Layers override weapon controls. Their button actions are queried below,
+    // while the underlying base set continues to supply vehicle movement.
+    if ( strategic )
+    {
+        _neutralizeWeaponsUntilReleased = true;
+        frame->Samples[World::INPUT_BIND_FIRE] = ActionSample();
+        frame->Samples[World::INPUT_BIND_GUN] = ActionSample();
+        frame->Samples[World::INPUT_BIND_CAMFIRE] = ActionSample();
+    }
+    else if ( _neutralizeWeaponsUntilReleased )
+    {
+        const bool anyHeld = frame->Samples[World::INPUT_BIND_FIRE].active ||
+                             frame->Samples[World::INPUT_BIND_GUN].active ||
+                             frame->Samples[World::INPUT_BIND_CAMFIRE].active;
+        frame->Samples[World::INPUT_BIND_FIRE] = ActionSample();
+        frame->Samples[World::INPUT_BIND_GUN] = ActionSample();
+        frame->Samples[World::INPUT_BIND_CAMFIRE] = ActionSample();
+        if ( !anyHeld )
+            _neutralizeWeaponsUntilReleased = false;
+    }
+
+    const InputContext &context = CurrentInputContext();
+    Steam::InputAnalogActionHandle moveHandle = context.BaseSet == ACTION_SET_GROUND ? _groundMoveHandle :
+        context.BaseSet == ACTION_SET_AIR ? _airMoveHandle :
+        context.BaseSet == ACTION_SET_HOST ? _hostViewHandle : 0;
+    if ( moveHandle )
+    {
+        const Steam::AnalogActionData move = api.GetAnalogActionData(iface, controller, moveHandle);
+        if ( move.Active )
+        {
+            const int xBinding = context.BaseSet == ACTION_SET_GROUND ? World::INPUT_BIND_DRIVE_DIR : World::INPUT_BIND_FLY_DIR;
+            const int yBinding = context.BaseSet == ACTION_SET_GROUND ? World::INPUT_BIND_DRIVE_SPEED :
+                                 context.BaseSet == ACTION_SET_AIR ? World::INPUT_BIND_FLY_SPEED :
+                                 World::INPUT_BIND_FLY_HEIGHT;
+            frame->Samples[xBinding].posX = CombineTrigger(frame->Samples[xBinding].posX, move.X);
+            frame->Samples[yBinding].posX = CombineTrigger(frame->Samples[yBinding].posX, move.Y);
+            frame->Samples[xBinding].active = frame->Samples[xBinding].active || move.X != 0.0f;
+            frame->Samples[yBinding].active = frame->Samples[yBinding].active || move.Y != 0.0f;
+        }
+    }
+
     for ( std::size_t i = 0; i < _menuNavResolved.size(); i++ )
     {
         if ( !_menuNavResolved[i] )
@@ -278,7 +335,33 @@ void SteamInputBackend::Contribute(ActionFrame *frame)
         {
             _aimDelX = aim.X;
             _aimDelY = aim.Y;
+            const int xBinding = context.BaseSet == ACTION_SET_GROUND ? World::INPUT_BIND_DRIVE_DIR : World::INPUT_BIND_FLY_DIR;
+            const int yBinding = context.BaseSet == ACTION_SET_GROUND ? World::INPUT_BIND_GUN_HEIGHT : World::INPUT_BIND_FLY_HEIGHT;
+            const auto clampAxis = [](float value) { return value < -1.0f ? -1.0f : value > 1.0f ? 1.0f : value; };
+            frame->Samples[xBinding].posX = clampAxis(frame->Samples[xBinding].posX + aim.X);
+            frame->Samples[yBinding].posX = clampAxis(frame->Samples[yBinding].posX + aim.Y);
+            frame->Samples[xBinding].active = frame->Samples[xBinding].active || aim.X != 0.0f;
+            frame->Samples[yBinding].active = frame->Samples[yBinding].active || aim.Y != 0.0f;
         }
+    }
+
+    if ( strategic && _strategicCursorHandle )
+    {
+        const Steam::AnalogActionData cursor = api.GetAnalogActionData(iface, controller, _strategicCursorHandle);
+        if ( cursor.Active ) { _menuCursorDelX = cursor.X; _menuCursorDelY = cursor.Y; }
+    }
+    for ( std::size_t i = 0; i < _uiResolved.size(); ++i )
+    {
+        const bool was = _uiActive[i];
+        bool now = false;
+        if ( strategic && _uiResolved[i] )
+        {
+            const Steam::DigitalActionData data = api.GetDigitalActionData(iface, controller, _uiResolved[i]);
+            now = data.Active && data.State;
+        }
+        _uiActive[i] = now;
+        _uiPressed[i] = now && !was;
+        _uiReleased[i] = !now && was;
     }
 
     for ( int binding = 1; binding < World::INPUT_BIND_MAX; binding++ )

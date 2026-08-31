@@ -305,7 +305,7 @@ void INPEngine::RebindForceFeedback()
     _ffShake.Bind(joyHaptic);
 }
 
-void INPEngine::EvaluateLegacyPrimitives(LegacyInputPrimitives *out)
+void INPEngine::EvaluateLegacyPrimitives(LegacyInputPrimitives *out, bool resolveClicks)
 {
     *out = LegacyInputPrimitives();
 
@@ -338,7 +338,8 @@ void INPEngine::EvaluateLegacyPrimitives(LegacyInputPrimitives *out)
         ApplyPointerResolution(&out->ClickInf.ldw_pos);
         ApplyPointerResolution(&out->ClickInf.lup_pos);
 
-        ClickCheck.CheckClick(&out->ClickInf);
+        if ( resolveClicks )
+            ClickCheck.CheckClick(&out->ClickInf);
 
         for (size_t i = 0; i < _buttons.size(); i++)
         {
@@ -375,12 +376,56 @@ void INPEngine::QueryInput(TInputState *state)
     // moved. BuildLegacyInputState remains as the reference the parity harness
     // diffs against, and as the revert path.
     LegacyInputPrimitives primitives;
-    EvaluateLegacyPrimitives(&primitives);
+    EvaluateLegacyPrimitives(&primitives, false);
 
     Steam::ApiLoader::Instance.RunFrame();
     SyncSteamActionSet();
 
     Actions.Update(primitives);
+    if ( StrategicLayerActive() && SteamBackend().UiPressed(STEAM_UI_CANCEL) )
+        CloseFrontStrategicWindow();
+
+    // Strategic layers turn Steam Input into a real gameplay-UI pointer before
+    // click-box hit testing. This preserves the existing drag/list/map code and
+    // ensures hit testing runs exactly once for physical and virtual mice.
+    const bool steamUiRelease = SteamBackend().UiReleased(STEAM_UI_PRIMARY) ||
+                                SteamBackend().UiReleased(STEAM_UI_SECONDARY) ||
+                                SteamBackend().UiReleased(STEAM_UI_MIDDLE);
+    if ( (StrategicLayerActive() || steamUiRelease) && SteamInputControlsJoystick() )
+    {
+        TClickBoxInf &click = primitives.ClickInf;
+        const Common::Point physical = click.move.ScreenPos;
+        if ( !_steamVirtualPointerReady || physical != _lastPhysicalPointer )
+        {
+            _steamVirtualPointer = physical;
+            _steamVirtualPointerReady = true;
+        }
+        _lastPhysicalPointer = physical;
+        _steamVirtualPointer.x += (int)SteamBackend().MenuCursorDeltaX();
+        _steamVirtualPointer.y += (int)SteamBackend().MenuCursorDeltaY();
+        if ( _pointerLogicalResolution.x > 0 && _pointerLogicalResolution.y > 0 )
+        {
+            _steamVirtualPointer.x = std::max(0, std::min(_steamVirtualPointer.x, _pointerLogicalResolution.x - 1));
+            _steamVirtualPointer.y = std::max(0, std::min(_steamVirtualPointer.y, _pointerLogicalResolution.y - 1));
+        }
+        click.move.ScreenPos = _steamVirtualPointer;
+        const auto applyButton = [&click](STEAM_UI_ACTION action, int down, int hold, int up)
+        {
+            if ( SteamBackend().UiPressed(action) ) click.flag |= down;
+            if ( SteamBackend().UiActive(action) ) click.flag |= hold;
+            if ( SteamBackend().UiReleased(action) ) click.flag |= up;
+        };
+        applyButton(STEAM_UI_PRIMARY, TClickBoxInf::FLAG_LM_DOWN, TClickBoxInf::FLAG_LM_HOLD, TClickBoxInf::FLAG_LM_UP);
+        applyButton(STEAM_UI_SECONDARY, TClickBoxInf::FLAG_RM_DOWN, TClickBoxInf::FLAG_RM_HOLD, TClickBoxInf::FLAG_RM_UP);
+        applyButton(STEAM_UI_MIDDLE, TClickBoxInf::FLAG_MM_DOWN, TClickBoxInf::FLAG_MM_HOLD, TClickBoxInf::FLAG_MM_UP);
+        if ( click.flag & TClickBoxInf::FLAG_LM_DOWN ) click.ldw_pos = click.move;
+        if ( click.flag & TClickBoxInf::FLAG_LM_UP ) click.lup_pos = click.move;
+    }
+    else
+    {
+        _steamVirtualPointerReady = false;
+    }
+    ClickCheck.CheckClick(&primitives.ClickInf);
     Actions.PopulateLegacyState(state);
 
     if ( ActionParity::Enabled() )

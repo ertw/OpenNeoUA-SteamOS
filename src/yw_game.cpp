@@ -19,6 +19,8 @@
 #include "font.h"
 #include "gui/uacommon.h"
 #include "system/inivals.h"
+#include "system/action_set_sync.h"
+#include "system/action_backend.h"
 #include "system/system.h"
 #include "world/spin.h"
 #include "crashdiag.h"
@@ -8202,6 +8204,52 @@ void NC_STACK_ypaworld::debug_count_units()
 
 void NC_STACK_ypaworld::debug_info_draw(TInputState *inpt)
 {
+    if ( System::IniConf::InputDebug.Get<bool>() )
+    {
+        CmdStream inputText;
+        char line[512];
+        FontUA::select_tileset(&inputText, 15);
+        FontUA::set_xpos(&inputText, 8);
+        FontUA::set_ypos(&inputText, 16);
+        const Input::InputContext &ctx = Input::CurrentInputContext();
+        Steam::ApiLoader &steam = Steam::ApiLoader::Instance;
+        bool baseOk = !steam.Ready();
+        bool layerOk = !steam.Ready();
+        int actualLayers = 0;
+        if ( steam.Ready() && steam.ControllerCount() > 0 )
+        {
+            const Steam::ApiTable &api = steam.Api();
+            const Steam::InputHandle controller = steam.Controllers()[0];
+            const Steam::InputActionSetHandle expected = api.GetActionSetHandle
+                ? api.GetActionSetHandle(steam.InputInterface(), Input::ActionSetName(ctx.BaseSet)) : 0;
+            baseOk = api.GetCurrentActionSet && api.GetCurrentActionSet(steam.InputInterface(), controller) == expected;
+            Steam::InputActionSetHandle layers[16] = {0};
+            if ( api.GetActiveActionSetLayers )
+                actualLayers = api.GetActiveActionSetLayers(steam.InputInterface(), controller, layers);
+            const Steam::InputActionSetHandle expectedLayer = ctx.Layer == Input::ACTION_LAYER_NONE ? 0 :
+                api.GetActionSetHandle(steam.InputInterface(), Input::ActionLayerName(ctx.Layer));
+            layerOk = expectedLayer == 0 ? actualLayers == 0 :
+                std::find(layers, layers + actualLayers, expectedLayer) != layers + actualLayers;
+        }
+        sub_445654(this, &inputText, line, "STEAM INPUT %s controllers=%d [%s]",
+                   steam.Ready() ? "READY" : steam.StatusText().c_str(), steam.ControllerCount(),
+                   baseOk && layerOk ? "OK" : "MISMATCH");
+        FontUA::next_line(&inputText);
+        sub_445654(this, &inputText, line, "unit=%d map=%d squad=%d expected=%s + %s actualLayers=%d",
+                   ctx.UnitType, ctx.MapVisible, ctx.SquadVisible, Input::ActionSetName(ctx.BaseSet),
+                   Input::ActionLayerName(ctx.Layer), actualLayers);
+        FontUA::next_line(&inputText);
+        sub_445654(this, &inputText, line, "move dir=%+.2f speed/height=%+.2f aim=%+.1f,%+.1f UI L/R/M=%d/%d/%d",
+                   Input::Actions.AnalogX(ctx.BaseSet == Input::ACTION_SET_GROUND ? World::INPUT_BIND_DRIVE_DIR : World::INPUT_BIND_FLY_DIR),
+                   Input::Actions.AnalogX(ctx.BaseSet == Input::ACTION_SET_GROUND ? World::INPUT_BIND_DRIVE_SPEED :
+                                          ctx.BaseSet == Input::ACTION_SET_AIR ? World::INPUT_BIND_FLY_SPEED : World::INPUT_BIND_FLY_HEIGHT),
+                   Input::SteamBackend().AimDeltaX(), Input::SteamBackend().AimDeltaY(),
+                   Input::SteamBackend().UiActive(Input::STEAM_UI_PRIMARY),
+                   Input::SteamBackend().UiActive(Input::STEAM_UI_SECONDARY),
+                   Input::SteamBackend().UiActive(Input::STEAM_UI_MIDDLE));
+        FontUA::set_end(&inputText);
+        GFX::Engine.ProcessDrawSeq(inputText);
+    }
     if ( _showDebugMode != 0 )
     {
         CmdStream dbg_txt;
