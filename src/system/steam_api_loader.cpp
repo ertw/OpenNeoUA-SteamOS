@@ -363,6 +363,8 @@ bool ApiLoader::ResolveSymbols()
             &_api.GetGlyphForActionOrigin, &optional);
     Resolve(_library, "SteamAPI_ISteamInput_ShowBindingPanel",
             &_api.ShowBindingPanel, &optional);
+    Resolve(_library, "SteamAPI_ISteamInput_TriggerVibration",
+            &_api.TriggerVibration, &optional);
     Resolve(_library, "SteamAPI_SteamUtils_v011", &_api.SteamUtils, &optional);
     Resolve(_library, "SteamAPI_ISteamUtils_ShowGamepadTextInput",
             &_api.ShowGamepadTextInput, &optional);
@@ -378,6 +380,15 @@ bool ApiLoader::ResolveSymbols()
 #else
     return false;
 #endif
+}
+
+void ApiLoader::SetVibration(uint16_t leftSpeed, uint16_t rightSpeed)
+{
+    if ( !Ready() || !_api.TriggerVibration || !_inputInterface )
+        return;
+
+    for ( int i = 0; i < _controllerCount; ++i )
+        _api.TriggerVibration(_inputInterface, _controllers[i], leftSpeed, rightSpeed);
 }
 
 bool ApiLoader::InstallActionManifest()

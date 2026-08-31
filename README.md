@@ -145,6 +145,31 @@ overlay with `./packaging/steamrt4/local_ci.py`.
 `chmod +x` the AppImage and copy it to the Deck. Saves live in
 `~/.local/share/OpenNeoUA`.
 
+For repeatable developer installs, the repository includes an SSH deployer.
+It uses the `steamdeck` host from `~/.ssh/config`, verifies the uploaded
+SHA-256 on the Deck, and atomically replaces the stable executable at
+`~/.local/bin/OpenNeoUA-dev.AppImage`:
+
+```sh
+./packaging/steamrt4/deploy_steamdeck.py
+```
+
+The newest AppImage under `build/steamdeck-private/artifacts` is selected by
+default. Deployment refuses before copying any data while Steam is running on
+the Deck and refreshes Spacewar's launch option after every successful update.
+Development deployment also adds `--input-debug`, which displays the expected
+and actual Steam Input base mode/layer plus live action state in-game.
+Pass an explicit AppImage when needed. `--rsync` seeds a temporary
+copy from the installed build and transfers changed blocks; ordinary SCP is
+the simpler default. `--skip-spacewar-config` is available when only the file
+should be replaced.
+
+The developer TUI collects build, deployment, generator, test, and CI tasks:
+
+```sh
+./packaging/steamrt4/dev_menu.py
+```
+
 ### Register the AppImage as Spacewar
 
 Quit Steam, then from Desktop Mode:

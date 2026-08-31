@@ -78,6 +78,8 @@ typedef int  (*PFN_ISteamInput_GetDigitalActionOrigins)(void *self, InputHandle 
 typedef int  (*PFN_ISteamInput_GetAnalogActionOrigins)(void *self, InputHandle controller, InputAnalogActionHandle action, InputActionSetHandle set, uint32_t *originsOut, uint32_t originsOutCount);
 typedef const char *(*PFN_ISteamInput_GetGlyphPNGForActionOrigin)(void *self, uint32_t origin, int32_t flags, uint32_t *sizeOut);
 typedef void (*PFN_ISteamInput_ShowBindingPanel)(void *self, InputHandle controller);
+typedef void (*PFN_ISteamInput_TriggerVibration)(void *self, InputHandle controller,
+                                                 uint16_t leftSpeed, uint16_t rightSpeed);
 typedef void *(*PFN_SteamAPI_SteamUtils)();
 typedef bool (*PFN_ISteamUtils_ShowGamepadTextInput)(void *self, uint32_t inputMode, uint32_t lineInputMode, const char *description, uint32_t charMax, const char *existingText);
 
@@ -111,6 +113,7 @@ struct ApiTable
     PFN_ISteamInput_GetAnalogActionOrigins        GetAnalogActionOrigins   = nullptr;
     PFN_ISteamInput_GetGlyphPNGForActionOrigin    GetGlyphForActionOrigin  = nullptr;
     PFN_ISteamInput_ShowBindingPanel              ShowBindingPanel         = nullptr;
+    PFN_ISteamInput_TriggerVibration              TriggerVibration         = nullptr;
     PFN_SteamAPI_SteamUtils                       SteamUtils               = nullptr;
     PFN_ISteamUtils_ShowGamepadTextInput          ShowGamepadTextInput     = nullptr;
 };
@@ -169,6 +172,11 @@ public:
 
     // Opens the Steam Input binding panel for the first connected controller.
     void OpenBindingPanel();
+
+    // Sets the low/high-frequency motors on every connected Steam Input
+    // controller. Zero stops vibration. This is optional: older runtimes and
+    // non-Steam builds simply ignore it.
+    void SetVibration(uint16_t leftSpeed, uint16_t rightSpeed);
 
     // Requests the Big Picture overlay text field for gamepad name entry.
     bool ShowGamepadTextInput(const char *description,

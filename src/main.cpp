@@ -54,6 +54,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <csignal>
 #include <sys/stat.h>
 #include <cerrno>
 #include <cstring>
@@ -64,6 +65,16 @@
 
 int ProcessNextFrame();
 extern UserData userdata;
+
+namespace
+{
+volatile std::sig_atomic_t QuitSignalReceived = 0;
+
+void HandleQuitSignal(int)
+{
+    QuitSignalReceived = 1;
+}
+}
 
 static bool MenuSmokeEnabled()
 {
@@ -1026,12 +1037,13 @@ int init_classesLists_and_variables()
 
 void deinit_globl_engines()
 {
-    Steam::ApiLoader::Instance.Shutdown();
-
     if ( tform_inited )
         TF::Engine.Deinit();
     if ( input_inited )
         Input::Engine.Deinit();
+    // Input deinit sends a final zero-vibration command. Keep Steam Input
+    // alive until that controller state has been cleared.
+    Steam::ApiLoader::Instance.Shutdown();
     if ( audio_inited )
         SFXEngine::SFXe.deinit();
 
@@ -1304,6 +1316,12 @@ static bool IsSteamCompatVerb(const char *arg)
 
 int main(int argc, char *argv[])
 {
+    // Steam's Stop command may terminate the AppImage through SIGTERM rather
+    // than an SDL_QUIT event. Keep the handler async-signal-safe and let the
+    // normal loop perform engine/Steam shutdown.
+    std::signal(SIGTERM, HandleQuitSignal);
+    std::signal(SIGINT, HandleQuitSignal);
+
     System::AddCmdLine(argv[0] ? argv[0] : "");
     int argi = 1;
     while (argi < argc && IsSteamCompatVerb(argv[argi]))
@@ -1461,6 +1479,8 @@ int main(int argc, char *argv[])
 
     while ( true )
     {
+        if ( QuitSignalReceived )
+            break;
 
         if (GFX::Engine.FpsMaxTicks == 0)
         {

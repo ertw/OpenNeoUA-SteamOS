@@ -92,6 +92,14 @@ class SpacewarInstallerTests(unittest.TestCase):
             self.assertTrue(options.endswith(' # %command%'))
             self.assertIn("OpenNeoUA with spaces.AppImage", options)
 
+    def test_build_launch_options_can_enable_input_debug_overlay(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            payload = Path(directory) / "OpenNeoUA.AppImage"
+            payload.write_text("#!/bin/sh\n", encoding="utf-8")
+            payload.chmod(0o755)
+            options = build_launch_options(payload, input_debug=True)
+            self.assertTrue(options.endswith(" --input-debug # %command%"))
+
     def test_patch_creates_480_block_when_missing(self) -> None:
         with tempfile.TemporaryDirectory(prefix="OpenNeoUA spacewar ") as directory:
             config = Path(directory) / "localconfig.vdf"

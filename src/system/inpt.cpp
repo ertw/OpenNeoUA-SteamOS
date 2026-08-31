@@ -12,6 +12,115 @@
 
 namespace Input{
 
+namespace
+{
+
+struct SteamRumbleMixer
+{
+    uint16_t AmbientLeft = 0;
+    uint16_t AmbientRight = 0;
+    uint16_t WeaponLeft = 0;
+    uint16_t WeaponRight = 0;
+    uint16_t PulseLeft = 0;
+    uint16_t PulseRight = 0;
+    uint32_t PulseUntil = 0;
+    uint16_t SentLeft = 0;
+    uint16_t SentRight = 0;
+
+    void Update()
+    {
+        const uint32_t now = SDL_GetTicks();
+        if ( PulseUntil && static_cast<int32_t>(now - PulseUntil) >= 0 )
+        {
+            PulseLeft = PulseRight = 0;
+            PulseUntil = 0;
+        }
+        const uint16_t left = std::max(AmbientLeft, std::max(WeaponLeft, PulseLeft));
+        const uint16_t right = std::max(AmbientRight, std::max(WeaponRight, PulseRight));
+        if ( left != SentLeft || right != SentRight )
+        {
+            Steam::ApiLoader::Instance.SetVibration(left, right);
+            SentLeft = left;
+            SentRight = right;
+        }
+    }
+
+    void Pulse(uint16_t left, uint16_t right, uint32_t milliseconds)
+    {
+        PulseLeft = std::max(PulseLeft, left);
+        PulseRight = std::max(PulseRight, right);
+        PulseUntil = SDL_GetTicks() + milliseconds;
+        Update();
+    }
+
+    void StopAll()
+    {
+        AmbientLeft = AmbientRight = WeaponLeft = WeaponRight = 0;
+        PulseLeft = PulseRight = 0;
+        PulseUntil = 0;
+        Update();
+    }
+};
+
+SteamRumbleMixer SteamRumble;
+
+uint16_t RumbleMagnitude(float value, uint16_t minimum, uint16_t maximum)
+{
+    value = std::max(0.0f, std::min(1.0f, value));
+    return static_cast<uint16_t>(minimum + value * (maximum - minimum));
+}
+
+void UpdateSteamRumble(uint8_t state, uint8_t effect, float p1)
+{
+    switch ( effect )
+    {
+    case FF_TYPE_ALL:
+        SteamRumble.StopAll();
+        return;
+    case FF_TYPE_TANKENGINE:
+    case FF_TYPE_JETENGINE:
+    case FF_TYPE_HELIENGINE:
+        if ( state == FF_STATE_STOP )
+            SteamRumble.AmbientLeft = SteamRumble.AmbientRight = 0;
+        else
+        {
+            const uint16_t magnitude = RumbleMagnitude(p1, 2500, 10500);
+            SteamRumble.AmbientLeft = magnitude;
+            SteamRumble.AmbientRight = magnitude / 2;
+        }
+        break;
+    case FF_TYPE_MINIGUN:
+        if ( state == FF_STATE_STOP )
+            SteamRumble.WeaponLeft = SteamRumble.WeaponRight = 0;
+        else
+        {
+            SteamRumble.WeaponLeft = 15000;
+            SteamRumble.WeaponRight = 28000;
+        }
+        break;
+    case FF_TYPE_MISSILEFIRE:
+        if ( state != FF_STATE_STOP ) SteamRumble.Pulse(29000, 50000, 130);
+        break;
+    case FF_TYPE_GRENADEFIRE:
+        if ( state != FF_STATE_STOP ) SteamRumble.Pulse(38000, 34000, 150);
+        break;
+    case FF_TYPE_BOMBFIRE:
+        if ( state != FF_STATE_STOP ) SteamRumble.Pulse(52000, 42000, 190);
+        break;
+    case FF_TYPE_COLLISION:
+    case FF_TYPE_SHAKE:
+        if ( state != FF_STATE_STOP )
+            SteamRumble.Pulse(RumbleMagnitude(p1, 12000, 50000),
+                              RumbleMagnitude(p1, 9000, 42000), 120);
+        break;
+    default:
+        break;
+    }
+    SteamRumble.Update();
+}
+
+}
+
 INPEngine INPEngine::Instance;
 
 int INPEngine::Init()
@@ -251,6 +360,7 @@ int INPEngine::Init()
 
 void INPEngine::Deinit()
 {
+    SteamRumble.StopAll();
     FFstopAll();
     _ffTankEngine.Unbind();
     _ffJetEngine.Unbind();
@@ -379,6 +489,7 @@ void INPEngine::QueryInput(TInputState *state)
     EvaluateLegacyPrimitives(&primitives, false);
 
     Steam::ApiLoader::Instance.RunFrame();
+    SteamRumble.Update();
     SyncSteamActionSet();
 
     Actions.Update(primitives);
@@ -391,7 +502,8 @@ void INPEngine::QueryInput(TInputState *state)
     const bool steamUiRelease = SteamBackend().UiReleased(STEAM_UI_PRIMARY) ||
                                 SteamBackend().UiReleased(STEAM_UI_SECONDARY) ||
                                 SteamBackend().UiReleased(STEAM_UI_MIDDLE);
-    if ( (StrategicLayerActive() || steamUiRelease) && SteamInputControlsJoystick() )
+    const bool steamMenuPointer = CurrentInputContext().BaseSet == ACTION_SET_MENU;
+    if ( (StrategicLayerActive() || steamUiRelease || steamMenuPointer) && SteamInputControlsJoystick() )
     {
         TClickBoxInf &click = primitives.ClickInf;
         const Common::Point physical = click.move.ScreenPos;
@@ -426,6 +538,7 @@ void INPEngine::QueryInput(TInputState *state)
         _steamVirtualPointerReady = false;
     }
     ClickCheck.CheckClick(&primitives.ClickInf);
+    Actions.SetResolvedClickInfo(primitives.ClickInf);
     Actions.PopulateLegacyState(state);
 
     if ( ActionParity::Enabled() )
@@ -779,6 +892,7 @@ int16_t INPEngine::GetHotKey(uint16_t id)
 
 void INPEngine::ForceFeedback(uint8_t state, uint8_t effID, float p1, float p2, float p3, float p4)
 {
+    UpdateSteamRumble(state, effID, p1);
     switch ( effID )
     {
     case FF_TYPE_TANKENGINE:

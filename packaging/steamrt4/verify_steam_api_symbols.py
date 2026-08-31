@@ -43,6 +43,7 @@ OPTIONAL_SYMBOLS = (
     "SteamAPI_ISteamInput_GetAnalogActionOrigins",
     "SteamAPI_ISteamInput_GetGlyphPNGForActionOrigin",
     "SteamAPI_ISteamInput_ShowBindingPanel",
+    "SteamAPI_ISteamInput_TriggerVibration",
     "SteamAPI_SteamUtils_v011",
     "SteamAPI_ISteamUtils_ShowGamepadTextInput",
 )

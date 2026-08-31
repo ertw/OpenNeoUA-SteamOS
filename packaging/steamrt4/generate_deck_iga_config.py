@@ -137,6 +137,10 @@ def emit_trigger_group(
     emit_group_open(lines, gid, "trigger")
     emit_binding(lines, control, game_action(action_set, action, label))
     lines.append("\t\t}")
+    lines.append('\t\t"settings"')
+    lines.append("\t\t{")
+    lines.append('\t\t\t"haptic_intensity"\t\t"0"')
+    lines.append("\t\t}")
     emit_group_close(lines)
 
 
@@ -149,6 +153,7 @@ def emit_analog_trigger_group(
     lines.append('\t\t"settings"')
     lines.append("\t\t{")
     lines.append('\t\t\t"output_trigger"\t\t"1"')
+    lines.append('\t\t\t"haptic_intensity"\t\t"0"')
     lines.append("\t\t}")
     emit_group_close(lines)
 
@@ -235,6 +240,10 @@ def emit_groups_for_set(lines: list[str], sources: SourceMap, action_set: str) -
     if action_set == "Menu":
         emit_menu_face(lines, sources.add(action_set, "button_diamond active"))
         emit_menu_nav_dpad(lines, sources.add(action_set, "dpad active"))
+        emit_trigger_group(
+            lines, sources.add(action_set, "right_trigger active"), "click",
+            "Menu", "MenuConfirm", "Confirm"
+        )
         emit_absolute_mouse_group(
             lines,
             sources.add(action_set, "right_trackpad active"),
@@ -346,7 +355,7 @@ def build_vdf() -> str:
         '\t"creator"\t\t"0"',
         '\t"controller_type"\t\t"controller_neptune"',
         '\t"controller_capacitor"\t\t"1"',
-        '\t"revision"\t\t"5"',
+        '\t"revision"\t\t"7"',
     ]
     for action_set in ACTION_SETS:
         emit_groups_for_set(lines, sources, action_set)
