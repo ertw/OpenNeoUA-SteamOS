@@ -8274,11 +8274,16 @@ void NC_STACK_ypaworld::debug_info_draw(TInputState *inpt)
                    Input::ActionSetName(ctx.BaseSet), Input::ActionLayerName(ctx.Layer),
                    actualBase, actualLayerNames.c_str());
         FontUA::next_line(&inputText);
-        sub_445654(this, &inputText, line, "unit=%d map=%d squad=%d move=%+.2f,%+.2f aim=%+.1f,%+.1f UI=%d/%d/%d",
-                   ctx.UnitType, ctx.MapVisible, ctx.SquadVisible,
+        sub_445654(this, &inputText, line, "stick h/a/m=%d/%d/%d raw=%+.2f,%+.2f move=%+.2f,%+.2f",
+                   Input::SteamBackend().MoveHandleResolved(),
+                   Input::SteamBackend().MoveActive(), Input::SteamBackend().MoveMode(),
+                   Input::SteamBackend().MoveX(), Input::SteamBackend().MoveY(),
                    Input::Actions.AnalogX(ctx.BaseSet == Input::ACTION_SET_GROUND ? World::INPUT_BIND_DRIVE_DIR : World::INPUT_BIND_FLY_DIR),
                    Input::Actions.AnalogX(ctx.BaseSet == Input::ACTION_SET_GROUND ? World::INPUT_BIND_DRIVE_SPEED :
-                                          ctx.BaseSet == Input::ACTION_SET_AIR ? World::INPUT_BIND_FLY_SPEED : World::INPUT_BIND_FLY_HEIGHT),
+                                          ctx.BaseSet == Input::ACTION_SET_AIR ? World::INPUT_BIND_FLY_SPEED : World::INPUT_BIND_FLY_HEIGHT));
+        FontUA::next_line(&inputText);
+        sub_445654(this, &inputText, line, "unit=%d map=%d squad=%d aim=%+.1f,%+.1f UI=%d/%d/%d",
+                   ctx.UnitType, ctx.MapVisible, ctx.SquadVisible,
                    Input::SteamBackend().AimDeltaX(), Input::SteamBackend().AimDeltaY(),
                    Input::SteamBackend().UiActive(Input::STEAM_UI_PRIMARY),
                    Input::SteamBackend().UiActive(Input::STEAM_UI_SECONDARY),
