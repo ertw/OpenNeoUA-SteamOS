@@ -18,6 +18,7 @@ DEFAULT_ARTIFACT_DIR = REPO_ROOT / "build" / "steamdeck-private" / "artifacts"
 DEFAULT_HOST = "steamdeck"
 DEFAULT_DESTINATION = "Applications/OpenNeoUA-dev.AppImage"
 DESKTOP_ENTRY = ".local/share/applications/openneoua-dev.desktop"
+DESKTOP_ICON = ".local/share/icons/hicolor/256x256/apps/openneoua.png"
 
 
 class DeployError(RuntimeError):
@@ -63,17 +64,31 @@ def remote_script(destination: str, digest: str) -> str:
     temporary = final + ".incoming"
     desktop = remote_path_expression(DESKTOP_ENTRY)
     desktop_temporary = desktop + ".incoming"
+    icon = remote_path_expression(DESKTOP_ICON)
+    icon_temporary = icon + ".incoming"
     lines = [
         "set -eu",
         "test -f \"{tmp}\"".format(tmp=temporary),
         "actual=$(sha256sum \"{tmp}\" | awk '{{print $1}}')".format(tmp=temporary),
         "test \"$actual\" = {digest}".format(digest=shlex.quote(digest)),
         "chmod 0755 \"{tmp}\"".format(tmp=temporary),
+        "icon_tmp=$(mktemp -d)",
+        "trap 'rm -rf \"$icon_tmp\"' 0",
+        "(cd \"$icon_tmp\" && \"{tmp}\" --appimage-extract OpenNeoUA.png >/dev/null)".format(
+            tmp=temporary
+        ),
+        "test -f \"$icon_tmp/squashfs-root/OpenNeoUA.png\"",
+        "mkdir -p \"$HOME/.local/share/icons/hicolor/256x256/apps\"",
+        "cp \"$icon_tmp/squashfs-root/OpenNeoUA.png\" \"{icon_tmp}\"".format(
+            icon_tmp=icon_temporary
+        ),
+        "chmod 0644 \"{icon_tmp}\"".format(icon_tmp=icon_temporary),
+        "mv -f \"{icon_tmp}\" \"{icon}\"".format(icon_tmp=icon_temporary, icon=icon),
         "mv -f \"{tmp}\" \"{final}\"".format(tmp=temporary, final=final),
         "mkdir -p \"$HOME/.local/share/applications\"",
         "{{ printf '%s\\n' '[Desktop Entry]' 'Type=Application' "
         "'Name=OpenNeoUA (Development)' 'Comment=Urban Assault' "
-        "'Icon=applications-games' 'Categories=Game;' 'Terminal=false'; "
+        "'Icon=openneoua' 'Categories=Game;' 'Terminal=false'; "
         "printf 'Exec=%s\\n' \"{final}\"; }} > \"{desktop_tmp}\"".format(
             final=final, desktop_tmp=desktop_temporary
         ),
@@ -83,6 +98,8 @@ def remote_script(destination: str, digest: str) -> str:
         ),
         "command -v update-desktop-database >/dev/null 2>&1 && "
         "update-desktop-database \"$HOME/.local/share/applications\" >/dev/null 2>&1 || true",
+        "command -v gtk-update-icon-cache >/dev/null 2>&1 && "
+        "gtk-update-icon-cache -f -t \"$HOME/.local/share/icons/hicolor\" >/dev/null 2>&1 || true",
         "printf '%s  %s\\n' {digest} \"{final}\"".format(
             digest=shlex.quote(digest), final=final
         ),

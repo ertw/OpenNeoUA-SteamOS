@@ -112,7 +112,8 @@ Use `--iso` to override the default path.
 For repeatable developer installs, the repository includes an SSH deployer.
 It uses the `steamdeck` host from `~/.ssh/config`, verifies the uploaded
 SHA-256 on the Deck, atomically replaces the stable executable at
-`~/Applications/OpenNeoUA-dev.AppImage`, and installs a desktop launcher:
+`~/Applications/OpenNeoUA-dev.AppImage`, and installs a desktop launcher with
+the icon bundled in the AppImage:
 
 ```sh
 ./packaging/steamrt4/deploy_steamdeck.py
