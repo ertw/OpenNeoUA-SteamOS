@@ -47,6 +47,73 @@ inline float Strongest(float a, float b)
     return std::fabs(b) > std::fabs(a) ? b : a;
 }
 
+// Retained ground-drive command. Left-stick Y ramps the value over time;
+// neutral holds it. This is command retention, not physical cruise control.
+class StickyDriveAxis
+{
+public:
+    static constexpr uint32_t kMaxPeriodMs = 100;
+
+    void Update(float stickY, uint32_t periodMs)
+    {
+        if (periodMs > kMaxPeriodMs)
+            periodMs = kMaxPeriodMs;
+
+        const float deflection = std::max(-1.0f, std::min(1.0f, stickY));
+        _value += deflection * (float)periodMs / 1000.0f;
+        if (_value > 1.0f)
+            _value = 1.0f;
+        else if (_value < -1.0f)
+            _value = -1.0f;
+    }
+
+    void Reset() { _value = 0.0f; }
+    float Value() const { return _value; }
+
+private:
+    float _value = 0.0f;
+};
+
+// Gameplay owns one session, keyed to the controlled unit. Mouse-grab and
+// map/UI interaction are not identity inputs and must not be passed here.
+class StickyDriveSession
+{
+public:
+    float Sync(uint32_t unitGid, bool controllingGround, bool unitAlive,
+               bool joystickEnabled, bool controllerActive, bool brakeHeld,
+               float stickY, uint32_t periodMs)
+    {
+        const bool live = joystickEnabled && controllerActive;
+        const bool reconnect = live && !_live;
+        const bool identityChanged = unitGid != _unitGid;
+        _live = live;
+        _unitGid = unitGid;
+
+        const bool valid = controllingGround && unitAlive && live && unitGid != 0;
+        if (!valid || reconnect || identityChanged || brakeHeld)
+            _axis.Reset();
+
+        if (valid && !brakeHeld)
+            _axis.Update(stickY, periodMs);
+
+        return _axis.Value();
+    }
+
+    void Reset()
+    {
+        _axis.Reset();
+        _unitGid = 0;
+        _live = false;
+    }
+
+    float Value() const { return _axis.Value(); }
+
+private:
+    StickyDriveAxis _axis;
+    uint32_t _unitGid = 0;
+    bool _live = false;
+};
+
 inline bool CombinedMouseButton(bool physical, bool controller)
 {
     return physical || controller;
@@ -118,7 +185,6 @@ struct ContextResult
     float FlyHeight = 0.0f;
     float FlySpeed = 0.0f;
     bool AnalogGround = false;
-    bool ServiceBrake = false;
 };
 
 inline ContextResult ApplyContext(Context context, const Stick &left,
@@ -133,7 +199,6 @@ inline ContextResult ApplyContext(Context context, const Stick &left,
         result.DriveSpeed = Strongest(result.DriveSpeed, left.Y);
         result.GunHeight = Strongest(result.GunHeight, right.Y);
         result.AnalogGround = true;
-        result.ServiceBrake = result.DriveSpeed == 0.0f;
     }
     else if (context == CONTEXT_AIR)
     {
