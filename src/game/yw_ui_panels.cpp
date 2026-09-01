@@ -1445,9 +1445,11 @@ void sb_0x4c66f8(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1, NC_STACK_ypabac
                     bzda.field_1D0 = 1;
             }
 
+            // Direct control starts in movement mode for the host station and guns too.
+            yw->_mouseGrabbed = true;
+
             if ( bact1 == yw->_userRobo )
             {
-                yw->_mouseGrabbed = false;
                 sb_0x4c66f8__sub0(yw);
             }
             else
