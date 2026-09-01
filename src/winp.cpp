@@ -585,7 +585,6 @@ void NC_STACK_winp::CheckController()
     mapButton(SDL_CONTROLLER_BUTTON_B, World::INPUT_BIND_QUIT);
     mapButton(SDL_CONTROLLER_BUTTON_X, World::INPUT_BIND_SWITCH_WEAPON);
     mapButton(SDL_CONTROLLER_BUTTON_Y, World::INPUT_BIND_ALTERNATIVE_VIEW);
-    mapButton(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, World::INPUT_BIND_GUN);
     mapButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, World::INPUT_BIND_CYCLE_TARGET);
     mapButton(SDL_CONTROLLER_BUTTON_DPAD_UP, World::INPUT_BIND_ZOOMIN);
     mapButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN, World::INPUT_BIND_ZOOMOUT);
@@ -593,8 +592,8 @@ void NC_STACK_winp::CheckController()
     mapButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, World::INPUT_BIND_ORDER);
     mapButton(SDL_CONTROLLER_BUTTON_BACK, World::INPUT_BIND_MAP);
     mapButton(SDL_CONTROLLER_BUTTON_START, World::INPUT_BIND_PAUSE);
-    mapButton(SDL_CONTROLLER_BUTTON_LEFTSTICK, World::INPUT_BIND_SPRINT);
-    mapButton(SDL_CONTROLLER_BUTTON_RIGHTSTICK, World::INPUT_BIND_CONTROL);
+    mapButton(SDL_CONTROLLER_BUTTON_LEFTSTICK, World::INPUT_BIND_CONTROL);
+    mapButton(SDL_CONTROLLER_BUTTON_RIGHTSTICK, World::INPUT_BIND_CAMFIRE);
 
     _leftTriggerPressed = ApplyTriggerHysteresis(
         SDL_GameControllerGetAxis(_controllerHandle, SDL_CONTROLLER_AXIS_TRIGGERLEFT),
@@ -602,7 +601,11 @@ void NC_STACK_winp::CheckController()
     _rightTriggerPressed = ApplyTriggerHysteresis(
         SDL_GameControllerGetAxis(_controllerHandle, SDL_CONTROLLER_AXIS_TRIGGERRIGHT),
         _rightTriggerPressed);
-    _mRController = _leftTriggerPressed;
+    _controllerState.Actions[World::INPUT_BIND_GUN] = _leftTriggerPressed;
+    _controllerState.Actions[World::INPUT_BIND_ATTACK] = _rightTriggerPressed;
+    _mRController =
+        SDL_GameControllerGetButton(_controllerHandle,
+                                    SDL_CONTROLLER_BUTTON_LEFTSHOULDER) != 0;
     _mLController = _rightTriggerPressed;
     UpdateMouseButton(SDL_BUTTON_LEFT, _mLPhysical, _mLController);
     UpdateMouseButton(SDL_BUTTON_RIGHT, _mRPhysical, _mRController);
