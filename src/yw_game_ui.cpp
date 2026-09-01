@@ -7649,9 +7649,13 @@ void sb_0x4c66f8(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1, NC_STACK_ypabac
                     bzda.field_1D0 = 1;
             }
 
+            // Every valid direct-control target starts in movement mode. This
+            // includes the host station and its guns; artillery-shell platforms
+            // remain excluded by the guard above.
+            yw->_mouseGrabbed = true;
+
             if ( bact1 == yw->_userRobo )
             {
-                yw->_mouseGrabbed = false;
                 sb_0x4c66f8__sub0(yw);
             }
             else
