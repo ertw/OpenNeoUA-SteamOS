@@ -218,6 +218,7 @@ int NC_STACK_ypaworld::LevelCommonLoader(TLevelDescription *mapp, int levelID, i
     _prevUnitId = 0;
     _fireBtnIsDown = false;
     _fireBtnDownHappen = false;
+    _suppressFireUntilRelease = false;
     _playerHSDestroyed = false;
     _vehicleSectorRatio = 0;
     _beamEnergyCurrent = 0;

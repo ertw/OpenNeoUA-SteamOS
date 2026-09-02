@@ -2751,7 +2751,7 @@ public:
     }
 
     void ypaworld_func64__sub1(TInputState *inpt);
-    void ypaworld_func64__sub21__sub5(int arg);
+    void ypaworld_func64__sub21__sub5(int arg, TInputState *inpt);
 
 
     bool ypaworld_func64__sub21__sub6(TClickBoxInf *winp);
@@ -3254,6 +3254,7 @@ public:
 
     bool _fireBtnIsDown = false; // true - fire btn is down, contigues
     bool _fireBtnDownHappen = false; // true happen on down, single
+    bool _suppressFireUntilRelease = false; // possession click must not fire the entered unit
     bool _weaponSwitchBtnIsDown = false; // edge-triggered manual weapon selection
     bool _cycleTargetBtnIsDown = false;   // edge-triggered homing target cycle
     bool _guiLoaded = false;

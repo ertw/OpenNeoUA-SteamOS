@@ -235,7 +235,7 @@ static PlayerSprintConfig yw_GetPlayerSprintConfig()
 
 static bool yw_IsKamikazeFireHeld(NC_STACK_ypaworld *yw, TInputState *inpt)
 {
-    return yw && inpt &&
+    return yw && inpt && !yw->_suppressFireUntilRelease &&
            (inpt->Buttons.Is(0) ||
             (yw->_mouseGrabbed &&
              World::IsFixedInputShortcutHeld(World::INPUT_BIND_FIRE)));

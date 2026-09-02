@@ -7608,7 +7608,8 @@ void sb_0x4c66f8__sub0(NC_STACK_ypaworld *yw)
     yw->_msgTimestampHSReturn = yw->_timeStamp;
 }
 
-void sb_0x4c66f8(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1, NC_STACK_ypabact *bact2)
+void sb_0x4c66f8(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1,
+                 NC_STACK_ypabact *bact2, TInputState *inpt)
 {
     if ( !yw->CanControlUnitInSpectatorMode(bact1) )
         return;
@@ -7653,6 +7654,19 @@ void sb_0x4c66f8(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1, NC_STACK_ypabac
             // includes the host station and its guns; artillery-shell platforms
             // remain excluded by the guard above.
             yw->_mouseGrabbed = true;
+
+            // The click which enters this unit belongs to the UI action, not to
+            // the newly controlled weapon. Consume it in this frame and keep it
+            // consumed until release so a held trigger cannot fire after the
+            // short timestamp-based transfer guard expires.
+            const Input::ControllerState &pad = Input::Actions.Controller();
+            const bool controllerEnterHeld =
+                pad.Connected && pad.Actions[World::INPUT_BIND_ATTACK];
+            if ( inpt && (inpt->Buttons.Is(0) || controllerEnterHeld) )
+            {
+                yw->_suppressFireUntilRelease = true;
+                inpt->Buttons.UnSet(0);
+            }
 
             if ( bact1 == yw->_userRobo )
             {
@@ -8024,7 +8038,7 @@ void  ypaworld_func64__sub7__sub2(NC_STACK_ypaworld *yw, TInputState *inpt)
     if ( bact1 )
     {
         if ( bact1 != bact2 )
-            sb_0x4c66f8(yw, bact1, bact2);
+            sb_0x4c66f8(yw, bact1, bact2, inpt);
     }
 
     ypaworld_func64__sub7__sub2__sub0();
@@ -17249,7 +17263,7 @@ int sub_4D3C80(NC_STACK_ypaworld *yw)
     return 1;
 }
 
-void NC_STACK_ypaworld::ypaworld_func64__sub21__sub5(int arg)
+void NC_STACK_ypaworld::ypaworld_func64__sub21__sub5(int arg, TInputState *inpt)
 {
     if ( IsSpectatorControlled() && arg != World::DOACTION_0 )
         return;
@@ -17374,7 +17388,7 @@ void NC_STACK_ypaworld::ypaworld_func64__sub21__sub5(int arg)
         break;
 
     case World::DOACTION_5:
-        sb_0x4c66f8(this, _bactOnMouse, _viewerBact);
+        sb_0x4c66f8(this, _bactOnMouse, _viewerBact, inpt);
 
         if ( _bactOnMouse->_bact_type != BACT_TYPES_GUN && _bactOnMouse != _userRobo )
         {
@@ -17893,7 +17907,7 @@ void NC_STACK_ypaworld::ypaworld_func64__sub21(TInputState *arg)
             }
 
             if ( arg->ClickInf.flag & TClickBoxInf::FLAG_LM_DOWN )
-                ypaworld_func64__sub21__sub5(v18);
+                ypaworld_func64__sub21__sub5(v18, arg);
 
             if ( (arg->ClickInf.flag & TClickBoxInf::FLAG_LM_HOLD) && v18 != World::DOACTION_0 )
                 mousePointer = 0;
@@ -18041,9 +18055,27 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
     }
 
     int v38 = 0;
+    bool suppressTransferFire = false;
+
+    if ( _suppressFireUntilRelease )
+    {
+        const Input::ControllerState &pad = Input::Actions.Controller();
+        const bool controllerEnterHeld =
+            pad.Connected && pad.Actions[World::INPUT_BIND_ATTACK];
+        if ( inpt->Buttons.Is(0) || controllerEnterHeld )
+        {
+            inpt->Buttons.UnSet(0);
+            suppressTransferFire = true;
+        }
+        else
+            _suppressFireUntilRelease = false;
+    }
 
     if ( _timeStamp - _vehicleTakenControlTimestamp < 500 )
+    {
         inpt->Buttons.UnSet(0);
+        suppressTransferFire = true;
+    }
 
     if ( _timeStamp - _vehicleTakenControlTimestamp > 5000 )
         _invulnerable = 0;
@@ -18113,7 +18145,8 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
         inpt->Sliders[3] += inpt->Sliders[10];
         inpt->Sliders[5] -= inpt->Sliders[11] * 1.5;
 
-        if ( World::IsFixedInputShortcutHeld(World::INPUT_BIND_FIRE) )
+        if ( !suppressTransferFire &&
+             World::IsFixedInputShortcutHeld(World::INPUT_BIND_FIRE) )
             inpt->Buttons.Set(0);
 
     }
