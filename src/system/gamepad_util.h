@@ -42,6 +42,15 @@ inline bool TriggerPressed(int16_t value, bool wasPressed,
     return wasPressed ? normalized > releaseAt : normalized >= pressAt;
 }
 
+inline bool AnyDigitalControlPressed(uint32_t buttons, uint32_t previousButtons,
+                                     bool leftTrigger, bool previousLeftTrigger,
+                                     bool rightTrigger, bool previousRightTrigger)
+{
+    return (buttons & ~previousButtons) != 0 ||
+           (leftTrigger && !previousLeftTrigger) ||
+           (rightTrigger && !previousRightTrigger);
+}
+
 inline float Strongest(float a, float b)
 {
     return std::fabs(b) > std::fabs(a) ? b : a;
