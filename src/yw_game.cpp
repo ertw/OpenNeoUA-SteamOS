@@ -6027,7 +6027,9 @@ int ypaworld_func64__sub4(NC_STACK_ypaworld *yw, base_64arg *arg)
         }
     }
 
-    if ( !pauseRequested && arg->field_8->KbdLastHit != Input::KC_NONE )
+    if ( !pauseRequested &&
+         (arg->field_8->KbdLastHit != Input::KC_NONE ||
+          Input::Actions.Controller().AnyDigitalControlPressed) )
     {
         yw->_gamePaused = false;
         arg->TimeStamp = yw->_gamePausedTimeStamp;
@@ -6051,6 +6053,10 @@ int ypaworld_func64__sub4(NC_STACK_ypaworld *yw, base_64arg *arg)
             CmdStream v10;
             v10.reserve(256);
 
+            // Gameplay normally draws its HUD through this logical canvas.
+            // The pause path returns before that pass, so open it explicitly.
+            GFX::Engine.BeginVirtualUI(yw->_screenSize);
+
             FontUA::select_tileset(&v10, 15);
 
             FontUA::set_xpos(&v10, 0);
@@ -6061,6 +6067,7 @@ int ypaworld_func64__sub4(NC_STACK_ypaworld *yw, base_64arg *arg)
             FontUA::set_end(&v10);
 
             GFX::Engine.ProcessDrawSeq(v10);
+            GFX::Engine.EndVirtualUI();
         }
 
         SFXEngine::SFXe.sb_0x424c74();

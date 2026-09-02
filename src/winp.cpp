@@ -54,6 +54,7 @@ SDL_JoystickID       NC_STACK_winp::_controllerInstance = -1;
 bool                 NC_STACK_winp::_controllerInputEnabled = true;
 bool                 NC_STACK_winp::_leftTriggerPressed = false;
 bool                 NC_STACK_winp::_rightTriggerPressed = false;
+uint32_t             NC_STACK_winp::_controllerButtonStates = 0;
 bool                 NC_STACK_winp::_controllerSuppressFrame = false;
 Input::ControllerState NC_STACK_winp::_controllerState;
 
@@ -461,6 +462,7 @@ void NC_STACK_winp::SetNativeControllerEnabled(bool enabled)
         _controllerState = Input::ControllerState();
         _leftTriggerPressed = false;
         _rightTriggerPressed = false;
+        _controllerButtonStates = 0;
         _mLController = false;
         _mRController = false;
         UpdateMouseButton(SDL_BUTTON_LEFT, _mLPhysical, _mLController);
@@ -577,6 +579,19 @@ void NC_STACK_winp::CheckController()
     _controllerState.RightX = right.first;
     _controllerState.RightY = right.second;
 
+    uint32_t buttonStates = 0;
+    for (int button = 0; button < SDL_CONTROLLER_BUTTON_MAX && button < 32; ++button)
+    {
+        if (SDL_GameControllerGetButton(
+                _controllerHandle, (SDL_GameControllerButton)button) != 0)
+        {
+            buttonStates |= UINT32_C(1) << button;
+        }
+    }
+
+    const bool previousLeftTrigger = _leftTriggerPressed;
+    const bool previousRightTrigger = _rightTriggerPressed;
+
     auto mapButton = [&](SDL_GameControllerButton button, int binding) {
         _controllerState.Actions[binding] =
             SDL_GameControllerGetButton(_controllerHandle, button) != 0;
@@ -603,6 +618,12 @@ void NC_STACK_winp::CheckController()
         _rightTriggerPressed);
     _controllerState.Actions[World::INPUT_BIND_GUN] = _leftTriggerPressed;
     _controllerState.Actions[World::INPUT_BIND_ATTACK] = _rightTriggerPressed;
+    _controllerState.AnyDigitalControlPressed =
+        Input::GamepadUtil::AnyDigitalControlPressed(
+            buttonStates, _controllerButtonStates,
+            _leftTriggerPressed, previousLeftTrigger,
+            _rightTriggerPressed, previousRightTrigger);
+    _controllerButtonStates = buttonStates;
     _mRController =
         SDL_GameControllerGetButton(_controllerHandle,
                                     SDL_CONTROLLER_BUTTON_LEFTSHOULDER) != 0;
