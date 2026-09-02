@@ -103,6 +103,7 @@ namespace Input
     struct ControllerState
     {
         bool Connected = false;
+        bool AnyDigitalControlPressed = false;
         float LeftX = 0.0f;
         float LeftY = 0.0f;
         float RightX = 0.0f;

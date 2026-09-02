@@ -42,6 +42,19 @@ void TestSticksAndTriggers()
     pressed = TriggerPressed((int16_t)(32767 * 0.44f), pressed);
     Check(!pressed, "trigger must release below 45%");
 
+    Check(!AnyDigitalControlPressed(0, 0, false, false, false, false),
+          "idle controller has no button edge");
+    Check(AnyDigitalControlPressed(1U << 3, 0, false, false, false, false),
+          "gamepad button rising edge is detected");
+    Check(!AnyDigitalControlPressed(1U << 3, 1U << 3, false, false, false, false),
+          "held gamepad button is not repeated");
+    Check(AnyDigitalControlPressed(0, 0, true, false, false, false),
+          "left trigger rising edge is detected");
+    Check(AnyDigitalControlPressed(0, 0, false, false, true, false),
+          "right trigger rising edge is detected");
+    Check(!AnyDigitalControlPressed(0, 0, true, true, true, true),
+          "held triggers are not repeated");
+
     Check(Near(Strongest(0.8f, -0.6f), 0.8f), "strongest analog keeps larger existing source");
     Check(Near(Strongest(0.2f, -0.7f), -0.7f), "strongest analog accepts larger controller source");
 }

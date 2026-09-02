@@ -129,6 +129,7 @@ protected:
     static bool                 _controllerInputEnabled;
     static bool                 _leftTriggerPressed;
     static bool                 _rightTriggerPressed;
+    static uint32_t             _controllerButtonStates;
     static bool                 _controllerSuppressFrame;
     static Input::ControllerState _controllerState;
 
