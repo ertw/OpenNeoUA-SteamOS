@@ -1404,7 +1404,7 @@ void sb_0x4c66f8__sub0(NC_STACK_ypaworld *yw)
     yw->_msgTimestampHSReturn = yw->_timeStamp;
 }
 
-void sb_0x4c66f8(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1, NC_STACK_ypabact *bact2)
+void sb_0x4c66f8(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1, NC_STACK_ypabact *bact2, TInputState *inpt)
 {
     if ( !yw->CanControlUnitInSpectatorMode(bact1) )
         return;
@@ -1447,6 +1447,16 @@ void sb_0x4c66f8(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1, NC_STACK_ypabac
 
             // Direct control starts in movement mode for the host station and guns too.
             yw->_mouseGrabbed = true;
+
+            // Consume the transfer click until release so entering cannot fire.
+            const Input::ControllerState &pad = Input::Actions.Controller();
+            const bool controllerEnterHeld =
+                pad.Connected && pad.Actions[World::INPUT_BIND_ATTACK];
+            if (inpt && (inpt->Buttons.Is(0) || controllerEnterHeld))
+            {
+                yw->_suppressFireUntilRelease = true;
+                inpt->Buttons.UnSet(0);
+            }
 
             if ( bact1 == yw->_userRobo )
             {
@@ -1805,7 +1815,7 @@ void  ypaworld_func64__sub7__sub2(NC_STACK_ypaworld *yw, TInputState *inpt)
     if ( bact1 )
     {
         if ( bact1 != bact2 )
-            sb_0x4c66f8(yw, bact1, bact2);
+            sb_0x4c66f8(yw, bact1, bact2, inpt);
     }
 
     ypaworld_func64__sub7__sub2__sub0();

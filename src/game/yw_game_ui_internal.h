@@ -393,7 +393,7 @@ void ypaworld_func64__sub7__sub2__sub8(NC_STACK_ypaworld *yw);
 void ypaworld_func64__sub7__sub2__sub9(NC_STACK_ypaworld *yw);
 void ypaworld_func64__sub7__sub2__sub0();
 void sb_0x4c66f8__sub0(NC_STACK_ypaworld *yw);
-void sb_0x4c66f8(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1, NC_STACK_ypabact *bact2);
+void sb_0x4c66f8(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1, NC_STACK_ypabact *bact2, TInputState *inpt);
 void ypaworld_func64__sub7__sub2(NC_STACK_ypaworld *yw, TInputState *inpt);
 void sub_4E1D6C(NC_STACK_ypaworld *yw, CmdStream *cur, int x, int y, uint8_t icon, uint8_t icon2, uint8_t icon3, float a6, float a7, const std::string &a8);
 void ypaworld_func64__sub7__sub7__sub0__sub0(NC_STACK_ypaworld *yw, CmdStream *cur, int x, int y, int a3, int a4, int a5, int a6, float a7);
