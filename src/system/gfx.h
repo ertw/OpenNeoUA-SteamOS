@@ -593,6 +593,18 @@ public:
     // normal window layering automatically instead of requiring a later overlay pass.
     void DrawVirtualUISolidRect(float left, float top, float right, float bottom,
                                 const TGLColor &color);
+    // One pixel per coordinate: fills a ring of equal slices without overlapping
+    // triangle edges. sliceColors has sliceCount entries. Angle 0 is north.
+    void DrawVirtualUIAnnularSectors(float cx, float cy, float innerRadius,
+                                     float outerRadius, int sliceCount,
+                                     const TGLColor *sliceColors);
+    void DrawVirtualUIFilledDisc(float cx, float cy, float radius,
+                                 const TGLColor &color);
+    void DrawVirtualUILine(float x0, float y0, float x1, float y1,
+                           const TGLColor &color);
+    // Angles are radians, 0 = north, clockwise positive.
+    void DrawVirtualUIArc(float cx, float cy, float radius, float startAngle,
+                          float endAngle, const TGLColor &color, int segments = 24);
     Common::Point GetVirtualUIResolution() const;
     void BeginVirtualUI(const Common::Point &logicalSize);
     void EndVirtualUI();

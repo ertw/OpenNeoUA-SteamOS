@@ -178,6 +178,19 @@ float SemanticInput::Analog(int binding) const
     return binding > 0 && binding < SEMANTIC_ACTION_COUNT ? _samples[binding].Analog : 0.0f;
 }
 
+bool SemanticInput::SubmitHotkeyForBinding(TInputState *state, int binding)
+{
+    if (!state)
+        return false;
+
+    const int hotkey = HotKeySlotForBinding(binding);
+    if (hotkey < 0)
+        return false;
+
+    state->HotKeyID = (int16_t)_digital.SubmitHotkey(state->HotKeyID, hotkey);
+    return true;
+}
+
 bool MenuBackPressed(const TInputState *state)
 {
     return (state && state->KbdLastHit == KC_ESCAPE) ||

@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+#include <vector>
 
 namespace GFX
 {
@@ -5469,6 +5470,216 @@ void GFXEngine::DrawVirtualUISolidRect(float left, float top, float right, float
     {
         DrawLine(VirtualUISurface, Common::Line(x0, y, x1 - 1, y),
                  r, g, b, a, true);
+    }
+}
+
+namespace
+{
+struct VirtualUiRgba
+{
+    uint8_t r = 0;
+    uint8_t g = 0;
+    uint8_t b = 0;
+    uint8_t a = 0;
+};
+
+VirtualUiRgba VirtualUiPackColor(const TGLColor &color)
+{
+    VirtualUiRgba out;
+    out.r = (uint8_t)std::max(0, std::min(255, (int)std::lround(color.r * 255.0f)));
+    out.g = (uint8_t)std::max(0, std::min(255, (int)std::lround(color.g * 255.0f)));
+    out.b = (uint8_t)std::max(0, std::min(255, (int)std::lround(color.b * 255.0f)));
+    out.a = (uint8_t)std::max(0, std::min(255, (int)std::lround(color.a * 255.0f)));
+    return out;
+}
+
+uint32_t VirtualUiBlendPixel(SDL_Surface *surface, uint32_t dstPixel,
+                             const VirtualUiRgba &c)
+{
+    if ( c.a == 0 )
+        return dstPixel;
+    if ( c.a == 255 )
+        return SDL_MapRGBA(surface->format, c.r, c.g, c.b, 255);
+
+    uint8_t dr, dg, db, da;
+    SDL_GetRGBA(dstPixel, surface->format, &dr, &dg, &db, &da);
+
+    const uint32_t invAlpha = 255u - c.a;
+    const uint32_t outAlpha = c.a + (da * invAlpha + 127u) / 255u;
+    if ( outAlpha == 0 )
+        return SDL_MapRGBA(surface->format, 0, 0, 0, 0);
+
+    const uint32_t denominator = outAlpha * 255u;
+    const uint32_t outR = (c.r * c.a * 255u + dr * da * invAlpha + denominator / 2u) / denominator;
+    const uint32_t outG = (c.g * c.a * 255u + dg * da * invAlpha + denominator / 2u) / denominator;
+    const uint32_t outB = (c.b * c.a * 255u + db * da * invAlpha + denominator / 2u) / denominator;
+    return SDL_MapRGBA(surface->format, (uint8_t)outR, (uint8_t)outG, (uint8_t)outB,
+                       (uint8_t)outAlpha);
+}
+
+void VirtualUiWritePixel(SDL_Surface *surface, int x, int y, const VirtualUiRgba &c)
+{
+    if ( !surface || c.a == 0 ||
+         x < 0 || y < 0 || x >= surface->w || y >= surface->h )
+    {
+        return;
+    }
+
+    uint8_t *base = (uint8_t *)surface->pixels + y * surface->pitch +
+                    x * surface->format->BytesPerPixel;
+    if ( surface->format->BytesPerPixel == 4 )
+    {
+        uint32_t *p = (uint32_t *)base;
+        *p = VirtualUiBlendPixel(surface, *p, c);
+    }
+    else if ( surface->format->BytesPerPixel == 2 )
+    {
+        uint16_t *p = (uint16_t *)base;
+        *p = (uint16_t)VirtualUiBlendPixel(surface, *p, c);
+    }
+}
+
+std::pair<float, float> VirtualUiPolarPoint(float cx, float cy, float radius, float angle)
+{
+    return {cx + radius * std::sin(angle), cy - radius * std::cos(angle)};
+}
+}
+
+void GFXEngine::DrawVirtualUIAnnularSectors(float cx, float cy, float innerRadius,
+                                            float outerRadius, int sliceCount,
+                                            const TGLColor *sliceColors)
+{
+    if ( !_virtualUiPass || !VirtualUISurface || sliceCount <= 0 || !sliceColors ||
+         outerRadius <= 0.0f )
+    {
+        return;
+    }
+    if ( innerRadius < 0.0f )
+        innerRadius = 0.0f;
+    if ( innerRadius >= outerRadius )
+        return;
+
+    std::vector<VirtualUiRgba> packed((size_t)sliceCount);
+    bool any = false;
+    for ( int i = 0; i < sliceCount; ++i )
+    {
+        packed[i] = VirtualUiPackColor(sliceColors[i]);
+        if ( packed[i].a )
+            any = true;
+    }
+    if ( !any )
+        return;
+
+    const int y0 = std::max(0, (int)std::floor(cy - outerRadius));
+    const int y1 = std::min(VirtualUISurface->h - 1, (int)std::ceil(cy + outerRadius));
+    const int xMin = std::max(0, (int)std::floor(cx - outerRadius));
+    const int xMax = std::min(VirtualUISurface->w - 1, (int)std::ceil(cx + outerRadius));
+    const float innerSq = innerRadius * innerRadius;
+    const float outerSq = outerRadius * outerRadius;
+    const float sliceAngle = 2.0f * (float)M_PI / (float)sliceCount;
+
+    SDL_LockSurface(VirtualUISurface);
+    for ( int y = y0; y <= y1; ++y )
+    {
+        const float dy = cy - ((float)y + 0.5f);
+        for ( int x = xMin; x <= xMax; ++x )
+        {
+            const float dx = ((float)x + 0.5f) - cx;
+            const float magSq = dx * dx + dy * dy;
+            if ( magSq < innerSq || magSq > outerSq )
+                continue;
+
+            float angle = std::atan2(dx, dy);
+            if ( angle < 0.0f )
+                angle += 2.0f * (float)M_PI;
+            int slice = (int)std::floor((angle + sliceAngle * 0.5f) / sliceAngle);
+            if ( slice >= sliceCount )
+                slice = 0;
+            if ( slice < 0 )
+                slice = sliceCount - 1;
+            VirtualUiWritePixel(VirtualUISurface, x, y, packed[slice]);
+        }
+    }
+    SDL_UnlockSurface(VirtualUISurface);
+}
+
+void GFXEngine::DrawVirtualUIFilledDisc(float cx, float cy, float radius,
+                                        const TGLColor &color)
+{
+    if ( !_virtualUiPass || !VirtualUISurface || color.a <= 0.0f || radius <= 0.0f )
+        return;
+
+    const VirtualUiRgba packed = VirtualUiPackColor(color);
+    if ( packed.a == 0 )
+        return;
+
+    const int y0 = std::max(0, (int)std::floor(cy - radius));
+    const int y1 = std::min(VirtualUISurface->h - 1, (int)std::ceil(cy + radius));
+    const int xMin = std::max(0, (int)std::floor(cx - radius));
+    const int xMax = std::min(VirtualUISurface->w - 1, (int)std::ceil(cx + radius));
+    const float rSq = radius * radius;
+
+    SDL_LockSurface(VirtualUISurface);
+    for ( int y = y0; y <= y1; ++y )
+    {
+        const float dy = cy - ((float)y + 0.5f);
+        for ( int x = xMin; x <= xMax; ++x )
+        {
+            const float dx = ((float)x + 0.5f) - cx;
+            if ( dx * dx + dy * dy > rSq )
+                continue;
+            VirtualUiWritePixel(VirtualUISurface, x, y, packed);
+        }
+    }
+    SDL_UnlockSurface(VirtualUISurface);
+}
+
+void GFXEngine::DrawVirtualUILine(float x0, float y0, float x1, float y1,
+                                  const TGLColor &color)
+{
+    if ( !_virtualUiPass || !VirtualUISurface || color.a <= 0.0f )
+        return;
+
+    const VirtualUiRgba packed = VirtualUiPackColor(color);
+    if ( packed.a == 0 )
+        return;
+
+    Common::Line line((int)std::lround(x0), (int)std::lround(y0),
+                      (int)std::lround(x1), (int)std::lround(y1));
+    Common::Rect clip(0, 0, VirtualUISurface->w, VirtualUISurface->h);
+    if ( !line.ClipBy(clip) )
+        return;
+    if ( line.x1 >= VirtualUISurface->w )
+        line.x1 = VirtualUISurface->w - 1;
+    if ( line.y1 >= VirtualUISurface->h )
+        line.y1 = VirtualUISurface->h - 1;
+    if ( line.x2 >= VirtualUISurface->w )
+        line.x2 = VirtualUISurface->w - 1;
+    if ( line.y2 >= VirtualUISurface->h )
+        line.y2 = VirtualUISurface->h - 1;
+
+    DrawLine(VirtualUISurface, line, packed.r, packed.g, packed.b, packed.a, true);
+}
+
+void GFXEngine::DrawVirtualUIArc(float cx, float cy, float radius, float startAngle,
+                                 float endAngle, const TGLColor &color, int segments)
+{
+    if ( !_virtualUiPass || !VirtualUISurface || color.a <= 0.0f || radius <= 0.0f )
+        return;
+    if ( segments < 2 )
+        segments = 2;
+
+    float span = endAngle - startAngle;
+    if ( span <= 0.0f )
+        span += 2.0f * (float)M_PI;
+
+    auto prev = VirtualUiPolarPoint(cx, cy, radius, startAngle);
+    for ( int i = 1; i <= segments; ++i )
+    {
+        const float a = startAngle + span * ((float)i / (float)segments);
+        const auto next = VirtualUiPolarPoint(cx, cy, radius, a);
+        DrawVirtualUILine(prev.first, prev.second, next.first, next.second, color);
+        prev = next;
     }
 }
 

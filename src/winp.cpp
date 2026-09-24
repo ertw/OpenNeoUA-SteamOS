@@ -607,7 +607,9 @@ void NC_STACK_winp::CheckController()
     mapButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, World::INPUT_BIND_ORDER);
     mapButton(SDL_CONTROLLER_BUTTON_BACK, World::INPUT_BIND_MAP);
     mapButton(SDL_CONTROLLER_BUTTON_START, World::INPUT_BIND_PAUSE);
-    mapButton(SDL_CONTROLLER_BUTTON_LEFTSTICK, World::INPUT_BIND_CONTROL);
+    _controllerState.CommandWheelHeld =
+        SDL_GameControllerGetButton(_controllerHandle,
+                                    SDL_CONTROLLER_BUTTON_LEFTSTICK) != 0;
     mapButton(SDL_CONTROLLER_BUTTON_RIGHTSTICK, World::INPUT_BIND_CAMFIRE);
 
     _leftTriggerPressed = ApplyTriggerHysteresis(

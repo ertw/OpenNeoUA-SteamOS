@@ -99,6 +99,7 @@ set(SOURCES
     yw_func2.cpp
     yw_game.cpp
     yw_game_ui.cpp
+    yw_command_wheel.cpp
     yw_net.cpp
     yw_save.cpp
     ypabact.cpp

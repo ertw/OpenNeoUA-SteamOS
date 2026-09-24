@@ -22,6 +22,7 @@
 #include "world/analyzer.h"
 #include "system/inivals.h"
 #include "system/gamepad_util.h"
+#include "yw_command_wheel.h"
 
 
 extern uint32_t bact_id;
@@ -1414,41 +1415,37 @@ void create_squad_man(NC_STACK_ypaworld *yw)
 
 
 
-void sub_4C3A54(NC_STACK_ypaworld *yw)
+int yw_GetCommandPanelMask(const NC_STACK_ypaworld *yw)
 {
-    if ( yw->_userUnit )
+    if ( !yw || !yw->_userUnit || !yw->_userRobo )
+        return 0;
+
+    int mask = 0;
+    if ( yw->_userUnit == yw->_userRobo || yw->_playerInHSGun )
     {
-        if ( yw->_userUnit == yw->_userRobo || yw->_playerInHSGun )
+        mask = 0x29;
+
+        if ( bzda.field_8E0 )
         {
-            bzda.field_1CC = 0x29;
+            mask = 0x2B;
 
-            if ( bzda.field_8E0 )
-            {
-                bzda.field_1CC = 0x2B;
-
-                if ( yw->_activeCmdrRemapIndex != -1 )
-                    bzda.field_1CC = 0x2F;
-            }
-
-            if ( bzda.field_8E4 )
-                bzda.field_1CC |= 0x10;
-
-            bzda.field_1D4 = 1;
-        }
-        else
-        {
-            bzda.field_1D4 = 1;
-            bzda.field_1CC = 41;
+            if ( yw->_activeCmdrRemapIndex != -1 )
+                mask = 0x2F;
         }
 
-        if ( yw->_userRobo->_status == BACT_STATUS_DEAD )
-            bzda.field_1CC = 0;
+        if ( bzda.field_8E4 )
+            mask |= 0x10;
     }
     else
-    {
-        bzda.field_1D4 = 0;
-        bzda.field_1CC = 0;
-    }
+        mask = 0x29;
+
+    return yw->_userRobo->_status == BACT_STATUS_DEAD ? 0 : mask;
+}
+
+static void yw_UpdateCommandPanelState(NC_STACK_ypaworld *yw)
+{
+    bzda.field_1D4 = yw && yw->_userUnit ? 1 : 0;
+    bzda.field_1CC = yw_GetCommandPanelMask(yw);
 
     bzda.field_1D0 &= bzda.field_1CC;
     bzda.field_1D8 &= bzda.field_1D4;
@@ -5590,7 +5587,7 @@ int sb_0x451034__sub3(NC_STACK_ypaworld *yw)
     bzda.cmdCommands.reserve(1088);
     bzda.field_1D8 = 0;
 
-    sub_4C3A54(yw);
+    yw_UpdateCommandPanelState(yw);
 
     bzda.field_8EC = 0;
     bzda.field_8F0 = 0;
@@ -5981,6 +5978,7 @@ int sb_0x451034(NC_STACK_ypaworld *yw)
     if ( yw->_guiLoaded )
         return yw->_guiLoaded;
 
+    yw->_commandWheel.Reset();
     yw->_guiDragging = false;
     yw->_guiDragElement = NULL;
     yw->_guiDragDefaultMouse = false;
@@ -6278,44 +6276,72 @@ static void yw_RenderForegroundGameplayGuiWindows(NC_STACK_ypaworld *yw,
 
 }
 
-void yw_FinalizePriorityGameplayUi(NC_STACK_ypaworld *yw)
+void yw_FinalizeTopLevelGameplayOverlays(NC_STACK_ypaworld *yw)
 {
     if ( !yw || yw->_hideHudForScreenshots || !yw->_userUnit ||
-         yw->_userUnit->_bact_type == BACT_TYPES_MISSLE ||
-         !yw_IsPriorityGameplayUiOcclusionOpen() )
+         yw->_userUnit->_bact_type == BACT_TYPES_MISSLE )
     {
+        if ( yw )
+            yw->_commandWheel.Close();
         return;
     }
+
+    // These transitions may occur after the frame's analog-input pass. Keep
+    // the overlay from surviving underneath a newer top-level gameplay state.
+    if ( !yw->_userRobo || exit_menu.IsOpen() ||
+         yw->HasActiveNewGemNotification() ||
+         yw->_gamePaused || yw->_gameplayPauseRequested ||
+         yw->IsSpectatorControlled() ||
+         yw->_userUnit->_status == BACT_STATUS_DEAD ||
+         !Input::Actions.Controller().Connected )
+    {
+        yw->_commandWheel.Close();
+    }
+
+    const bool priorityWindowOpen = yw_IsPriorityGameplayUiOpen();
+    const bool wheelOpen = yw->_commandWheel.IsOpen();
+    if ( !priorityWindowOpen && !wheelOpen )
+        return;
 
     SDL_Color uiAccentColor;
     const SDL_Color *uiAccent = yw_GetFactionUiAccent(yw, &uiAccentColor);
 
-    // Ordinary gameplay UI has already been rendered. Remove only the pixels
-    // geometrically covered by Map/Squadron Manager or the Genesis list,
-    // leaving every overlay outside those rectangles untouched and the 3D world
-    // visible through the windows' translucent backgrounds.
-    yw_ClearPriorityGameplayUiUnderlay(yw);
+    if ( priorityWindowOpen )
+    {
+        // Ordinary gameplay UI has already been rendered. Remove only the pixels
+        // geometrically covered by Map/Squadron Manager or the Genesis list,
+        // leaving every overlay outside those rectangles untouched and the 3D world
+        // visible through the windows' translucent backgrounds.
+        yw_ClearPriorityGameplayUiUnderlay(yw);
 
-    // Preserve the normal relative order when priority gameplay windows overlap.
-    yw_RenderPriorityGameplayWindows(yw, uiAccent);
+        // Preserve the normal relative order when priority gameplay windows overlap.
+        yw_RenderPriorityGameplayWindows(yw, uiAccent);
 
-    // Priority-window draw sequences can leave their own clip active. Restore the
-    // full virtual-UI clip before drawing fixed bars/direct bitmaps; otherwise
-    // the Plasma icon can disappear even when it is nowhere near the window.
+        // Priority-window draw sequences can leave their own clip active. Restore the
+        // full virtual-UI clip before drawing fixed bars/direct bitmaps; otherwise
+        // the Plasma icon can disappear even when it is nowhere near the window.
+        yw_ResetVirtualUiClipToFullScreen(yw);
+
+        // Explicit exception requested by the UI hierarchy: the fixed top/bottom
+        // bars are always visible, even where a priority window reaches them.
+        yw_RenderAlwaysVisibleGameplayBars(yw, uiAccent);
+
+        // Menus/dialogs are foreground GUI, not gameplay underlay. Render them once
+        // above priority windows so the underlay clear cannot erase them.
+        yw_ResetVirtualUiClipToFullScreen(yw);
+        yw_RenderForegroundGameplayGuiWindows(yw, uiAccent);
+    }
+
+    // Command wheel sits above HUD/Map/Squad and below the Exit Menu flow.
     yw_ResetVirtualUiClipToFullScreen(yw);
+    yw->_commandWheel.Draw(yw);
 
-    // Explicit exception requested by the UI hierarchy: the fixed top/bottom
-    // bars are always visible, even where a priority window reaches them.
-    yw_RenderAlwaysVisibleGameplayBars(yw, uiAccent);
-
-    // Menus/dialogs are foreground GUI, not gameplay underlay. Render them once
-    // above priority windows so the underlay clear cannot erase them.
-    yw_ResetVirtualUiClipToFullScreen(yw);
-    yw_RenderForegroundGameplayGuiWindows(yw, uiAccent);
-
-    // Exit Menu and its confirmation dialogs remain the absolute top-level
-    // gameplay flow.
-    yw_RenderTopLevelExitMenuFlow(yw, uiAccent);
+    if ( priorityWindowOpen )
+    {
+        // Exit Menu and its confirmation dialogs remain the absolute top-level
+        // gameplay flow.
+        yw_RenderTopLevelExitMenuFlow(yw, uiAccent);
+    }
 }
 
 void sb_0x4d7c08__sub0(NC_STACK_ypaworld *yw)
@@ -6812,10 +6838,12 @@ void gui_update_map_squad_btn(NC_STACK_ypaworld *yw, CmdStream *cur)
     }
 }
 
-void gui_update_player_panel(NC_STACK_ypaworld *yw, CmdStream *cur)
+int yw_ComputePlayerNavMask(const NC_STACK_ypaworld *yw)
 {
+    if ( !yw || !yw->_userUnit || !yw->_userRobo )
+        return 0;
+
     int v35 = 0;
-    bool spectatorControlled = yw->IsSpectatorControlled();
 
     if ( yw->_userRobo == yw->_userUnit )
     {
@@ -6867,14 +6895,24 @@ void gui_update_player_panel(NC_STACK_ypaworld *yw, CmdStream *cur)
     if ( yw->_userRobo->_status == BACT_STATUS_DEAD )
         v35 = 0;
 
-    if ( spectatorControlled )
+    if ( yw->IsSpectatorControlled() )
     {
         // Keep normal command buttons disabled in Spectator Mode. While the
         // follow camera is active, expose only the vanilla back/up button and
         // reuse it as Return to Spectator.
         v35 = yw->IsSpectatorFollowActive() ? 0x10 : 0;
-        yw->GuiWinClose( &gui_lstvw );
     }
+
+    return v35;
+}
+
+void gui_update_player_panel(NC_STACK_ypaworld *yw, CmdStream *cur)
+{
+    int v35 = yw_ComputePlayerNavMask(yw);
+    bool spectatorControlled = yw->IsSpectatorControlled();
+
+    if ( spectatorControlled )
+        yw->GuiWinClose( &gui_lstvw );
 
     // Reuse the vanilla Jump into Vehicle button and state machine. Spectator
     // mode exposes the same button because its command mask already includes
@@ -7179,7 +7217,7 @@ void ypaworld_func64__sub7__sub2__sub1__sub0(NC_STACK_ypaworld *yw, CmdStream *c
 
 void ypaworld_func64__sub7__sub2__sub1(NC_STACK_ypaworld *yw)
 {
-    sub_4C3A54(yw);
+    yw_UpdateCommandPanelState(yw);
 
     bzda.cmdCommands.clear();
 
@@ -7244,22 +7282,22 @@ void ypaworld_func64__sub7__sub2__sub1(NC_STACK_ypaworld *yw)
 }
 
 
-NC_STACK_ypabact * ypaworld_func64__sub7__sub2__sub6(NC_STACK_ypaworld *yw)
+NC_STACK_ypabact *yw_GetLastSeatTarget(const NC_STACK_ypaworld *yw)
 {
-    if ( !yw->_prevUnitId )
+    if ( !yw || !yw->_userRobo || !yw->_prevUnitId )
         return NULL;
 
     if ( yw->_prevUnitId == yw->_userRobo->_gid )
         return yw->_userRobo;
 
-    for( NC_STACK_ypabact* &comm : yw->_userRobo->_kidList )
+    for ( NC_STACK_ypabact *comm : yw->_userRobo->_kidList )
     {
         if ( comm->_status != BACT_STATUS_DEAD && comm->_status != BACT_STATUS_CREATE && comm->_status != BACT_STATUS_BEAM )
         {
             if ( yw->_prevUnitId == comm->_gid )
                 return comm;
 
-            for( NC_STACK_ypabact* &unit : comm->_kidList )
+            for ( NC_STACK_ypabact *unit : comm->_kidList )
             {
                 if ( unit->_status != BACT_STATUS_DEAD && unit->_status != BACT_STATUS_CREATE && unit->_status != BACT_STATUS_BEAM && yw->_prevUnitId == unit->_gid )
                     return unit;
@@ -7270,19 +7308,24 @@ NC_STACK_ypabact * ypaworld_func64__sub7__sub2__sub6(NC_STACK_ypaworld *yw)
     return NULL;
 }
 
-void ypaworld_func64__sub7__sub2__sub7(NC_STACK_ypaworld *yw)
+bool yw_CanSetCommander(const NC_STACK_ypaworld *yw)
 {
-    if ( !yw->_userUnit->_parent || yw->_userUnit->_parent != yw->_userRobo )
-    {
-        if ( yw->_userUnit->_bact_type != BACT_TYPES_ROBO && yw->_userUnit->_bact_type != BACT_TYPES_MISSLE && yw->_userUnit->_bact_type != BACT_TYPES_GUN )
-        {
-            bact_arg109 v5;
-            v5.field_0 = 2;
-            v5.field_4 = yw->_userUnit->_parent;
+    return yw && yw->_userUnit &&
+           yw->_userUnit->_parent != yw->_userRobo &&
+           yw->_userUnit->_bact_type != BACT_TYPES_ROBO &&
+           yw->_userUnit->_bact_type != BACT_TYPES_MISSLE &&
+           yw->_userUnit->_bact_type != BACT_TYPES_GUN;
+}
 
-            yw->_userUnit->ReorganizeGroup(&v5);
-        }
-    }
+void yw_SetCommander(NC_STACK_ypaworld *yw)
+{
+    if ( !yw_CanSetCommander(yw) )
+        return;
+
+    bact_arg109 args;
+    args.field_0 = 2;
+    args.field_4 = yw->_userUnit->_parent;
+    yw->_userUnit->ReorganizeGroup(&args);
 }
 
 int ypaworld_func64__sub7__sub2__sub3(NC_STACK_ypaworld *yw, TInputState *inpt)
@@ -7985,6 +8028,10 @@ void  ypaworld_func64__sub7__sub2(NC_STACK_ypaworld *yw, TInputState *inpt)
 {
     TClickBoxInf *winpt = &inpt->ClickInf;
 
+    // Fire a wheel confirm action only after simulation so unit-death handoffs
+    // can invalidate the highlighted slice before activation.
+    yw->_commandWheel.ApplyPending(yw, inpt);
+
     NC_STACK_ypabact *bact1 = NULL;
     NC_STACK_ypabact *bact2 = yw->_viewerBact;
 
@@ -8017,11 +8064,11 @@ void  ypaworld_func64__sub7__sub2(NC_STACK_ypaworld *yw, TInputState *inpt)
                 break;
 
                 case 44:
-                    bact1 = ypaworld_func64__sub7__sub2__sub6(yw);
+                    bact1 = yw_GetLastSeatTarget(yw);
                     break;
 
                 case 45:
-                    ypaworld_func64__sub7__sub2__sub7(yw);
+                    yw_SetCommander(yw);
                     break;
 
                 default:
@@ -18845,6 +18892,8 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
     // SDL_GameController axes are semantic and contextual. They deliberately
     // remain live in cursor mode; only the mouse path is grab-dependent.
     // Sticky drive is keyed to the controlled ground unit, not mouse-grab.
+    const bool wheelCapturesLeftStick = _commandWheel.UpdateInput(this, inpt);
+
     const Input::ControllerState &pad = Input::Actions.Controller();
     const bool ground = _userUnit &&
                         (_userUnit->_bact_type == BACT_TYPES_TANK ||
@@ -18856,8 +18905,8 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
         unitAlive,
         nativeControllerEnabled,
         pad.Connected,
-        inpt->HandBrakePressed,
-        pad.LeftY,
+        inpt->HandBrakePressed || wheelCapturesLeftStick,
+        wheelCapturesLeftStick ? 0.0f : pad.LeftY,
         inpt->Period);
 
     if (nativeControllerEnabled && NC_STACK_winp::IsGameControllerActive())
@@ -18872,8 +18921,15 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
         existing.FlyHeight = inpt->Sliders[1];
         existing.FlySpeed = inpt->Sliders[2];
         Input::GamepadUtil::Stick left = {pad.LeftX, pad.LeftY};
-        if (ground)
+        if ( wheelCapturesLeftStick )
+        {
+            left.X = 0.0f;
+            left.Y = 0.0f;
+        }
+        else if (ground)
+        {
             left.Y = stickyDrive;
+        }
         const Input::GamepadUtil::Stick right = {pad.RightX, pad.RightY};
         const Input::GamepadUtil::Context context = ground
             ? Input::GamepadUtil::CONTEXT_GROUND
@@ -19079,6 +19135,8 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
 
 void NC_STACK_ypaworld::GUI_Close()
 {
+    _commandWheel.Reset();
+
     if ( _guiLoaded )
     {
         yw_ResetWorldSelectionDrag(this);

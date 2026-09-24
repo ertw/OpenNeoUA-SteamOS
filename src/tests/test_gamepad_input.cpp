@@ -222,6 +222,92 @@ void TestStickyDriveSession()
     Check(Near(drive.Value(), 0.0f), "controller reconnect starts from zero");
 }
 
+void TestRadialSelect()
+{
+    using namespace Input::GamepadUtil;
+    // North (up) is slice 0 with 8 slices.
+    RadialSelectResult r = RadialSelect(Stick{0.0f, 1.0f}, 8);
+    Check(r.Slice == 0, "north selects slice 0");
+    Check(r.Magnitude > 0.9f, "north magnitude near one");
+
+    r = RadialSelect(Stick{1.0f, 0.0f}, 8);
+    Check(r.Slice == 2, "east selects slice 2");
+
+    r = RadialSelect(Stick{0.0f, -1.0f}, 8);
+    Check(r.Slice == 4, "south selects slice 4");
+
+    r = RadialSelect(Stick{-1.0f, 0.0f}, 8);
+    Check(r.Slice == 6, "west selects slice 6");
+
+    r = RadialSelect(Stick{0.0f, 0.0f}, 8);
+    Check(r.Slice == -1, "center cancels");
+
+    r = RadialSelect(Stick{0.2f, 0.2f}, 8, 0.50f, 0.35f);
+    Check(r.Slice == -1, "below select threshold cancels without sticky");
+
+    r = RadialSelect(Stick{0.3f, 0.3f}, 8, 0.50f, 0.35f, 2);
+    Check(r.Slice == 2, "hysteresis band keeps sticky slice");
+
+    r = RadialSelect(Stick{0.1f, 0.1f}, 8, 0.50f, 0.35f, 2);
+    Check(r.Slice == -1, "below cancel threshold clears sticky");
+
+    // Near the north/east boundary with sticky north: stay on north longer.
+    const float nearBoundaryX = std::sin((float)M_PI / 8.0f + 0.05f);
+    const float nearBoundaryY = std::cos((float)M_PI / 8.0f + 0.05f);
+    r = RadialSelect(Stick{nearBoundaryX, nearBoundaryY}, 8, 0.50f, 0.35f, 0, 1.35f);
+    Check(r.Slice == 0, "sticky half-width retains north past geometric edge");
+
+    r = RadialSelect(Stick{nearBoundaryX, nearBoundaryY}, 8, 0.50f, 0.35f, -1, 1.35f);
+    Check(r.Slice == 1, "without sticky the same angle selects northeast");
+
+    Check(RadialSelect(Stick{0.0f, 1.0f}, 0).Slice == -1,
+          "zero slices are invalid");
+    Check(RadialSelect(Stick{0.0f, 1.0f}, -8).Slice == -1,
+          "negative slice counts are invalid");
+}
+
+void TestHotkeyQueue()
+{
+    using namespace Input::GamepadUtil;
+
+    DigitalActionTracker<8> tracker;
+    Check(tracker.SubmitHotkey(-1, 44) == 44,
+          "wheel hotkey submits immediately on a free frame");
+    Check(tracker.PendingHotkeys() == 0,
+          "immediate wheel submission does not enter the FIFO");
+
+    Check(tracker.SubmitHotkey(32, 44) == 32,
+          "physical hotkey keeps the collision frame");
+    Check(tracker.PendingHotkeys() == 1,
+          "colliding wheel hotkey is queued");
+    Check(tracker.DeliverHotkey(-1) == 44,
+          "queued wheel hotkey is delivered on the next free frame");
+
+    tracker.Update(1, false, true, 9);
+    Check(tracker.SubmitHotkey(24, 45) == 24,
+          "occupied frame queues behind controller-generated actions");
+    Check(tracker.DeliverHotkey(-1) == 9,
+          "controller-generated action remains first in FIFO order");
+    Check(tracker.DeliverHotkey(-1) == 45,
+          "wheel action follows existing controller FIFO entries");
+
+    tracker.Update(3, false, true, 20);
+    Check(tracker.SubmitHotkey(-1, 46) == -1,
+          "a free frame does not bypass an existing FIFO entry");
+    Check(tracker.DeliverHotkey(-1) == 20,
+          "oldest queued action is delivered before a later wheel action");
+    Check(tracker.DeliverHotkey(-1) == 46,
+          "later wheel action remains queued in FIFO order");
+
+    tracker.Update(2, false, true, 21);
+    Check(tracker.PendingHotkeys() == 1, "reset test has a queued hotkey");
+    tracker.Reset();
+    Check(tracker.PendingHotkeys() == 0,
+          "semantic input reset clears the hotkey FIFO");
+    Check(tracker.DeliverHotkey(-1) == -1,
+          "reset queue delivers no stale hotkey");
+}
+
 void TestVirtualController()
 {
 #if !SDL_VERSION_ATLEAST(2, 0, 14)
@@ -273,6 +359,8 @@ int main()
     TestContexts();
     TestStickyDriveAxis();
     TestStickyDriveSession();
+    TestRadialSelect();
+    TestHotkeyQueue();
     TestVirtualController();
     if (Failures)
         return 1;

@@ -163,6 +163,16 @@ public:
         return hotkey;
     }
 
+    int SubmitHotkey(int currentHotkey, int hotkey)
+    {
+        if (hotkey < 0)
+            return currentHotkey;
+        if (currentHotkey < 0 && _hotkeys.empty())
+            return hotkey;
+        _hotkeys.push_back(hotkey);
+        return currentHotkey;
+    }
+
     std::size_t PendingHotkeys() const { return _hotkeys.size(); }
 
     void Reset()
@@ -221,6 +231,77 @@ inline ContextResult ApplyContext(Context context, const Stick &left,
         result.FlyDir = Strongest(result.FlyDir, right.X);
         result.FlyHeight = Strongest(result.FlyHeight, right.Y);
     }
+    return result;
+}
+
+// Radial / pie-menu selection. Angle 0 is north (stick up); positive angles
+// advance clockwise. Slice -1 means center / no selection (cancel).
+struct RadialSelectResult
+{
+    int Slice = -1;
+    float Magnitude = 0.0f;
+    float Angle = 0.0f;
+};
+
+inline float RadialAngleDiff(float a, float b)
+{
+    float d = a - b;
+    while (d > (float)M_PI)
+        d -= 2.0f * (float)M_PI;
+    while (d < -(float)M_PI)
+        d += 2.0f * (float)M_PI;
+    return std::fabs(d);
+}
+
+// selectMag: enter a slice. cancelMag: return to center (must be < selectMag).
+// stickyIndex: previously highlighted slice; expanded angular retention reduces
+// neighbor flicker. stickyHalfWidthFactor > 1 keeps the sticky slice wider.
+inline RadialSelectResult RadialSelect(const Stick &stick, int sliceCount,
+                                       float selectMag = 0.50f,
+                                       float cancelMag = 0.35f,
+                                       int stickyIndex = -1,
+                                       float stickyHalfWidthFactor = 1.35f)
+{
+    RadialSelectResult result;
+    if (sliceCount <= 0)
+        return result;
+
+    result.Magnitude = std::sqrt(stick.X * stick.X + stick.Y * stick.Y);
+    if (result.Magnitude < cancelMag)
+        return result;
+
+    // atan2(x, y) with Y-up: 0 at north, increasing clockwise.
+    result.Angle = std::atan2(stick.X, stick.Y);
+    if (result.Magnitude < selectMag)
+    {
+        // Hysteresis band: keep sticky highlight until fully cancelled.
+        if (stickyIndex >= 0 && stickyIndex < sliceCount)
+            result.Slice = stickyIndex;
+        return result;
+    }
+
+    const float sliceAngle = 2.0f * (float)M_PI / (float)sliceCount;
+    float angleNorm = result.Angle;
+    if (angleNorm < 0.0f)
+        angleNorm += 2.0f * (float)M_PI;
+
+    if (stickyIndex >= 0 && stickyIndex < sliceCount)
+    {
+        const float stickyCenter = (float)stickyIndex * sliceAngle;
+        const float retain = sliceAngle * 0.5f * stickyHalfWidthFactor;
+        if (RadialAngleDiff(angleNorm, stickyCenter) <= retain)
+        {
+            result.Slice = stickyIndex;
+            return result;
+        }
+    }
+
+    int slice = (int)std::floor((angleNorm + sliceAngle * 0.5f) / sliceAngle);
+    if (slice >= sliceCount)
+        slice = 0;
+    if (slice < 0)
+        slice = sliceCount - 1;
+    result.Slice = slice;
     return result;
 }
 

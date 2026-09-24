@@ -2607,10 +2607,9 @@ size_t NC_STACK_ypaworld::Process(base_64arg *arg)
 
                 debug_info_draw(arg->field_8);
 
-                // Map/Squadron Manager only occlude gameplay UI inside their
-                // own rectangles. Finalize them after every ordinary overlay
-                // so the overlap can be cleared without globally hiding HUD.
-                yw_FinalizePriorityGameplayUi(this);
+                // Finalize priority windows and top-level gameplay overlays
+                // after ordinary UI so their explicit stacking order is preserved.
+                yw_FinalizeTopLevelGameplayOverlays(this);
 
                 GFX::Engine.EndVirtualUI();
 
