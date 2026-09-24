@@ -161,6 +161,7 @@ set(SOURCES
     game/yparobo_ai.cpp
     game/ypatank.cpp
     game/ypaufo.cpp
+    game/yw_command_wheel.cpp
 )
 
 find_package(PkgConfig REQUIRED)

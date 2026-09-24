@@ -109,6 +109,7 @@ namespace Input
         float LeftY = 0.0f;
         float RightX = 0.0f;
         float RightY = 0.0f;
+        bool CommandWheelHeld = false;
         std::array<bool, SEMANTIC_ACTION_COUNT> Actions =
             Common::ArrayInit<bool, SEMANTIC_ACTION_COUNT>(false);
     };
@@ -135,6 +136,7 @@ namespace Input
         bool Released(int binding) const;
         float Analog(int binding) const;
         const ControllerState &Controller() const { return _controller; }
+        bool SubmitHotkeyForBinding(TInputState *state, int binding);
 
         static float Strongest(float a, float b);
 

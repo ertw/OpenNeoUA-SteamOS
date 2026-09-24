@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 
 HARNESS = r'''
-#include "utils.h"
+#include "common/utils.h"
 
 #include <cerrno>
 #include <cstdio>
@@ -132,9 +132,9 @@ def main() -> int:
                 str(SRC),
                 *cflags,
                 str(harness),
-                str(SRC / "utils.cpp"),
+                str(SRC / "common/utils.cpp"),
                 str(SRC / "system/fsmgr.cpp"),
-                str(SRC / "env.cpp"),
+                str(SRC / "common/env.cpp"),
                 "-Wl,--gc-sections",
                 *libs,
                 "-o",

@@ -9,7 +9,7 @@
 #include "common/log.h"
 #include "common/utils.h"
 #include "../system/inivals.h"
-#include "../winp.h"
+#include "platform/winp.h"
 #include "spin.h"
 #include "tools.h"
 

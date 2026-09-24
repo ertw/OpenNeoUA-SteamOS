@@ -1,6 +1,7 @@
 // OpenGL function loading.
 #include "glfuncs.h"
 #include <stdexcept>
+#include <string>
 
 namespace GFX
 {

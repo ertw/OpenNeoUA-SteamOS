@@ -262,44 +262,72 @@ void yw_RenderForegroundGameplayGuiWindows(NC_STACK_ypaworld *yw,
 
 }
 
-void yw_FinalizePriorityGameplayUi(NC_STACK_ypaworld *yw)
+void yw_FinalizeTopLevelGameplayOverlays(NC_STACK_ypaworld *yw)
 {
     if ( !yw || yw->_hideHudForScreenshots || !yw->_userUnit ||
-         yw->_userUnit->_bact_type == BACT_TYPES_MISSLE ||
-         !yw_IsPriorityGameplayUiOcclusionOpen() )
+         yw->_userUnit->_bact_type == BACT_TYPES_MISSLE )
     {
+        if ( yw )
+            yw->_commandWheel.Close();
         return;
     }
+
+    // These transitions may occur after the frame's analog-input pass. Keep
+    // the overlay from surviving underneath a newer top-level gameplay state.
+    if ( !yw->_userRobo || exit_menu.IsOpen() ||
+         yw->HasActiveNewGemNotification() ||
+         yw->_gamePaused || yw->_gameplayPauseRequested ||
+         yw->IsSpectatorControlled() ||
+         yw->_userUnit->_status == BACT_STATUS_DEAD ||
+         !Input::Actions.Controller().Connected )
+    {
+        yw->_commandWheel.Close();
+    }
+
+    const bool priorityWindowOpen = yw_IsPriorityGameplayUiOpen();
+    const bool wheelOpen = yw->_commandWheel.IsOpen();
+    if ( !priorityWindowOpen && !wheelOpen )
+        return;
 
     SDL_Color uiAccentColor;
     const SDL_Color *uiAccent = yw_GetFactionUiAccent(yw, &uiAccentColor);
 
-    // Ordinary gameplay UI has already been rendered. Remove only the pixels
-    // geometrically covered by Map/Squadron Manager or the Genesis list,
-    // leaving every overlay outside those rectangles untouched and the 3D world
-    // visible through the windows' translucent backgrounds.
-    yw_ClearPriorityGameplayUiUnderlay(yw);
+    if ( priorityWindowOpen )
+    {
+        // Ordinary gameplay UI has already been rendered. Remove only the pixels
+        // geometrically covered by Map/Squadron Manager or the Genesis list,
+        // leaving every overlay outside those rectangles untouched and the 3D world
+        // visible through the windows' translucent backgrounds.
+        yw_ClearPriorityGameplayUiUnderlay(yw);
 
-    // Preserve the normal relative order when priority gameplay windows overlap.
-    yw_RenderPriorityGameplayWindows(yw, uiAccent);
+        // Preserve the normal relative order when priority gameplay windows overlap.
+        yw_RenderPriorityGameplayWindows(yw, uiAccent);
 
-    // Priority-window draw sequences can leave their own clip active. Restore the
-    // full virtual-UI clip before drawing fixed bars/direct bitmaps; otherwise
-    // the Plasma icon can disappear even when it is nowhere near the window.
+        // Priority-window draw sequences can leave their own clip active. Restore the
+        // full virtual-UI clip before drawing fixed bars/direct bitmaps; otherwise
+        // the Plasma icon can disappear even when it is nowhere near the window.
+        yw_ResetVirtualUiClipToFullScreen(yw);
+
+        // Explicit exception requested by the UI hierarchy: the fixed top/bottom
+        // bars are always visible, even where a priority window reaches them.
+        yw_RenderAlwaysVisibleGameplayBars(yw, uiAccent);
+
+        // Menus/dialogs are foreground GUI, not gameplay underlay. Render them once
+        // above priority windows so the underlay clear cannot erase them.
+        yw_ResetVirtualUiClipToFullScreen(yw);
+        yw_RenderForegroundGameplayGuiWindows(yw, uiAccent);
+    }
+
+    // Command wheel sits above HUD/Map/Squad and below the Exit Menu flow.
     yw_ResetVirtualUiClipToFullScreen(yw);
+    yw->_commandWheel.Draw(yw);
 
-    // Explicit exception requested by the UI hierarchy: the fixed top/bottom
-    // bars are always visible, even where a priority window reaches them.
-    yw_RenderAlwaysVisibleGameplayBars(yw, uiAccent);
-
-    // Menus/dialogs are foreground GUI, not gameplay underlay. Render them once
-    // above priority windows so the underlay clear cannot erase them.
-    yw_ResetVirtualUiClipToFullScreen(yw);
-    yw_RenderForegroundGameplayGuiWindows(yw, uiAccent);
-
-    // Exit Menu and its confirmation dialogs remain the absolute top-level
-    // gameplay flow.
-    yw_RenderTopLevelExitMenuFlow(yw, uiAccent);
+    if ( priorityWindowOpen )
+    {
+        // Exit Menu and its confirmation dialogs remain the absolute top-level
+        // gameplay flow.
+        yw_RenderTopLevelExitMenuFlow(yw, uiAccent);
+    }
 }
 
 void yw_SetGuiListBackgroundOpacity(CmdStream *cur, uint8_t opacity)
@@ -424,6 +452,8 @@ bool yw_GuiListOwnsWheelAtPointer(const GuiList &list,
 
 void NC_STACK_ypaworld::GUI_Close()
 {
+    _commandWheel.Reset();
+
     if ( _guiLoaded )
     {
         yw_ResetWorldSelectionDrag(this);
