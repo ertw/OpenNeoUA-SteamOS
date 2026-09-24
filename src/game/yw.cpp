@@ -1611,7 +1611,7 @@ size_t NC_STACK_ypaworld::Process(base_64arg *arg)
                 // own rectangles. Finalize them after every ordinary overlay
                 // so the overlap can be cleared without globally hiding HUD.
                 RenderLocationTitle();
-                yw_FinalizePriorityGameplayUi(this);
+                yw_FinalizeTopLevelGameplayOverlays(this);
 
                 GFX::Engine.EndVirtualUI();
 

@@ -2132,7 +2132,7 @@ int sb_0x451034__sub3(NC_STACK_ypaworld *yw)
     bzda.cmdCommands.reserve(1088);
     bzda.field_1D8 = 0;
 
-    sub_4C3A54(yw);
+    yw_UpdateCommandPanelState(yw);
 
     bzda.field_8EC = 0;
     bzda.field_8F0 = 0;

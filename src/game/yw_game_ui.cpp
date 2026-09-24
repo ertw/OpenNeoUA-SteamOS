@@ -36,6 +36,7 @@
 #include "game/yw_game_ui_internal.h"
 #include "platform/winp.h"
 #include "system/gamepad_util.h"
+#include "yw_command_wheel.h"
 
 GuiBase *dword_5BAFAC = nullptr;
 std::string dword_5BAF98;
@@ -91,41 +92,37 @@ void NC_STACK_ypaworld::sub_449DE8(const std::string &a2)
     _helpSavedURL.clear();
 }
 
-void sub_4C3A54(NC_STACK_ypaworld *yw)
+int yw_GetCommandPanelMask(const NC_STACK_ypaworld *yw)
 {
-    if ( yw->_userUnit )
+    if ( !yw || !yw->_userUnit || !yw->_userRobo )
+        return 0;
+
+    int mask = 0;
+    if ( yw->_userUnit == yw->_userRobo || yw->_playerInHSGun )
     {
-        if ( yw->_userUnit == yw->_userRobo || yw->_playerInHSGun )
+        mask = 0x29;
+
+        if ( bzda.field_8E0 )
         {
-            bzda.field_1CC = 0x29;
+            mask = 0x2B;
 
-            if ( bzda.field_8E0 )
-            {
-                bzda.field_1CC = 0x2B;
-
-                if ( yw->_activeCmdrRemapIndex != -1 )
-                    bzda.field_1CC = 0x2F;
-            }
-
-            if ( bzda.field_8E4 )
-                bzda.field_1CC |= 0x10;
-
-            bzda.field_1D4 = 1;
-        }
-        else
-        {
-            bzda.field_1D4 = 1;
-            bzda.field_1CC = 41;
+            if ( yw->_activeCmdrRemapIndex != -1 )
+                mask = 0x2F;
         }
 
-        if ( yw->_userRobo->_status == BACT_STATUS_DEAD )
-            bzda.field_1CC = 0;
+        if ( bzda.field_8E4 )
+            mask |= 0x10;
     }
     else
-    {
-        bzda.field_1D4 = 0;
-        bzda.field_1CC = 0;
-    }
+        mask = 0x29;
+
+    return yw->_userRobo->_status == BACT_STATUS_DEAD ? 0 : mask;
+}
+
+static void yw_UpdateCommandPanelState(NC_STACK_ypaworld *yw)
+{
+    bzda.field_1D4 = yw && yw->_userUnit ? 1 : 0;
+    bzda.field_1CC = yw_GetCommandPanelMask(yw);
 
     bzda.field_1D0 &= bzda.field_1CC;
     bzda.field_1D8 &= bzda.field_1D4;
@@ -435,6 +432,7 @@ int sb_0x451034(NC_STACK_ypaworld *yw)
     if ( yw->IsSpectatorControlled() )
         yw->_ufoSpyUiEnabled = false;
 
+    yw->_commandWheel.Reset();
     yw->_guiDragging = false;
     yw->_guiDragElement = nullptr;
     yw->_guiDragDefaultMouse = false;
@@ -3762,6 +3760,8 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
     // SDL_GameController axes are semantic and contextual. They deliberately
     // remain live in cursor mode; only the mouse path is grab-dependent.
     // Sticky drive is keyed to the controlled ground unit, not mouse-grab.
+    const bool wheelCapturesLeftStick = _commandWheel.UpdateInput(this, inpt);
+
     const Input::ControllerState &pad = Input::Actions.Controller();
     const bool ground = _userUnit &&
                         (_userUnit->_bact_type == BACT_TYPES_TANK ||
@@ -3773,8 +3773,8 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
         unitAlive,
         nativeControllerEnabled,
         pad.Connected,
-        inpt->HandBrakePressed,
-        pad.LeftY,
+        inpt->HandBrakePressed || wheelCapturesLeftStick,
+        wheelCapturesLeftStick ? 0.0f : pad.LeftY,
         inpt->Period);
 
     if (nativeControllerEnabled && NC_STACK_winp::IsGameControllerActive())
@@ -3789,8 +3789,15 @@ void NC_STACK_ypaworld::ypaworld_func64__sub1(TInputState *inpt)
         existing.FlyHeight = inpt->Sliders[1];
         existing.FlySpeed = inpt->Sliders[2];
         Input::GamepadUtil::Stick left = {pad.LeftX, pad.LeftY};
-        if (ground)
+        if ( wheelCapturesLeftStick )
+        {
+            left.X = 0.0f;
+            left.Y = 0.0f;
+        }
+        else if (ground)
+        {
             left.Y = stickyDrive;
+        }
         const Input::GamepadUtil::Stick right = {pad.RightX, pad.RightY};
         const Input::GamepadUtil::Context context = ground
             ? Input::GamepadUtil::CONTEXT_GROUND

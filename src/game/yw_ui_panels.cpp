@@ -344,10 +344,12 @@ void gui_update_map_squad_btn(NC_STACK_ypaworld *yw, CmdStream *cur)
     }
 }
 
-void gui_update_player_panel(NC_STACK_ypaworld *yw, CmdStream *cur)
+int yw_ComputePlayerNavMask(const NC_STACK_ypaworld *yw)
 {
+    if ( !yw || !yw->_userUnit || !yw->_userRobo )
+        return 0;
+
     int v35 = 0;
-    bool spectatorControlled = yw->IsSpectatorControlled();
 
     if ( yw->_userRobo == yw->_userUnit )
     {
@@ -408,14 +410,24 @@ void gui_update_player_panel(NC_STACK_ypaworld *yw, CmdStream *cur)
     if ( yw->_userRobo->_status == BACT_STATUS_DEAD )
         v35 = 0;
 
-    if ( spectatorControlled )
+    if ( yw->IsSpectatorControlled() )
     {
         // Keep normal command buttons disabled in Spectator Mode. While the
         // follow camera is active, expose only the vanilla back/up button and
         // reuse it as Return to Spectator.
         v35 = yw->IsSpectatorFollowActive() ? 0x10 : 0;
-        yw->GuiWinClose( &gui_lstvw );
     }
+
+    return v35;
+}
+
+void gui_update_player_panel(NC_STACK_ypaworld *yw, CmdStream *cur)
+{
+    int v35 = yw_ComputePlayerNavMask(yw);
+    bool spectatorControlled = yw->IsSpectatorControlled();
+
+    if ( spectatorControlled )
+        yw->GuiWinClose( &gui_lstvw );
 
     // Reuse the vanilla Jump into Vehicle button and state machine. Spectator
     // mode exposes the same button because its command mask already includes
@@ -718,7 +730,7 @@ void ypaworld_func64__sub7__sub2__sub1__sub0(NC_STACK_ypaworld *yw, CmdStream *c
 
 void ypaworld_func64__sub7__sub2__sub1(NC_STACK_ypaworld *yw)
 {
-    sub_4C3A54(yw);
+    yw_UpdateCommandPanelState(yw);
 
     bzda.cmdCommands.clear();
 
@@ -814,22 +826,23 @@ void ypaworld_func64__sub7__sub2__sub1(NC_STACK_ypaworld *yw)
         gui_lstvw.Formate(yw);
 }
 
-NC_STACK_ypabact * ypaworld_func64__sub7__sub2__sub6(NC_STACK_ypaworld *yw)
+
+NC_STACK_ypabact *yw_GetLastSeatTarget(const NC_STACK_ypaworld *yw)
 {
-    if ( !yw->_prevUnitId )
+    if ( !yw || !yw->_userRobo || !yw->_prevUnitId )
         return nullptr;
 
     if ( yw->_prevUnitId == yw->_userRobo->_gid )
         return yw->_userRobo;
 
-    for( NC_STACK_ypabact* &comm : yw->_userRobo->_kidList )
+    for ( NC_STACK_ypabact *comm : yw->_userRobo->_kidList )
     {
         if ( comm->_status != BACT_STATUS_DEAD && comm->_status != BACT_STATUS_CREATE && comm->_status != BACT_STATUS_BEAM )
         {
             if ( yw->_prevUnitId == comm->_gid )
                 return comm;
 
-            for( NC_STACK_ypabact* &unit : comm->_kidList )
+            for ( NC_STACK_ypabact *unit : comm->_kidList )
             {
                 if ( unit->_status != BACT_STATUS_DEAD && unit->_status != BACT_STATUS_CREATE && unit->_status != BACT_STATUS_BEAM && yw->_prevUnitId == unit->_gid )
                     return unit;
@@ -840,19 +853,24 @@ NC_STACK_ypabact * ypaworld_func64__sub7__sub2__sub6(NC_STACK_ypaworld *yw)
     return nullptr;
 }
 
-void ypaworld_func64__sub7__sub2__sub7(NC_STACK_ypaworld *yw)
+bool yw_CanSetCommander(const NC_STACK_ypaworld *yw)
 {
-    if ( !yw->_userUnit->_parent || yw->_userUnit->_parent != yw->_userRobo )
-    {
-        if ( yw->_userUnit->_bact_type != BACT_TYPES_ROBO && yw->_userUnit->_bact_type != BACT_TYPES_MISSLE && yw->_userUnit->_bact_type != BACT_TYPES_GUN )
-        {
-            bact_arg109 v5;
-            v5.field_0 = 2;
-            v5.field_4 = yw->_userUnit->_parent;
+    return yw && yw->_userUnit &&
+           yw->_userUnit->_parent != yw->_userRobo &&
+           yw->_userUnit->_bact_type != BACT_TYPES_ROBO &&
+           yw->_userUnit->_bact_type != BACT_TYPES_MISSLE &&
+           yw->_userUnit->_bact_type != BACT_TYPES_GUN;
+}
 
-            yw->_userUnit->ReorganizeGroup(&v5);
-        }
-    }
+void yw_SetCommander(NC_STACK_ypaworld *yw)
+{
+    if ( !yw_CanSetCommander(yw) )
+        return;
+
+    bact_arg109 args;
+    args.field_0 = 2;
+    args.field_4 = yw->_userUnit->_parent;
+    yw->_userUnit->ReorganizeGroup(&args);
 }
 
 int ypaworld_func64__sub7__sub2__sub3(NC_STACK_ypaworld *yw, TInputState *inpt)
@@ -1481,6 +1499,10 @@ void  ypaworld_func64__sub7__sub2(NC_STACK_ypaworld *yw, TInputState *inpt)
 {
     TClickBoxInf *winpt = &inpt->ClickInf;
 
+    // Fire a wheel confirm action only after simulation so unit-death handoffs
+    // can invalidate the highlighted slice before activation.
+    yw->_commandWheel.ApplyPending(yw, inpt);
+
     NC_STACK_ypabact *bact1 = nullptr;
     NC_STACK_ypabact *bact2 = yw->_viewerBact;
 
@@ -1513,11 +1535,11 @@ void  ypaworld_func64__sub7__sub2(NC_STACK_ypaworld *yw, TInputState *inpt)
                 break;
 
                 case 44:
-                    bact1 = ypaworld_func64__sub7__sub2__sub6(yw);
+                    bact1 = yw_GetLastSeatTarget(yw);
                     break;
 
                 case 45:
-                    ypaworld_func64__sub7__sub2__sub7(yw);
+                    yw_SetCommander(yw);
                     break;
 
                 default:

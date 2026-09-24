@@ -500,7 +500,7 @@ struct TBactAttacker
     TBactAttacker(int t = 0, NC_STACK_ypabact *bact = nullptr)
     : type(t), attacker(bact) {};
 
-    inline bool operator==(const TBactAttacker &b)
+    inline bool operator==(const TBactAttacker &b) const
     {
         if (type != b.type)
             return false;

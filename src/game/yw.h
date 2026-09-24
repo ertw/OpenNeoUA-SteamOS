@@ -41,6 +41,7 @@
 #include "world/nparticle.h"
 #include "world/grounddecal_smoke.h"
 #include "world/grounddecal_profile.h"
+#include "game/yw_command_wheel.h"
 
 #include "gui/uamsgbox.h"
 
@@ -3604,6 +3605,7 @@ public:
     bool _joyIgnoreZ = false;
 
     Input::GamepadUtil::StickyDriveSession _stickyDrive;
+    CommandWheel::State _commandWheel;
 
     float _oldJoyX = 0.0; // input slider 12
     float _oldJoyY = 0.0; // input slider 13
