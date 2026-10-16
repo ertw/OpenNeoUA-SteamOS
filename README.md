@@ -1,5 +1,7 @@
 # OpenNeoUA
 
+[Steam Deck build and controls](STEAM_DECK.md)
+
 OpenNeoUA is an independent, open-source and non-commercial evolution of the `UA_source`/OpenUA engine for **Urban Assault**. It modernizes real engine limitations while preserving vanilla data, levels, scripts, saves and the original game feeling. A legitimate copy of the original game data is still required to play.
 
 The project is derived from the upstream [Marisa-Chan/UA_source](https://github.com/Marisa-Chan/UA_source) lineage and keeps that provenance visible. Microsoft, TerraTools and the other rights holders are not affiliated with or endorsing this project. Existing credits and notices remain applicable.
@@ -212,74 +214,6 @@ Data\Sets\Set3\
 ```
 
 OpenNeoUA supports the organized `Data\Sets\Set_` layout while retaining compatibility with the legacy SET locations.
-
-# Native Linux / Steam Deck
-
-The Linux build is a native `x86_64` overlay. It does not include Urban Assault
-data, Steamworks, or Steam Input integration. It uses SDL2's normal keyboard,
-mouse, and joystick support. Requires Docker. Do not use Proton.
-
-## Build the overlay
-
-```sh
-./packaging/steamrt4/local_ci.py
-```
-
-Extract the archive into a writable Urban Assault installation:
-
-```sh
-tar -xJf build/local-ci/artifacts/OpenNeoUA-steamrt4-x86_64-*.tar.xz \
-  -C "/path/to/Urban Assault"
-```
-
-To launch an extracted overlay from Game Mode, add `OpenNeoUA.sh` as a normal
-Non-Steam game in Desktop Mode and leave Compatibility off. In OpenNeoUA's
-Input Settings, enable Joystick and leave Alt Joystick off.
-
-## Private Steam Deck AppImage (local only)
-
-Builds an AppImage from a locally owned base-game ISO at `vendor/ua.iso`. Game
-data never enters CI or public artifacts — keep the ISO gitignored.
-
-```sh
-cp "/path/to/Urban Assault.iso" vendor/ua.iso
-./packaging/steamrt4/build_steamdeck.py \
-  --output-dir build/steamdeck-private/artifacts
-```
-
-Use `--iso` to override the default path.
-
-`chmod +x` the AppImage and copy it to the Deck. Saves live in
-`~/.local/share/OpenNeoUA`.
-
-For repeatable developer installs, the repository includes an SSH deployer.
-It uses the `steamdeck` host from `~/.ssh/config`, verifies the uploaded
-SHA-256 on the Deck, atomically replaces the stable executable at
-`~/Applications/OpenNeoUA-dev.AppImage`, and installs a desktop launcher with
-the icon bundled in the AppImage:
-
-```sh
-./packaging/steamrt4/deploy_steamdeck.py
-```
-
-The newest AppImage under `build/steamdeck-private/artifacts` is selected by
-default. Pass an explicit AppImage when needed. `--rsync` seeds a temporary
-copy from the installed build and transfers changed blocks; ordinary SCP is
-the simpler default. No Steam files are edited, and Steam may remain running.
-
-After the first deployment, switch the Deck to Desktop Mode. In Steam choose
-**Add a Game → Add a Non-Steam Game**, select **OpenNeoUA (Development)**, and
-return to Game Mode. Later deployments update the same stable AppImage path,
-so the shortcut does not need to be recreated. Valve documents this standard
-flow in its [Steam Deck Desktop FAQ](https://help.steampowered.com/en/faqs/view/671A-4453-E8D2-323C).
-
-The developer TUI collects build, deployment, test, and CI tasks:
-
-```sh
-./packaging/steamrt4/dev_menu.py
-```
-
-# Third-Party Derived Interface Assets Notice
 
 ## Intellectual Property and Original Game Data
 
