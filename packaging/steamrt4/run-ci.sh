@@ -78,33 +78,14 @@ phase="record dependency versions"
 } | tee "${dependency_report}"
 test -s "${dependency_report}"
 
-phase="verify fonts, scripts, and launcher"
+phase="verify fonts, scripts, and packaging tests"
 (cd "${source_root}/Fonts" && sha256sum -c SHA256SUMS)
-bash -n \
-    "${source_root}/packaging/steamrt4/install-dependencies.sh" \
-    "${source_root}/packaging/steamrt4/run-ci.sh" \
-    "${source_root}/packaging/steamrt4/run_smoketest.sh"
+for script in "${source_root}"/packaging/steamrt4/*.sh; do
+    bash -n "${script}"
+done
 sh -n "${source_root}/OpenNeoUA.sh"
-    python3 -m py_compile \
-        "${source_root}/packaging/steamrt4/package.py" \
-        "${source_root}/packaging/steamrt4/local_ci.py" \
-        "${source_root}/packaging/steamrt4/test_local_ci.py" \
-        "${source_root}/packaging/steamrt4/test_launcher.py" \
-        "${source_root}/packaging/steamrt4/test_resolver_write_paths.py" \
-        "${source_root}/packaging/steamrt4/test_overlay_mutation.py" \
-        "${source_root}/packaging/steamrt4/test_game_menu.py" \
-        "${source_root}/packaging/steamrt4/test_game_menu_policy.py" \
-        "${source_root}/packaging/steamrt4/build_smoketest_image.py" \
-        "${source_root}/packaging/steamrt4/test_steamdeck.py" \
-        "${source_root}/packaging/steamrt4/build_steamdeck.py" \
-        "${source_root}/packaging/steamrt4/test_apprun.py" \
-        "${source_root}/packaging/steamrt4/deploy_steamdeck.py" \
-        "${source_root}/packaging/steamrt4/test_deploy_steamdeck.py" \
-        "${source_root}/packaging/steamrt4/dev_menu.py" \
-        "${source_root}/packaging/steamrt4/dev_workflow.py"
-python3 "${source_root}/packaging/steamrt4/test_launcher.py"
-python3 "${source_root}/packaging/steamrt4/test_apprun.py"
-python3 "${source_root}/packaging/steamrt4/test_deploy_steamdeck.py"
+python3 -m compileall -q "${source_root}/packaging/steamrt4"
+python3 "${source_root}/packaging/steamrt4/dev_workflow.py" tests
 
 phase="configure Release build"
 cmake \
@@ -124,12 +105,6 @@ ccache --show-stats
 
 phase="run C++ tests"
 ctest --test-dir "${build_dir}" --output-on-failure
-
-phase="verify resolver write destinations"
-python3 "${source_root}/packaging/steamrt4/test_resolver_write_paths.py"
-python3 "${source_root}/packaging/steamrt4/test_overlay_mutation.py"
-python3 "${source_root}/packaging/steamrt4/test_game_menu_policy.py"
-python3 "${source_root}/packaging/steamrt4/test_steamdeck.py"
 
 phase="install OpenNeoUA to staging"
 cmake --install "${build_dir}" --prefix "${staging_dir}"

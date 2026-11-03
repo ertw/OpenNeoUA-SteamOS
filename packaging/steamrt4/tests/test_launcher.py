@@ -12,9 +12,10 @@ import sys
 import tempfile
 import textwrap
 import time
+import unittest
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 LAUNCHER = ROOT / "OpenNeoUA.sh"
 
 
@@ -66,7 +67,7 @@ def run_and_read(launcher: Path, cwd: Path, state: Path, env: dict[str, str], ar
     return json.loads(state.read_text(encoding="utf-8"))
 
 
-def main() -> int:
+def run_launcher_checks() -> None:
     if not LAUNCHER.is_file() or not os.access(LAUNCHER, os.X_OK):
         fail("repository launcher is missing or not executable")
 
@@ -147,9 +148,12 @@ def main() -> int:
         if return_code != -signal.SIGTERM:
             fail("launcher did not preserve SIGTERM: {}".format(return_code))
 
-    print("launcher tests passed")
-    return 0
+
+
+class LauncherTests(unittest.TestCase):
+    def test_paths_arguments_environment_and_signals(self) -> None:
+        run_launcher_checks()
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    unittest.main()

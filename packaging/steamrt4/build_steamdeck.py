@@ -31,16 +31,11 @@ import sys
 import tempfile
 import unicodedata
 import zlib
-from typing import Iterable, Iterator, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 from urllib.request import Request, urlopen
 
+from config import REPOSITORY_ROOT, STEAMDECK_IMAGE, STEAMRT4_VERSION
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-STEAMRT4_VERSION = "4.0.20260805.254769"
-STEAMRT4_IMAGE = (
-    "registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:" + STEAMRT4_VERSION
-)
-STEAMDECK_IMAGE = "openneoua-steamdeck-appimage:" + STEAMRT4_VERSION
 
 # These are deliberately immutable URLs and hashes.  In particular, do not
 # let appimagetool fetch a runtime at package time: that makes a private build

@@ -119,7 +119,7 @@ int yw_GetCommandPanelMask(const NC_STACK_ypaworld *yw)
     return yw->_userRobo->_status == BACT_STATUS_DEAD ? 0 : mask;
 }
 
-static void yw_UpdateCommandPanelState(NC_STACK_ypaworld *yw)
+void yw_UpdateCommandPanelState(NC_STACK_ypaworld *yw)
 {
     bzda.field_1D4 = yw && yw->_userUnit ? 1 : 0;
     bzda.field_1CC = yw_GetCommandPanelMask(yw);

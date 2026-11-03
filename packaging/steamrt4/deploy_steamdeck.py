@@ -13,8 +13,8 @@ import subprocess
 import sys
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ARTIFACT_DIR = REPO_ROOT / "build" / "steamdeck-private" / "artifacts"
+from config import REPOSITORY_ROOT
+DEFAULT_ARTIFACT_DIR = REPOSITORY_ROOT / "build" / "steamdeck-private" / "artifacts"
 DEFAULT_HOST = "steamdeck"
 DEFAULT_DESTINATION = "Applications/OpenNeoUA-dev.AppImage"
 DESKTOP_ENTRY = ".local/share/applications/openneoua-dev.desktop"

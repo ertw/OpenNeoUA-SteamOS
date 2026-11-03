@@ -1,50 +1,14 @@
-#!/usr/bin/env python3
-"""Exercise copy-on-write overlay mutations while directory iterators are live."""
-
-from __future__ import annotations
-
-import os
-from pathlib import Path
-import subprocess
-import tempfile
-
-
-ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "src"
-
-HARNESS = r'''
 #include "system/fsmgr.h"
+#include "filesystem_fixture.h"
 
-#include <algorithm>
 #include <cerrno>
-#include <cctype>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <fstream>
 #include <set>
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
-
-// fsmgr.cpp only needs the project case-insensitive comparison helper.  Keep
-// this harness's link closure limited to the filesystem manager itself rather
-// than pulling utils.cpp (which also owns the full engine's parser/GUI globals).
-int StriCmp(const std::string &left, const std::string &right)
-{
-    const size_t count = std::min(left.size(), right.size());
-    for (size_t index = 0; index < count; ++index)
-    {
-        const unsigned char a = static_cast<unsigned char>(left[index]);
-        const unsigned char b = static_cast<unsigned char>(right[index]);
-        const int difference = std::tolower(a) - std::tolower(b);
-        if (difference != 0)
-            return difference;
-    }
-    if (left.size() == right.size())
-        return 0;
-    return left.size() < right.size() ? -1 : 1;
-}
 
 static void require(bool condition, const std::string &message)
 {
@@ -78,10 +42,8 @@ static std::string read_file(const std::string &path)
 
 int main()
 {
-    char temporary[] = "/tmp/openneoua-overlay-mutation-XXXXXX";
-    require(mkdtemp(temporary) != NULL, "cannot create overlay test directory");
-
-    const std::string root(temporary);
+    FilesystemFixture fixture;
+    const std::string root = fixture.Path();
     const std::string assets = root + "/assets";
     const std::string user = root + "/user";
     make_directory(assets);
@@ -115,12 +77,9 @@ int main()
     delete updated;
     require(read_file(user + "/copy-on-write.txt") == "updated!\n",
             "copy-on-write did not write the user tree");
-    bool write_iter_completed = false;
     FSMgr::iNode *node = NULL;
     while (write_iter.getNext(&node))
         require(node != NULL, "iterator returned a null node");
-    write_iter_completed = true;
-    require(write_iter_completed, "iterator did not complete after an in-place write");
 
     // Delete two packaged files through the same live iterator.  The files
     // remain in the immutable tree but disappear from the merged view via
@@ -209,50 +168,3 @@ int main()
     std::puts("overlay mutation iterator tests passed");
     return 0;
 }
-'''
-
-
-def run(command: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
-    result = subprocess.run(command, cwd=cwd, env=env, check=False, text=True)
-    if result.returncode != 0:
-        raise SystemExit(result.returncode)
-
-
-def main() -> int:
-    cflags = subprocess.check_output(["pkg-config", "--cflags", "sdl2", "lua5.4"], text=True).split()
-    libs = subprocess.check_output(["pkg-config", "--libs", "sdl2"], text=True).split()
-    with tempfile.TemporaryDirectory(prefix="OpenNeoUA overlay mutation test ") as temporary:
-        temporary_root = Path(temporary)
-        harness = temporary_root / "overlay_mutation.cpp"
-        executable = temporary_root / "overlay_mutation"
-        harness.write_text(HARNESS, encoding="utf-8")
-        run(
-            [
-                "g++",
-                "-std=c++14",
-                "-O0",
-                "-fsanitize=address",
-                "-fno-omit-frame-pointer",
-                "-ffunction-sections",
-                "-fdata-sections",
-                "-I",
-                str(SRC),
-                *cflags,
-                str(harness),
-                str(SRC / "system/fsmgr.cpp"),
-                "-Wl,--gc-sections",
-                "-fsanitize=address",
-                *libs,
-                "-o",
-                str(executable),
-            ],
-            cwd=ROOT,
-        )
-        runtime_environment = dict(os.environ)
-        runtime_environment["ASAN_OPTIONS"] = "detect_leaks=0:halt_on_error=1:abort_on_error=1"
-        run([str(executable)], cwd=ROOT, env=runtime_environment)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

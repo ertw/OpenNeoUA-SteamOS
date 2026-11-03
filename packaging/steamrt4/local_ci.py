@@ -20,15 +20,11 @@ import unicodedata
 from urllib.parse import parse_qsl, urlsplit
 import uuid
 
+from config import ASSET_DIRECTORIES, LOCAL_IMAGE, REPOSITORY_ROOT, STEAMRT4_IMAGE, STEAMRT4_VERSION
 
-STEAMRT4_VERSION = "4.0.20260805.254769"
-STEAMRT4_IMAGE = (
-    "registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:" + STEAMRT4_VERSION
-)
-LOCAL_IMAGE = "openneoua-steamrt4-local-ci:" + STEAMRT4_VERSION
+
 DEFAULT_REPOSITORY = "https://github.com/ertw/OpenNeoUA-SteamOS"
 WORKFLOW_PATH = ".github/workflows/linux-steamrt4.yml"
-PROGRESS_PATH = "Progressi OpenNeoUA/Linux SteamOS Steam Deck e Bazzite.md"
 FONT_PATHS = {
     "Fonts/LiberationMono-Regular.ttf",
     "Fonts/LiberationSans-Regular.ttf",
@@ -43,18 +39,7 @@ FONT_PATHS = {
     "Fonts/licenses/IPA-Font-License-Agreement-v1.0.txt",
     "Fonts/licenses/OFL-1.1.txt",
 }
-GAME_DATA_ROOTS = {
-    "3ds",
-    "Database",
-    "Env",
-    "Filters",
-    "Interface",
-    "Locale",
-    "Res",
-    "Scripts",
-    "Sounds",
-    "Wireless",
-}
+GAME_DATA_ROOTS = set(ASSET_DIRECTORIES) - {"Fonts"}
 
 
 class LocalCIError(RuntimeError):
@@ -339,7 +324,7 @@ def validate_worktree_file_types(repo: Path) -> None:
 
 
 def allowed_untracked(path: str) -> bool:
-    if path in {"OpenNeoUA.sh", WORKFLOW_PATH, PROGRESS_PATH} or path in FONT_PATHS:
+    if path in {"OpenNeoUA.sh", WORKFLOW_PATH} or path in FONT_PATHS:
         return True
     parts = PurePosixPath(path).parts
     return len(parts) > 1 and parts[0] in {"src", "svg", "packaging"} and (
@@ -787,14 +772,13 @@ def acquire_lock(path: Path):
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    script_root = Path(__file__).resolve().parents[2]
     try:
         repository = Path(
-            git(script_root, ["rev-parse", "--show-toplevel"], phase="locate repository")
+            git(REPOSITORY_ROOT, ["rev-parse", "--show-toplevel"], phase="locate repository")
             .decode("utf-8")
             .strip()
         ).resolve()
-        if repository != script_root:
+        if repository != REPOSITORY_ROOT:
             raise LocalCIError("local_ci.py is not running from its owning repository")
         local_root = repository / "build" / "local-ci"
         local_root.mkdir(parents=True, exist_ok=True)

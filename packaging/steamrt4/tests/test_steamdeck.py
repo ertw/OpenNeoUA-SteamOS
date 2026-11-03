@@ -8,34 +8,22 @@ from pathlib import Path
 import stat
 import unittest
 
-try:
-    from build_steamdeck import (
-        ArchiveEntry,
-        AssetBuildError,
-        REQUIRED_MENU_ASSETS,
-        extract_base_payload,
-        select_base_game_entries,
-        validate_iso_listing,
-        validate_menu_assets,
-        write_sha256_manifest,
-        verify_sha256_manifest,
-    )
-except ImportError:  # pragma: no cover - package execution fallback
-    from packaging.steamrt4.build_steamdeck import (
-        ArchiveEntry,
-        AssetBuildError,
-        REQUIRED_MENU_ASSETS,
-        extract_base_payload,
-        select_base_game_entries,
-        validate_iso_listing,
-        validate_menu_assets,
-        write_sha256_manifest,
-        verify_sha256_manifest,
-    )
+from build_steamdeck import (
+    _copy_overlay_payload,
+    ArchiveEntry,
+    AssetBuildError,
+    REQUIRED_MENU_ASSETS,
+    extract_base_payload,
+    select_base_game_entries,
+    validate_iso_listing,
+    validate_menu_assets,
+    write_sha256_manifest,
+    verify_sha256_manifest,
+)
 
 
 def base_listing() -> list[ArchiveEntry]:
-    entries = [
+    return [
         ArchiveEntry("GAME/DATA/SET46/FONTPAGE.ILB"),
         ArchiveEntry("GAME/DATA/SET46/GADGSHLL.ILB"),
         ArchiveEntry("GAME/DATA/SET46/GADGSHLO.ILB"),
@@ -48,7 +36,6 @@ def base_listing() -> list[ArchiveEntry]:
         ArchiveEntry("GAME/SAVE/.keep"),
         ArchiveEntry("GAME/NUCLEUS.INI"),
     ]
-    return entries
 
 
 class SteamDeckPolicyTests(unittest.TestCase):
@@ -135,11 +122,6 @@ class SteamDeckPolicyTests(unittest.TestCase):
                 verify_sha256_manifest(root, manifest)
 
     def test_appdir_payload_separates_binary_libraries_and_assets(self) -> None:
-        try:
-            from build_steamdeck import _copy_overlay_payload
-        except ImportError:  # pragma: no cover
-            from packaging.steamrt4.build_steamdeck import _copy_overlay_payload
-
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             overlay = root / "overlay"

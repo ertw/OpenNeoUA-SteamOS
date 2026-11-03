@@ -7,20 +7,12 @@ from pathlib import Path
 import tempfile
 import unittest
 
-try:
-    from test_game_menu import (
-        SmokeTestError,
-        _refresh_image_command,
-        assert_no_external_writes,
-        snapshot_tree,
-    )
-except ImportError:  # pragma: no cover - package execution fallback
-    from packaging.steamrt4.test_game_menu import (
-        SmokeTestError,
-        _refresh_image_command,
-        assert_no_external_writes,
-        snapshot_tree,
-    )
+from build_smoketest_image import image_command
+from smoke_test import (
+    SmokeTestError,
+    assert_no_external_writes,
+    snapshot_tree,
+)
 
 
 class GameMenuPolicyTests(unittest.TestCase):
@@ -44,15 +36,15 @@ class GameMenuPolicyTests(unittest.TestCase):
             dockerfile = snapshot / "packaging" / "steamrt4" / "Dockerfile.smoketest"
             dockerfile.parent.mkdir(parents=True)
             dockerfile.write_text("FROM scratch\n", encoding="utf-8")
-            command = _refresh_image_command(snapshot)
+            command = image_command(snapshot, pull=True)
             self.assertEqual(command[-1], str(snapshot))
             self.assertIn("--pull", command)
             self.assertNotIn("UA-Complete", " ".join(command))
             self.assertNotIn("vendor/ua.iso", " ".join(command))
             (snapshot / "vendor" / "ua.iso").parent.mkdir(parents=True)
             (snapshot / "vendor" / "ua.iso").write_bytes(b"iso")
-            with self.assertRaises(SmokeTestError):
-                _refresh_image_command(snapshot)
+            with self.assertRaises(ValueError):
+                image_command(snapshot, pull=True)
 
 
 if __name__ == "__main__":

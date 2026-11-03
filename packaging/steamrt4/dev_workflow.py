@@ -4,16 +4,15 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import subprocess
 import sys
 
-ROOT = Path(__file__).resolve().parents[2]
+from config import REPOSITORY_ROOT
 
 
 def execute(commands: list[list[str]]) -> int:
     for command in commands:
-        result = subprocess.run(command, cwd=ROOT, check=False)
+        result = subprocess.run(command, cwd=REPOSITORY_ROOT, check=False)
         if result.returncode:
             return result.returncode
     return 0
@@ -27,10 +26,8 @@ def main() -> int:
     workflows = {
         "build-deploy": [[py, "packaging/steamrt4/build_steamdeck.py"],
                          [py, "packaging/steamrt4/deploy_steamdeck.py"]],
-        "tests": [[py, "-m", "unittest",
-                   "packaging.steamrt4.test_apprun",
-                   "packaging.steamrt4.test_steamdeck",
-                   "packaging.steamrt4.test_deploy_steamdeck"]],
+        "tests": [[py, "-m", "unittest", "discover", "-v",
+                   "-s", "packaging/steamrt4/tests", "-t", "packaging/steamrt4"]],
     }
     return execute(workflows[args.workflow])
 

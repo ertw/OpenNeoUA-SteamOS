@@ -9,10 +9,7 @@ import subprocess
 import tempfile
 import unittest
 
-try:
-    from build_steamdeck import create_apprun
-except ImportError:  # pragma: no cover
-    from packaging.steamrt4.build_steamdeck import create_apprun
+from build_steamdeck import create_apprun
 
 
 class AppRunTests(unittest.TestCase):

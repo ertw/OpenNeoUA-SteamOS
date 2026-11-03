@@ -1,22 +1,10 @@
-#!/usr/bin/env python3
-"""Exercise the resolver's legacy write destinations in a filesystem fixture."""
-
-from __future__ import annotations
-
-from pathlib import Path
-import subprocess
-import tempfile
-
-
-ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "src"
-
-HARNESS = r'''
 #include "common/utils.h"
+#include "filesystem_fixture.h"
 
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -44,12 +32,11 @@ static std::string expected(const std::string &path)
 
 int main()
 {
-    char temporary[] = "/tmp/openneoua-resolver-write-XXXXXX";
-    require(mkdtemp(temporary) != NULL, "cannot create resolver test directory");
-    require(chdir(temporary) == 0, "cannot enter resolver test directory");
+    FilesystemFixture fixture;
+    require(chdir(fixture.Path().c_str()) == 0, "cannot enter resolver test directory");
 
     const std::vector<std::string> read_only_roots = {
-        "Database", "Filters", "Interface", "Scripts", "Sounds", "Wireless"
+        "Collision", "Database", "Filters", "Interface", "Models", "Scripts", "Sounds", "Wireless"
     };
     const std::vector<std::string> legacy_write_roots = {"Env", "Save"};
 
@@ -79,6 +66,22 @@ int main()
             uaDataFirstResolvedWritePath(data_prefixed) == expected(data_prefixed),
             "Data-prefixed write destination changed: " + root
         );
+
+        // Packaged resources live beside Data, while upstream scripts use
+        // Data/Models/... and other Data-first paths. Both spellings must work.
+        const std::string read_path = root + "/read-probe.tmp";
+        const std::string data_read_path = "Data/" + read_path;
+        std::ofstream(read_path) << "legacy";
+        std::ofstream(data_read_path) << "data-first";
+        FSMgr::iDir::setBaseDir("");
+        for (const std::string &input : {read_path, data_read_path})
+            require(uaDataFirstResolvedReadPath(input) == expected(data_read_path),
+                    "Data-first read did not take precedence: " + input);
+        require(std::remove(data_read_path.c_str()) == 0, "cannot remove Data read fixture");
+        FSMgr::iDir::setBaseDir("");
+        for (const std::string &input : {read_path, data_read_path})
+            require(uaDataFirstResolvedReadPath(input) == expected(read_path),
+                    "packaged root read fallback failed: " + input);
     }
     for (const std::string &root : legacy_write_roots)
     {
@@ -99,52 +102,6 @@ int main()
         FSMgr::iDir::setBaseDir("");
     }
 
-    std::puts("resolver write destination tests passed");
+    std::puts("data path resolution tests passed");
     return 0;
 }
-'''
-
-
-def run(command: list[str], cwd: Path | None = None) -> None:
-    result = subprocess.run(command, cwd=cwd, check=False, text=True)
-    if result.returncode != 0:
-        raise SystemExit(result.returncode)
-
-
-def main() -> int:
-    cflags = []
-    for package in ("sdl2", "lua5.4"):
-        cflags.extend(subprocess.check_output(["pkg-config", "--cflags", package], text=True).split())
-    libs = subprocess.check_output(["pkg-config", "--libs", "sdl2"], text=True).split()
-    with tempfile.TemporaryDirectory(prefix="OpenNeoUA resolver write test ") as temporary:
-        temporary_root = Path(temporary)
-        harness = temporary_root / "resolver_write_paths.cpp"
-        executable = temporary_root / "resolver_write_paths"
-        harness.write_text(HARNESS, encoding="utf-8")
-        run(
-            [
-                "g++",
-                "-std=c++14",
-                "-O0",
-                "-ffunction-sections",
-                "-fdata-sections",
-                "-I",
-                str(SRC),
-                *cflags,
-                str(harness),
-                str(SRC / "common/utils.cpp"),
-                str(SRC / "system/fsmgr.cpp"),
-                str(SRC / "common/env.cpp"),
-                "-Wl,--gc-sections",
-                *libs,
-                "-o",
-                str(executable),
-            ],
-            cwd=ROOT,
-        )
-        run([str(executable)], cwd=ROOT)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

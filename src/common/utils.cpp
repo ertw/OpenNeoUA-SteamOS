@@ -233,8 +233,8 @@ static bool uaStandaloneRootDir(const std::string &first, std::string *canonical
 static bool uaStandaloneReadRootDir(const std::string &first, std::string *canonical)
 {
     static const char *dirs[] = {
-        "3DS", "Database", "Env", "Filters", "Fonts", "Interface", "Levels",
-        "Locale", "Music", "Res", "Save", "Scripts", "Sounds", "Wireless"
+        "3DS", "Collision", "Database", "Env", "Filters", "Fonts", "Interface", "Levels",
+        "Locale", "Models", "Music", "Res", "Save", "Scripts", "Sounds", "Wireless"
     };
 
     for (const char *dir : dirs)

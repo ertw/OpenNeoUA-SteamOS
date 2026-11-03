@@ -6,10 +6,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-try:
-    import deploy_steamdeck as deployer
-except ImportError:  # pragma: no cover
-    from packaging.steamrt4 import deploy_steamdeck as deployer
+import deploy_steamdeck as deployer
 
 
 class DeploySteamDeckTests(unittest.TestCase):

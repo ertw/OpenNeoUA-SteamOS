@@ -5,12 +5,11 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from pathlib import Path
 import subprocess
 import sys
 
 
-ROOT = Path(__file__).resolve().parents[2]
+from config import REPOSITORY_ROOT
 PYTHON = sys.executable
 
 
@@ -31,7 +30,7 @@ TASKS = (
          (PYTHON, "packaging/steamrt4/deploy_steamdeck.py", "--rsync")),
     Task("build-deploy", "Build and deploy", "Build a private AppImage, then deploy the newest artifact.",
          (PYTHON, "packaging/steamrt4/dev_workflow.py", "build-deploy")),
-    Task("tests", "Run focused Deck tests", "Run AppImage, packaging, and deployment tests.",
+    Task("tests", "Run packaging tests", "Run all asset-free packaging and launcher tests.",
          (PYTHON, "packaging/steamrt4/dev_workflow.py", "tests")),
     Task("ci", "Run full SteamRT4 CI", "Compile, test, package, and checksum the redistributable build.",
          (PYTHON, "packaging/steamrt4/local_ci.py")),
@@ -40,7 +39,7 @@ TASKS = (
 
 def run_task(task: Task) -> int:
     print("\n\033[1;36m{}\033[0m\n{}\n".format(task.title, task.description))
-    return subprocess.run(task.command, cwd=ROOT, check=False).returncode
+    return subprocess.run(task.command, cwd=REPOSITORY_ROOT, check=False).returncode
 
 
 def interactive() -> int:

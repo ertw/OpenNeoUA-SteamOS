@@ -355,6 +355,7 @@ void TestVirtualController()
 
 int main()
 {
+    SDL_SetMainReady();
     TestSticksAndTriggers();
     TestContexts();
     TestStickyDriveAxis();

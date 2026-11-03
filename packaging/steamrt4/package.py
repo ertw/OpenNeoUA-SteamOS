@@ -18,14 +18,15 @@ import shutil
 import stat
 import subprocess
 import sys
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
 
+from config import ASSET_DIRECTORIES, ASSET_FILES, REPOSITORY_ROOT, STEAMRT4_VERSION
 
-RUNTIME_VERSION = "4.0.20260805.254769"
+
 RUNTIME_BASE_URL = (
-    "https://repo.steampowered.com/steamrt4/images/" + RUNTIME_VERSION + "/"
+    "https://repo.steampowered.com/steamrt4/images/" + STEAMRT4_VERSION + "/"
 )
 RUNTIME_MANIFEST = (
     "com.valvesoftware.SteamRuntime.Platform-amd64,i386-steamrt4.manifest.dpkg"
@@ -45,38 +46,8 @@ FONT_CHECKSUMS = {
     "textar.ttf": "23a45bd8acec486e94add0cfd9e4ccef99a9502e11e8af8467d651e2e01c4105",
 }
 
-ALLOWED_ASSET_ROOTS = (
-    "3ds",
-    "Database",
-    "Env",
-    "Filters",
-    "Fonts",
-    "Interface",
-    "Locale",
-    "Res",
-    "Scripts",
-    "Sounds",
-    "Wireless",
-)
-PACKAGE_TOP_LEVEL = (
-    "OpenNeoUA.sh",
-    "bin",
-    "lib",
-    "Fonts",
-    "3ds",
-    "Database",
-    "Env",
-    "Filters",
-    "Interface",
-    "Locale",
-    "Res",
-    "Scripts",
-    "Sounds",
-    "Wireless",
-    "licenses",
-    "BUILD-INFO.txt",
-    "MANIFEST.sha256",
-)
+PACKAGE_DIRECTORIES = ("bin", "lib", *ASSET_DIRECTORIES, "licenses")
+PACKAGE_TOP_LEVEL = (*ASSET_FILES, *PACKAGE_DIRECTORIES, "BUILD-INFO.txt", "MANIFEST.sha256")
 DEPENDENCY_PACKAGES = (
     "cmake",
     "ninja-build",
@@ -849,20 +820,21 @@ def verify_required_elf_families(closure: ElfClosure) -> None:
 
 
 def tracked_allowlist(source_root: Path) -> List[str]:
-    arguments = ["git", "-C", str(source_root), "ls-files", "-z", "--", "OpenNeoUA.sh"]
-    arguments.extend(ALLOWED_ASSET_ROOTS)
+    arguments = ["git", "-C", str(source_root), "ls-files", "-z", "--", *ASSET_FILES]
+    arguments.extend(ASSET_DIRECTORIES)
     output = subprocess.run(arguments, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     if output.returncode != 0:
         fail("git ls-files allowlist failed: {}".format(output.stderr.decode(errors="replace").strip()))
     paths = [item.decode("utf-8") for item in output.stdout.split(b"\0") if item]
-    if "OpenNeoUA.sh" not in paths:
-        fail("OpenNeoUA.sh is not tracked by Git")
+    for required in ASSET_FILES:
+        if required not in paths:
+            fail("{} is not tracked by Git".format(required))
     return paths
 
 
 def copy_tracked_assets(source_root: Path, staging_root: Path) -> None:
     paths = tracked_allowlist(source_root)
-    allowed = {"OpenNeoUA.sh"}.union(ALLOWED_ASSET_ROOTS)
+    allowed = set(ASSET_FILES).union(ASSET_DIRECTORIES)
     root_resolved = source_root.resolve()
     for relative in paths:
         posix = safe_relative(relative)
@@ -875,7 +847,12 @@ def copy_tracked_assets(source_root: Path, staging_root: Path) -> None:
             fail("tracked package input must be a regular file: {}".format(relative))
         if source.resolve() != source and not is_relative_to(source.resolve(), root_resolved):
             fail("tracked package input escapes source root: {}".format(relative))
-        destination = staging_root.joinpath(*posix.parts)
+        # The retail payload uses Levels/BG. Match it so the new Workshop
+        # background merges into that directory on case-sensitive Linux filesystems.
+        parts = posix.parts
+        if len(parts) > 1 and parts[0] == "Levels" and parts[1].casefold() == "bg":
+            parts = ("Levels", "BG", *parts[2:])
+        destination = staging_root.joinpath(*parts)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, destination)
         os.chmod(destination, stat.S_IMODE(mode))
@@ -989,9 +966,9 @@ def write_build_info(
             "Source repository: {}".format(repository),
             "Source commit timestamp: {}".format(build_time or "unknown"),
             "Architecture: x86_64",
-            "Steam Linux Runtime version: {}".format(RUNTIME_VERSION),
+            "Steam Linux Runtime version: {}".format(STEAMRT4_VERSION),
             "SteamRT4 container: registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:{}".format(
-                RUNTIME_VERSION
+                STEAMRT4_VERSION
             ),
             "Runtime Debian package manifest entries: {}".format(runtime_package_count),
             "Runtime SHA256SUMS: {}".format(
@@ -1099,22 +1076,7 @@ def verify_package_layout(staging_root: Path) -> None:
     top_level = sorted(path.name for path in staging_root.iterdir())
     if top_level != sorted(PACKAGE_TOP_LEVEL):
         fail("package top-level layout mismatch: {}".format(", ".join(top_level)))
-    for directory in (
-        "bin",
-        "lib",
-        "Fonts",
-        "3ds",
-        "Database",
-        "Env",
-        "Filters",
-        "Interface",
-        "Locale",
-        "Res",
-        "Scripts",
-        "Sounds",
-        "Wireless",
-        "licenses",
-    ):
+    for directory in PACKAGE_DIRECTORIES:
         if not (staging_root / directory).is_dir():
             fail("package entry is not a directory: {}".format(directory))
     if sorted(path.name for path in (staging_root / "bin").iterdir()) != sorted(BIN_PACKAGE_FILES):
@@ -1137,6 +1099,8 @@ def verify_package_layout(staging_root: Path) -> None:
                 runpath
             )
         )
+    for filename in ASSET_FILES:
+        require_regular_file(staging_root / filename, "packaged configuration or launcher")
     launcher = staging_root / "OpenNeoUA.sh"
     require_regular_file(launcher, "OpenNeoUA launcher")
     if not os.access(launcher, os.X_OK):
@@ -1213,15 +1177,14 @@ def create_archive(
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    default_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-root", type=Path, default=default_root)
+    parser.add_argument("--source-root", type=Path, default=REPOSITORY_ROOT)
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--staging-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--runtime-dir", type=Path)
     parser.add_argument("--runtime-base-url", default=RUNTIME_BASE_URL)
-    parser.add_argument("--runtime-version", default=RUNTIME_VERSION)
+    parser.add_argument("--runtime-version", default=STEAMRT4_VERSION)
     parser.add_argument("--dependency-report", type=Path)
     parser.add_argument(
         "--dirty-base-commit",
@@ -1237,10 +1200,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         build_dir = args.build_dir.resolve()
         staging_root = args.staging_dir.resolve()
         output_dir = args.output_dir.resolve()
-        if args.runtime_version != RUNTIME_VERSION:
+        if args.runtime_version != STEAMRT4_VERSION:
             fail(
                 "only pinned SteamRT4 version {} is supported (got {})".format(
-                    RUNTIME_VERSION, args.runtime_version
+                    STEAMRT4_VERSION, args.runtime_version
                 )
             )
         if not build_dir.is_dir():

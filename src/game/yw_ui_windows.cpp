@@ -245,7 +245,6 @@ void yw_FinalizeTopLevelGameplayOverlays(NC_STACK_ypaworld *yw)
     // These transitions may occur after the frame's analog-input pass. Keep
     // the overlay from surviving underneath a newer top-level gameplay state.
     if ( !yw->_userRobo || exit_menu.IsOpen() ||
-         yw->HasActiveNewGemNotification() ||
          yw->_gamePaused || yw->_gameplayPauseRequested ||
          yw->IsSpectatorControlled() ||
          yw->_userUnit->_status == BACT_STATUS_DEAD ||

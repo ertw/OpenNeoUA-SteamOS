@@ -857,7 +857,7 @@ void Init(bool enabled, const std::string &buildTag)
         return;
     }
 
-    g_sessionDirPhysical = uaDataFirstResolvedWritePath(g_sessionDirLogical);
+    g_sessionDirPhysical = FSMgr::iDir::resolveUserPath(uaDataFirstResolvedWritePath(g_sessionDirLogical));
 #ifdef _WIN32
     GetModuleFileNameA(nullptr, g_executablePath, sizeof(g_executablePath));
     GetFullPathNameA(JoinPath(g_sessionDirPhysical, "CrashReport.txt").c_str(),

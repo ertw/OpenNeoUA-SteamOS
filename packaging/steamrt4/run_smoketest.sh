@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the OpenNeoUA menu/campaign-map smoke test inside this image.
+# Run the OpenNeoUA menu smoke test inside this image.
 #
 # Usage:
 #   run_smoketest.sh /input/OpenNeoUA.AppImage [/output/results]

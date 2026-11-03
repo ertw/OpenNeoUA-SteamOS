@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the rendered title/campaign-map smoke test against a private AppImage.
+"""Run the rendered title/options/title smoke test against a private AppImage.
 
 Uses the dedicated ``openneoua-smoketest`` Docker image when Docker is available.
 On Linux hosts with ``xvfb-run``, the extracted AppImage can also be executed
@@ -21,17 +21,14 @@ import tempfile
 import time
 from typing import Iterable, Mapping, Sequence
 
+from config import SMOKETEST_IMAGE
 
-STEAMRT4_VERSION = "4.0.20260805.254769"
-SMOKETEST_IMAGE = "openneoua-smoketest:" + STEAMRT4_VERSION
-STEAMDECK_IMAGE = "openneoua-steamdeck-appimage:" + STEAMRT4_VERSION
-IMAGE = SMOKETEST_IMAGE
+
 WIDTH = 1280
 HEIGHT = 800
 DEFAULT_OUTPUT = Path("build/steamdeck-private/test-results")
-EXPECTED_MODES_V2 = ("ENVMODE_TITLE", "ENVMODE_SINGLEPLAY")
-REQUIRED_SCREENSHOTS_V2 = ("title-before", "campaign-map")
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+EXPECTED_MODES = ("ENVMODE_TITLE", "ENVMODE_SETTINGS", "ENVMODE_TITLE")
+REQUIRED_SCREENSHOTS = ("title-before", "options", "title-after")
 
 
 class SmokeTestError(RuntimeError):
@@ -100,8 +97,9 @@ def parse_ppm(path: Path) -> tuple[int, int, bytes]:
         width, height, maxval = (int(item) for item in tokens)
     except ValueError as exc:
         raise SmokeTestError("invalid PPM dimensions: {}".format(path.name)) from exc
-    while cursor < len(data) and data[cursor] in b" \t\r\n":
-        cursor += 1
+    if cursor >= len(data) or data[cursor] not in b" \t\r\n":
+        raise SmokeTestError("PPM header has no raster separator")
+    cursor += 1
     if width <= 0 or height <= 0 or maxval != 255:
         raise SmokeTestError("unsupported PPM header: {}".format(path.name))
     pixels = data[cursor:]
@@ -117,61 +115,32 @@ def pixel_variance(pixels: bytes) -> float:
     return sum((value - mean) ** 2 for value in pixels) / len(pixels)
 
 
-def validate_screenshots(paths: Mapping[str, Path] | Iterable[Path]) -> dict[str, object]:
-    if isinstance(paths, Mapping):
-        named = dict(paths)
-    else:
-        ordered = sorted(paths)
-        if len(ordered) != len(REQUIRED_SCREENSHOTS_V2):
-            raise SmokeTestError("expected exactly {} menu screenshots".format(len(REQUIRED_SCREENSHOTS_V2)))
-        named = dict(zip(REQUIRED_SCREENSHOTS_V2, ordered))
-    if any(key not in named for key in REQUIRED_SCREENSHOTS_V2):
-        raise SmokeTestError("screenshots must include {}".format(", ".join(REQUIRED_SCREENSHOTS_V2)))
+def validate_screenshots(named: Mapping[str, Path]) -> dict[str, object]:
+    if any(key not in named for key in REQUIRED_SCREENSHOTS):
+        raise SmokeTestError("screenshots must include {}".format(", ".join(REQUIRED_SCREENSHOTS)))
     values: dict[str, tuple[int, int, bytes]] = {}
-    for key in REQUIRED_SCREENSHOTS_V2:
+    variances: dict[str, float] = {}
+    for key in REQUIRED_SCREENSHOTS:
         width, height, pixels = parse_ppm(Path(named[key]))
         if (width, height) != (WIDTH, HEIGHT):
             raise SmokeTestError("{} has dimensions {}x{}, expected {}x{}".format(key, width, height, WIDTH, HEIGHT))
-        if pixel_variance(pixels) <= 2.0:
+        variances[key] = pixel_variance(pixels)
+        if variances[key] <= 2.0:
             raise SmokeTestError("{} framebuffer is blank or nearly uniform".format(key))
         values[key] = (width, height, pixels)
-    title_hash = hashlib.sha256(values["title-before"][2]).hexdigest()
-    map_hash = hashlib.sha256(values["campaign-map"][2]).hexdigest()
-    if title_hash == map_hash:
-        raise SmokeTestError("title and campaign-map framebuffer captures are identical")
+    hashes = {key: hashlib.sha256(values[key][2]).hexdigest() for key in REQUIRED_SCREENSHOTS}
+    if hashes["options"] in (hashes["title-before"], hashes["title-after"]):
+        raise SmokeTestError("title and options framebuffer captures are identical")
     return {
-        "dimensions": {key: [values[key][0], values[key][1]] for key in REQUIRED_SCREENSHOTS_V2},
-        "variance": {key: pixel_variance(values[key][2]) for key in REQUIRED_SCREENSHOTS_V2},
-        "sha256": {"title-before": title_hash, "campaign-map": map_hash},
+        "dimensions": {key: [values[key][0], values[key][1]] for key in REQUIRED_SCREENSHOTS},
+        "variance": variances,
+        "sha256": hashes,
     }
 
 
-def _mode_name(value: object) -> str:
-    if isinstance(value, str):
-        return value
-    # Smoke-controller versions may report numeric enum values.  The title is
-    # the historical 0/1 menu state and settings is 5 in the original engine;
-    # accept only those known values.
-    if value == 0:
-        return "ENVMODE_TITLE"
-    if value == 5:
-        return "ENVMODE_SINGLEPLAY"
-    if value == 1:
-        return "ENVMODE_SETTINGS"
-    return str(value)
-
-
 def validate_smoke_report(report: Mapping[str, object]) -> None:
-    version = report.get("version")
-    if version not in (1, 2):
+    if report.get("version") != 1:
         raise SmokeTestError("unsupported menu smoke report version")
-    if version == 1:
-        _validate_smoke_report_v1(report)
-        return
-    _validate_smoke_report_v2(report)
-
-
-def _validate_smoke_report_v1(report: Mapping[str, object]) -> None:
     milestones = report.get("milestones")
     if not isinstance(milestones, list):
         raise SmokeTestError("smoke report has no milestone sequence")
@@ -181,46 +150,15 @@ def _validate_smoke_report_v1(report: Mapping[str, object]) -> None:
             mode = item.get("mode", item.get("state"))
         else:
             mode = item
-        modes.append(_mode_name(mode))
+        modes.append(mode)
     compact: list[str] = []
     for mode in modes:
         if not compact or compact[-1] != mode:
             compact.append(mode)
-    if tuple(compact) != ("ENVMODE_TITLE", "ENVMODE_SETTINGS", "ENVMODE_TITLE"):
-        raise SmokeTestError("unexpected legacy menu transition sequence: {}".format(compact))
-    if report.get("final_mode") not in ("ENVMODE_TITLE", 0):
-        raise SmokeTestError("smoke test did not return to title mode")
-    _validate_common_report_fields(report)
-
-
-def _validate_smoke_report_v2(report: Mapping[str, object]) -> None:
-    if report.get("steam_input") is not True:
-        raise SmokeTestError("smoke report did not use Steam Input")
-    milestones = report.get("milestones")
-    if not isinstance(milestones, list):
-        raise SmokeTestError("smoke report has no milestone sequence")
-    modes: list[str] = []
-    for item in milestones:
-        if isinstance(item, Mapping):
-            mode = item.get("mode", item.get("state"))
-        else:
-            mode = item
-        modes.append(_mode_name(mode))
-    compact: list[str] = []
-    for mode in modes:
-        if not compact or compact[-1] != mode:
-            compact.append(mode)
-    if tuple(compact) != EXPECTED_MODES_V2:
+    if tuple(compact) != EXPECTED_MODES:
         raise SmokeTestError("unexpected menu transition sequence: {}".format(compact))
-    if report.get("final_mode") not in ("ENVMODE_SINGLEPLAY", 5):
-        raise SmokeTestError("smoke test did not finish on campaign map select")
-    selected = report.get("selected_region")
-    if not isinstance(selected, int) or selected <= 0:
-        raise SmokeTestError("smoke report has no selected campaign map region")
-    _validate_common_report_fields(report)
-
-
-def _validate_common_report_fields(report: Mapping[str, object]) -> None:
+    if report.get("final_mode") != "ENVMODE_TITLE":
+        raise SmokeTestError("smoke test did not return to title mode")
     if report.get("clean_teardown") is not True:
         raise SmokeTestError("smoke test did not report clean teardown")
     resolution = report.get("resolution")
@@ -231,7 +169,7 @@ def _validate_common_report_fields(report: Mapping[str, object]) -> None:
         raise SmokeTestError("smoke report is missing packaged asset provenance")
 
 
-def _tree_snapshot(root: Path) -> dict[str, tuple[int, int, int, int]]:
+def snapshot_tree(root: Path) -> dict[str, tuple[int, int, int, int]]:
     if not root.exists():
         return {}
     result: dict[str, tuple[int, int, int, int]] = {}
@@ -278,12 +216,6 @@ def _tree_snapshot(root: Path) -> dict[str, tuple[int, int, int, int]]:
         else:
             raise SmokeTestError("sandbox contains a special file: {}".format(path))
     return result
-
-
-def snapshot_tree(root: Path) -> dict[str, tuple[int, int, int, int]]:
-    """Public alias used by asset-free tests."""
-
-    return _tree_snapshot(root)
 
 
 def assert_no_external_writes(
@@ -341,16 +273,16 @@ def _find_report(root: Path) -> Path:
 
 def _find_screenshots(root: Path) -> dict[str, Path]:
     candidates = sorted(root.rglob("*.ppm"))
-    if len(candidates) < len(REQUIRED_SCREENSHOTS_V2):
-        raise SmokeTestError("expected at least {} framebuffer screenshots, found {}".format(len(REQUIRED_SCREENSHOTS_V2), len(candidates)))
+    if len(candidates) < len(REQUIRED_SCREENSHOTS):
+        raise SmokeTestError("expected at least {} framebuffer screenshots, found {}".format(len(REQUIRED_SCREENSHOTS), len(candidates)))
     named: dict[str, Path] = {}
     for path in candidates:
-        lower = path.stem.lower()
-        if "campaign" in lower or "map" in lower:
-            named["campaign-map"] = path
-        elif "before" in lower or lower.endswith("title"):
-            named["title-before"] = path
-    if len(named) != len(REQUIRED_SCREENSHOTS_V2):
+        for name in REQUIRED_SCREENSHOTS:
+            if path.stem.lower().startswith("menu-" + name) or path.stem.lower() == name:
+                if name in named:
+                    raise SmokeTestError("duplicate screenshot: {}".format(name))
+                named[name] = path
+    if len(named) != len(REQUIRED_SCREENSHOTS):
         raise SmokeTestError("could not classify screenshots: {}".format([path.name for path in candidates]))
     return named
 
@@ -392,40 +324,6 @@ def _make_work_tree_removable(root: Path) -> None:
         if not stat.S_ISLNK(info.st_mode):
             path.chmod(stat.S_IMODE(info.st_mode) | stat.S_IWUSR)
     root.chmod(stat.S_IMODE(root.stat().st_mode) | stat.S_IWUSR)
-
-
-def _docker_extract(appimage: Path, destination: Path) -> Path:
-    """Extract the AppImage in a throw-away staging directory."""
-
-    if shutil.which("docker") is None:
-        raise SmokeTestError("Docker is unavailable for Linux AppImage smoke test")
-    destination.mkdir(parents=True, exist_ok=True)
-    command = [
-        "docker", "run", "--rm", "--platform", "linux/amd64",
-        "--mount", "type=bind,src={},dst=/input/OpenNeoUA.AppImage,readonly".format(appimage.resolve()),
-        "--mount", "type=bind,src={},dst=/extract".format(destination.resolve()),
-        IMAGE,
-        "bash", "-lc",
-        "set -eu; cd /extract; "
-        "if /input/OpenNeoUA.AppImage --appimage-extract > /extract/extract.log 2>&1; then "
-        "  :; "
-        "else "
-        "  offset=\"$(LC_ALL=C grep -abo 'hsqs' /input/OpenNeoUA.AppImage | tail -n 1 | cut -d: -f1)\"; "
-        "  test -n \"$offset\"; "
-        "  unsquashfs -quiet -offset \"$offset\" -d /extract/squashfs-root /input/OpenNeoUA.AppImage >>/extract/extract.log 2>&1; "
-        "fi; "
-        "test -d /extract/squashfs-root",
-    ]
-    try:
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=180, check=False)
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        raise SmokeTestError("Docker AppImage extraction failed: {}".format(exc)) from exc
-    if result.returncode != 0:
-        raise SmokeTestError("Docker AppImage extraction failed: {}".format((result.stdout or "").strip()[-800:]))
-    root = destination / "squashfs-root"
-    if not root.is_dir() or root.is_symlink():
-        raise SmokeTestError("Docker extraction did not create squashfs-root")
-    return root
 
 
 def _run_smoke(root: Path, smoke_dir: Path, log: Path, timeout: int) -> None:
@@ -479,7 +377,7 @@ def _docker_run_full_smoke(appimage: Path, output_dir: Path, work: Path, log: Pa
         "--mount", "type=bind,src={},dst=/output".format(docker_output.resolve()),
         "--mount", "type=bind,src={},dst=/work".format(work.resolve()),
         "-e", "SMOKETEST_TIMEOUT={}".format(timeout),
-        IMAGE,
+        SMOKETEST_IMAGE,
         "/opt/openneoua/packaging/steamrt4/run_smoketest.sh",
         "/input/OpenNeoUA.AppImage",
         "/output",
@@ -510,42 +408,6 @@ def _docker_run_full_smoke(appimage: Path, output_dir: Path, work: Path, log: Pa
         shutil.copytree(screenshots_src, screenshots_dst)
 
 
-def _refresh_image_command(snapshot: Path) -> list[str]:
-    """Build the smoketest image exclusively from local_ci's sanitized snapshot."""
-
-    dockerfile = snapshot / "packaging" / "steamrt4" / "Dockerfile.smoketest"
-    if snapshot.is_symlink() or not snapshot.is_dir() or not dockerfile.is_file():
-        raise SmokeTestError("sanitized SteamRT4 snapshot is invalid")
-    if any(child.name.casefold() == "ua-complete" for child in snapshot.iterdir()):
-        raise SmokeTestError("sanitized Docker context contains UA-Complete")
-    vendor_iso = snapshot / "vendor" / "ua.iso"
-    if vendor_iso.is_file() or vendor_iso.is_symlink():
-        raise SmokeTestError("sanitized Docker context contains vendor/ua.iso")
-    return [
-        "docker", "build", "--platform", "linux/amd64", "--tag", IMAGE,
-        "--file", str(dockerfile), "--pull", str(snapshot),
-    ]
-
-
-def _refresh_test_image(output: Path) -> None:
-    """Refresh both local CI and the cached smoke-test image."""
-
-    try:
-        from build_steamdeck import _docker_run, _run_local_ci
-    except ImportError:  # pragma: no cover - package execution fallback
-        from packaging.steamrt4.build_steamdeck import _docker_run, _run_local_ci
-    refresh_work = Path(tempfile.mkdtemp(prefix="refresh-image-", dir=str(output.parent)))
-    try:
-        _archive, _source_id, _source_state, snapshot = _run_local_ci(REPOSITORY_ROOT, refresh_work, True)
-        _docker_run(_refresh_image_command(snapshot))
-    except SmokeTestError:
-        raise
-    except Exception as exc:
-        raise SmokeTestError("unable to refresh SteamRT4 smoke image: {}".format(exc)) from exc
-    finally:
-        shutil.rmtree(refresh_work, ignore_errors=True)
-
-
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--appimage", type=Path, required=True)
@@ -564,7 +426,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         appimage = args.appimage.expanduser().resolve()
         digest = validate_external_checksum(appimage)
         if args.refresh_image:
-            _refresh_test_image(output)
+            subprocess.run([sys.executable, str(Path(__file__).with_name("build_smoketest_image.py")), "--pull"], check=True)
         work_parent = output.parent / "work"
         work_parent.mkdir(parents=True, exist_ok=True)
         work = Path(tempfile.mkdtemp(prefix="menu-", dir=work_parent))
@@ -617,7 +479,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "status": "passed",
                 "appimage": str(appimage),
                 "appimage_sha256": digest,
-                "smoketest_image": IMAGE,
+                "smoketest_image": SMOKETEST_IMAGE,
                 "report": str(report_target),
                 "screenshots": copied,
                 "screenshot_validation": screenshot_report,
@@ -631,7 +493,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 shutil.rmtree(work, ignore_errors=True)
         return 0
     except (SmokeTestError, OSError, json.JSONDecodeError, ValueError) as exc:
-        print("test_game_menu.py: {}".format(exc), file=sys.stderr)
+        print("smoke_test.py: {}".format(exc), file=sys.stderr)
         return 2
 
 

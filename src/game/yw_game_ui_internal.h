@@ -563,4 +563,6 @@ void sb_0x4d7c08__sub0__sub2(NC_STACK_ypaworld *yw);
 void ypaworld_func2__sub0__sub1(NC_STACK_ypaworld *yw, NC_STACK_ypabact *bact1, NC_STACK_ypabact *bact2);
 int sub_4D3C80(NC_STACK_ypaworld *yw);
 
+void yw_UpdateCommandPanelState(NC_STACK_ypaworld *yw);
+
 #endif // YW_GAME_UI_INTERNAL_H_INCLUDED

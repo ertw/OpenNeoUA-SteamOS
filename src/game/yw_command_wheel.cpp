@@ -161,8 +161,6 @@ bool ShouldForceClose(NC_STACK_ypaworld *yw, TInputState *inpt)
         return true;
     if ( yw->IsSpectatorControlled() )
         return true;
-    if ( yw->HasActiveNewGemNotification() )
-        return true;
     if ( exit_menu.IsOpen() )
         return true;
     if ( yw->_gamePaused || yw->_gameplayPauseRequested )

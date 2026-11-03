@@ -1,5 +1,6 @@
 // Runs the real diagnostic service in a disposable process, without the game.
 #include "common/crashdiag.h"
+#include "system/fsmgr.h"
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -12,6 +13,7 @@
 
 // Only the filesystem routing is replaced: each probe owns its working directory.
 std::string uaDataFirstResolvedWritePath(const std::string &path) { return path; }
+std::string FSMgr::iDir::resolveUserPath(const std::string &path) { return path; }
 std::string uaDataFirstNucleusIniPath() { return "Nucleus.ini"; }
 std::string uaDataFirstOpenNeoUAIniPath() { return "OpenNeoUA.ini"; }
 bool uaCreateDir(const std::string &path) { return _mkdir(path.c_str()) == 0 || errno == EEXIST; }
